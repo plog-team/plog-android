@@ -6,6 +6,12 @@
     <color name="purple_500">#9C63F5</color>
     <color name="purple_700">#7B3FE4</color>
     <color name="gray_100">#F5F5F5</color>
+    <color name="gray_200">#E0E0E0</color>
+    <color name="gray_300">#CFCFCF</color>
     <color name="gray_400">#9E9E9E</color>
+    <color name="gray_700">#424242</color>
     <color name="text_primary">#1A1A1A</color>
+    <color name="diary_line">#D6D6D6</color>
+    <color name="diary_placeholder">#EEEEEE</color>
+    <color name="diary_purple_light">#EFE5FF</color>
 </resources>
