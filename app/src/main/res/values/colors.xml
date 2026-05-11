@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 편하게 수정하셔도 됩니다 -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="purple_500">#9C63F5</color>
+    <color name="purple_700">#7B3FE4</color>
+    <color name="gray_100">#F5F5F5</color>
+    <color name="gray_400">#9E9E9E</color>
+    <color name="text_primary">#1A1A1A</color>
+</resources>
