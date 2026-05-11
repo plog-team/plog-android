@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/nav_home"
+    <item android:id="@+id/homeFragment"
         android:icon="@drawable/ic_home"
         android:title="홈" />
-    <item android:id="@+id/nav_recommend"
+    <item android:id="@+id/recommendFragment"
         android:icon="@drawable/ic_recommend"
         android:title="추천" />
-    <item android:id="@+id/nav_local"
+    <item android:id="@+id/localFragment"
         android:icon="@drawable/ic_local"
         android:title="로컬" />
-    <item android:id="@+id/nav_search"
+    <item android:id="@+id/searchFragment"
         android:icon="@drawable/ic_search"
         android:title="검색" />
-    <item android:id="@+id/nav_my"
+    <item android:id="@+id/myFragment"
         android:icon="@drawable/ic_my"
         android:title="My" />
 </menu>
