@@ -3,6 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/nav_graph"
     app:startDestination="@id/homeFragment">
+<!--    테스트후에 @id/homeFragment로 변경-->
 
     <fragment
         android:id="@+id/homeFragment"
@@ -24,4 +25,9 @@
         android:id="@+id/myFragment"
         android:name="com.example.plog.ui.my.MyFragment"
         android:label="My" />
+
+    <fragment
+        android:id="@+id/autoFillFragment"
+        android:name="com.example.plog.autofill.AutoFillFragment"
+        android:label="자동입력" />
 </navigation>
