@@ -24,4 +24,47 @@
         android:id="@+id/myFragment"
         android:name="com.example.plog.ui.my.MyFragment"
         android:label="My" />
+    <fragment
+        android:id="@+id/aiGuideEntryFragment"
+        android:name="com.example.plog.ui.aiguide.AiGuideEntryFragment"
+        android:label="AI 가이드">
+        <action
+            android:id="@+id/action_entry_to_session"
+            app:destination="@id/aiGuideSessionFragment" />
+        <action
+            android:id="@+id/action_entry_to_chat"
+            app:destination="@id/aiGuideChatFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/aiGuideChatFragment"
+        android:name="com.example.plog.ui.aiguide.AiGuideChatFragment"
+        android:label="대화 가이드">
+        <argument
+            android:name="sessionId"
+            app:argType="long"
+            android:defaultValue="-1L" />
+        <argument
+            android:name="firstMessage"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+    </fragment>
+    <fragment
+        android:id="@+id/aiGuideSessionFragment"
+        android:name="com.example.plog.ui.aiguide.AiGuideSessionFragment"
+        android:label="가이드 질문">
+        <argument
+            android:name="sessionId"
+            app:argType="long"
+            android:defaultValue="-1L" />
+    </fragment>
+    <fragment
+        android:id="@+id/aiGuideDraftFragment"
+        android:name="com.example.plog.ui.aiguide.AiGuideDraftFragment"
+        android:label="AI 초안">
+        <argument
+            android:name="sessionId"
+            app:argType="long"
+            android:defaultValue="-1L" />
+    </fragment>
 </navigation>
