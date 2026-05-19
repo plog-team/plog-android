@@ -1,12 +1,24 @@
 package com.example.plog.autofill;
 
-import android.Manifest;import android.app.Activity;import android.content.Intent;import android.content.pm.PackageManager;import android.net.Uri;import android.os.Build;import android.os.Bundle;import android.provider.MediaStore;import android.view.LayoutInflater;import android.view.View;import android.view.ViewGroup;import android.widget.EditText;import android.widget.ImageView;import android.widget.TextView;
+import android.Manifest;import android.app.Activity;import android.content.Intent;import android.content.pm.PackageManager;import android.net.Uri;import android.os.Build;import android.os.Bundle;import android.provider.MediaStore;
+import android.util.Log;
+import android.view.LayoutInflater;import android.view.View;import android.view.ViewGroup;import android.widget.EditText;import android.widget.ImageView;import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;import androidx.activity.result.contract.ActivityResultContracts;import androidx.annotation.NonNull;import androidx.annotation.Nullable;import androidx.appcompat.app.AlertDialog;import androidx.core.content.ContextCompat;import androidx.exifinterface.media.ExifInterface;import androidx.fragment.app.Fragment;
 
 import com.example.plog.R;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.IOException;import java.io.InputStream;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Request;
+import okhttp3.Response;
+
 
 public class AutoFillFragment extends Fragment {
 
@@ -194,10 +206,11 @@ public class AutoFillFragment extends Fragment {
         ) {
             if (inputStream == null) return;
 
+            //이미지 EXIF 읽는 객체생성
             ExifInterface exif =
                     new ExifInterface(inputStream);
 
-            // 촬영 날짜 읽기
+            // 촬영 날짜 읽기 없으면 일반날짜태그 읽기
             String dateTime =
                     exif.getAttribute(
                             ExifInterface.TAG_DATETIME_ORIGINAL
@@ -213,25 +226,41 @@ public class AutoFillFragment extends Fragment {
             String displayDate =
                     formatExifDateTime(dateTime);
 
-            // GPS 위치 읽기
+            // GPS 위치 읽기(위도,경도)
             double[] latLong =
                     exif.getLatLong();
 
-            String locationText =
-                    latLong != null
-                            ? String.format(
-                            "위도: %.6f, 경도: %.6f",
-                            latLong[0],
-                            latLong[1]
-                    )
-                            : "GPS 위치 정보 없음";
+            if(latLong!=null){
+                double latitude = latLong[0];
+                double longitude = latLong[1];
+
+                //카카오맵,OpenWeather API 호출
+                getAddressFromKakao(latitude,longitude);
+                getWeatherFromOpenWeather(latitude,longitude);
+
+            }
+            else {
+                applyAutoFillData(
+                        new AutoFillData(
+                                displayDate,
+                                "날씨 API연결전",
+                                "GPS 위치정보 없음",
+                                imageUri
+
+                        )
+                );
+            }
+
+
+
+
 
             // 추출한 정보를 화면에 표시
             applyAutoFillData(
                     new AutoFillData(
                             displayDate,
                             "날씨 API 연결 전",
-                            locationText,
+                            "GPS위치정보 없음",
                             imageUri
                     )
             );
@@ -240,6 +269,195 @@ public class AutoFillFragment extends Fragment {
             e.printStackTrace();
         }
     }
+
+    //카카오 api요청(위도,경도 -> 주소)
+    private void getAddressFromKakao(double latitude,double longitude){
+        //OKHttp 클라이언트 생성
+        OkHttpClient client = new OkHttpClient();
+
+        //주소 요청양식
+        String url = "https://dapi.kakao.com/v2/local/geo/coord2address.json"+"?x="+longitude+"&y="+latitude+"&input_coord=WGS84";
+
+        Request request = new Request.Builder().url(url).addHeader("Authorization","KakaoAK cad55149d40de2258b65d10a8a3c3f58").build();
+
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+                Log.e(
+                        "KAKAO_API",
+                        "API 요청 실패",
+                        e
+                );
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String body = response.body().string();
+                try {
+                    Log.d(
+                            "KAKAO_API",
+                            "응답 원본: " + body
+                    );
+
+//                    도시 큰 단위 3개까지 반환
+                    JSONObject json = new JSONObject(body);
+                    JSONArray docs = json.getJSONArray("documents");
+                    JSONObject first = docs.getJSONObject(0);
+                    JSONObject addressObj = first.getJSONObject("address");
+                    String region1 = addressObj.getString("region_1depth_name");
+                    String region2 = addressObj.getString("region_2depth_name");
+                    String region3 = addressObj.getString("region_3depth_name");
+
+                    String address =region1+" "+region2+" "+region3;
+
+                    Log.d(
+                            "KAKAO_API",
+                            "주소: " + address
+                    );
+                    requireActivity().runOnUiThread(() ->
+                    {
+                        tvLocation.setText(address);
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+            }
+        });
+    }
+
+    // OpenWeather API 요청 함수
+    private void getWeatherFromOpenWeather(double latitude,double longitude){
+        //OKHttp 클라이언트 생성
+        OkHttpClient client = new OkHttpClient();
+
+        // OpenWeather API 요청 URL 생성
+        String url = "https://api.openweathermap.org/data/2.5/weather"+"?lat="+latitude+"&lon="+longitude
+                +"&units="+"metric"+"&lang=kr"+"&appid="+"009ff088b4325f66b2ab2ad8d94ec88f";
+
+        Request request = new Request.Builder().url(url).build();
+
+        // 비동기 요청 시작
+        client.newCall(request).enqueue(new Callback() {
+            // API 요청 실패 시 실행
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+                Log.e(
+                        "OpenWeather_API",
+                        "날씨API 요청 실패",
+                        e
+                );
+            }
+
+            // API 응답 성공 시 실행
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                // 응답 body가 없으면 종료
+                if(response.body()==null){return;}
+
+                // JSON 응답 문자열 저장
+                String body = response.body().string();
+
+                try {
+                    Log.d(
+                            "OpenWeather_API",
+                            "응답 원본: " + body
+                    );
+
+                    // JSON 문자열 → JSONObject 변환
+                    // main:현재날씨정보객체, temp:현재온도, weather:날씨배열
+                    JSONObject json = new JSONObject(body);
+                    JSONObject main = json.getJSONObject("main");
+                    double temp = main.getDouble("temp");
+                    JSONArray weatherArray = json.getJSONArray("weather");
+                    JSONObject weatherObj=weatherArray.getJSONObject(0);
+
+                    //OpenWeather의 큰 날씨 분류값
+                    //ex) Clear, Clouds, Rain, Snow, Thunderstorm, Mist
+                    String weatherMain = weatherObj.getString("main");
+
+                    String weatherName;
+                    String weatherIcon;
+
+                    switch(weatherMain) {
+                        case "Clear":
+                            weatherIcon = "☀️";
+                            weatherName = "맑음";
+                            break;
+
+                        case "Clouds":
+                            weatherIcon = "☁️";
+                            weatherName = "흐림";
+                            break;
+
+                        case "Rain":
+                            weatherIcon = "🌧️";
+                            weatherName = "비";
+                            break;
+
+                        case "Drizzle":
+                            weatherIcon = "🌦️";
+                            weatherName = "이슬비";
+                            break;
+
+                        case "Thunderstorm":
+                            weatherIcon = "⛈️";
+                            weatherName = "천둥번개";
+                            break;
+
+                        case "Snow":
+                            weatherIcon = "❄️";
+                            weatherName = "눈";
+                            break;
+
+                        case "Mist":
+                        case "Fog":
+                        case "Haze":
+                        case "Smoke":
+                        case "Dust":
+                        case "Sand":
+                        case "Ash":
+                            weatherIcon = "🌫️";
+                            weatherName = "안개/먼지";
+                            break;
+
+                        case "Squall":
+                        case "Tornado":
+                            weatherIcon = "🌪️";
+                            weatherName = "강풍";
+                            break;
+
+                        default:
+                            weatherIcon = "🌍";
+                            weatherName = "날씨 정보";
+                            break;
+                    }
+
+
+                    // 최종 출력 문자열 생성
+                    String weatherText = weatherIcon+" "+weatherName+" "+String.format("%.0f",temp)+"℃";
+
+                    requireActivity().runOnUiThread(() ->
+                    {
+                        tvWeather.setText(weatherText);
+                    });
+                } catch (Exception e) {
+                    Log.e(
+                            // JSON 파싱 실패 시
+                            "WEATHER_API",
+                            "JSON 파싱 오류",
+                            e
+                    );
+                    e.printStackTrace();
+                }
+
+            }
+        });
+    }
+
 
 
     // EXIF 날짜 형식을 보기 쉬운 문자열로 변환
