@@ -24,4 +24,25 @@
         android:id="@+id/myFragment"
         android:name="com.example.plog.ui.my.MyFragment"
         android:label="My" />
+
+    <fragment
+        android:id="@+id/notMatchedFragment"
+        android:name="com.example.plog.ui.exchange.NotMatchedFragment"
+        android:label="notMatchedFragment" />
+
+    <fragment
+        android:id="@+id/matchedFragment"
+        android:name="com.example.plog.ui.exchange.MatchedFragment"
+        android:label="matchedFragment" />
+
+    <fragment
+        android:id="@+id/matchingFragment"
+        android:name="com.example.plog.ui.exchange.MatchingFragment"
+        android:label="matchingFragment"/>
+
+    <fragment
+        android:id="@+id/matchConfirmFragment"
+        android:name="com.example.plog.ui.exchange.MatchConfirmFragment"
+        android:label="matchedConfirmFragment"/>
+
 </navigation>

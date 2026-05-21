@@ -41,6 +41,11 @@ public class MainActivity extends AppCompatActivity {
                 binding.tvTitle.setText("검색");
             } else if (destination.getId() == R.id.myFragment) {
                 binding.tvTitle.setText("My");
+            } else if (destination.getId() == R.id.notMatchedFragment ||
+                    destination.getId() == R.id.matchingFragment ||
+                    destination.getId() == R.id.matchedFragment ||
+                    destination.getId() == R.id.matchConfirmFragment) {
+                binding.tvTitle.setText("교환일기");
             }
         });
     }
