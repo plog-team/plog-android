@@ -24,6 +24,7 @@
             app:cardCornerRadius="60dp"
             app:cardElevation="0dp"
             app:cardBackgroundColor="#F0F0F0">
+
         </androidx.cardview.widget.CardView>
 
         <!-- 닉네임 -->
@@ -95,8 +96,9 @@
             android:layout_width="0dp"
             android:layout_height="16dp" />
 
-        <!-- 질문 문구 -->
+        <!-- 상태 문구 -->
         <TextView
+            android:id="@+id/tvMatchMessage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="이 사용자에게 교환일기를 신청할까요?"
@@ -104,12 +106,12 @@
             android:textSize="13sp"
             android:textStyle="bold" />
 
-        <!-- 버튼 -->
+        <!-- 버튼 영역 -->
         <LinearLayout
+            android:id="@+id/layoutButtons"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="16dp">
+            android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnAccept"
@@ -139,6 +141,19 @@
 
         </LinearLayout>
 
+        <!-- 신청 취소 버튼 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancel"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="220dp"
+            android:layout_height="56dp"
+            android:text="신청 취소"
+            android:textColor="#333333"
+            android:visibility="gone"
+            app:cornerRadius="20dp"
+            app:strokeColor="#333333" />
+
     </LinearLayout>
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
