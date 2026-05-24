@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/photoPickerFragment">
+
+    <fragment
+        android:id="@+id/photoPickerFragment"
+        android:name="com.example.plog.ui.photo.PhotoPickerFragment"
+        android:label="사진 선택">
+        <action
+            android:id="@+id/action_photoPickerFragment_to_analysisFragment"
+            app:destination="@id/analysisFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/mapFragment"
+        android:name="com.example.plog.ui.map.MapFragment"
+        android:label="지도" />
+
+    <fragment
+        android:id="@+id/analysisFragment"
+        android:name="com.example.plog.ui.analysis.AnalysisFragment"
+        android:label="월간 리포트" />
+
+</navigation>
