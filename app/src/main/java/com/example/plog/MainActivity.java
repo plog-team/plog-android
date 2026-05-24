@@ -32,10 +32,11 @@ public class MainActivity extends AppCompatActivity {
 
         // 탭 전환 시 상단 타이틀 변경
         navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
-            boolean isDiaryEdit = destination.getId() == R.id.diaryEditFragment;
-            binding.topBar.setVisibility(isDiaryEdit ? View.GONE : View.VISIBLE);
-            binding.divider.setVisibility(isDiaryEdit ? View.GONE : View.VISIBLE);
-            binding.bottomNavigation.setVisibility(isDiaryEdit ? View.GONE : View.VISIBLE);
+            boolean isDiaryScreen = destination.getId() == R.id.diaryEditFragment
+                    || destination.getId() == R.id.diaryDetailFragment;
+            binding.topBar.setVisibility(isDiaryScreen ? View.GONE : View.VISIBLE);
+            binding.divider.setVisibility(isDiaryScreen ? View.GONE : View.VISIBLE);
+            binding.bottomNavigation.setVisibility(isDiaryScreen ? View.GONE : View.VISIBLE);
 
             if (destination.getId() == R.id.homeFragment) {
                 binding.tvTitle.setText("홈");
