@@ -12,10 +12,13 @@ import com.example.plog.R
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.tabs.TabLayout
 
+
 class MatchedFragment : Fragment() {
 
     private var isMine = true
     private var currentDay = 1
+
+    private lateinit var tvUserName: TextView
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -24,6 +27,9 @@ class MatchedFragment : Fragment() {
     ): View {
 
         val view = inflater.inflate(R.layout.fragment_matched, container, false)
+
+        val partnerName =
+            arguments?.getString("partnerName") ?: "사용자"
 
         val typeTab = view.findViewById<TabLayout>(R.id.typeTab)
         val dayTab = view.findViewById<TabLayout>(R.id.dayTab)
@@ -35,6 +41,10 @@ class MatchedFragment : Fragment() {
         val tvLocation = view.findViewById<TextView>(R.id.tvLocation)
         val tvTitleDiary = view.findViewById<TextView>(R.id.tvTitleDiary)
         val tvBody = view.findViewById<TextView>(R.id.tvBody)
+
+
+        // 사용자 이름 TextView
+        tvUserName = view.findViewById(R.id.tvUserName)
 
         val btnEdit =
             view.findViewById<MaterialButton>(R.id.btn_start_match)
@@ -59,6 +69,9 @@ class MatchedFragment : Fragment() {
 
                 params.endToEnd =
                     ConstraintLayout.LayoutParams.UNSET
+
+                // 이름 숨기기
+                tvUserName.visibility = View.GONE
 
                 btnEdit.visibility = View.VISIBLE
 
@@ -108,6 +121,10 @@ class MatchedFragment : Fragment() {
 
                 params.endToEnd =
                     ConstraintLayout.LayoutParams.PARENT_ID
+
+                // 이름 보이기
+                tvUserName.visibility = View.VISIBLE
+                tvUserName.text = partnerName
 
                 btnEdit.visibility = View.GONE
 
