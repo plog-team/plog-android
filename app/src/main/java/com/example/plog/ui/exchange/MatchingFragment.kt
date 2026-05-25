@@ -16,7 +16,6 @@ class MatchingFragment : Fragment(R.layout.fragment_matching) {
             findNavController().navigate(
                 R.id.matchConfirmFragment
             )
-
         }, 2000)
     }
 }

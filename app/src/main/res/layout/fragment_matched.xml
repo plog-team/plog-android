@@ -112,7 +112,6 @@
                     android:layout_height="wrap_content"
                     android:paddingBottom="12dp">
 
-                    <!-- 프로필 원형 카드 -->
                     <androidx.cardview.widget.CardView
                         android:id="@+id/cvProfile"
                         android:layout_width="50dp"
@@ -120,7 +119,10 @@
                         app:cardCornerRadius="25dp"
                         app:cardElevation="0dp"
                         app:cardBackgroundColor="#E8E2FF"
+
                         app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent">
                     </androidx.cardview.widget.CardView>
