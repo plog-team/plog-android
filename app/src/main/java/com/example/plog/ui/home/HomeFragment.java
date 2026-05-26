@@ -4,10 +4,12 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
+
 import com.example.plog.R;
 import com.example.plog.data.DiaryRepository;
 import com.example.plog.databinding.FragmentHomeBinding;
@@ -32,6 +34,7 @@ public class HomeFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+
         binding.cardDiaryBanner.setOnClickListener(v -> {
             DiaryRepository repository = new DiaryRepository(requireContext());
             String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
@@ -40,11 +43,17 @@ public class HomeFragment extends Fragment {
                     : R.id.action_homeFragment_to_diaryDetailFragment;
             Navigation.findNavController(v).navigate(actionId);
         });
+
+        binding.cardPlaceReport.setOnClickListener(v ->
+                Navigation.findNavController(v).navigate(R.id.action_home_to_place_report));
+
+        binding.cardEmotionReport.setOnClickListener(v ->
+                Navigation.findNavController(v).navigate(R.id.action_home_to_emotion_report));
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        binding = null; // 메모리 누수 방지
+        binding = null;
     }
 }
