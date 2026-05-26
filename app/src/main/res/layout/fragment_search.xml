@@ -52,28 +52,41 @@
 
         <!-- 검색창 -->
 
-        <EditText
-
-            android:id="@+id/et_search"
-
+        <!-- 검색창 + 검색버튼 -->
+        <LinearLayout
             android:layout_width="match_parent"
-
             android:layout_height="48dp"
-
             android:layout_marginTop="14dp"
-
+            android:orientation="horizontal"
             android:background="@drawable/bg_search_box"
+            android:gravity="center_vertical"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp">
 
-            android:hint="제목·내용·장소 검색"
+            <!-- 검색 입력창 -->
+            <EditText
+                android:id="@+id/et_search"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:hint="제목 · 내용 · 장소 검색"
+                android:textColor="#222222"
+                android:textColorHint="#888888"
+                android:background="@android:color/transparent"
+                android:inputType="text"
+                android:singleLine="true"
+                android:imeOptions="actionSearch"/>
 
-            android:paddingStart="14dp"
+            <!-- 돋보기 검색 버튼 -->
+            <ImageButton
+                android:id="@+id/btnSearch"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@android:color/transparent"
+                android:src="@android:drawable/ic_menu_search"
+                android:contentDescription="검색"/>
 
-            android:paddingEnd="14dp"
-
-            android:inputType="text"
-
-            android:singleLine="true"/>
-
+        </LinearLayout>
 
 
 
@@ -138,13 +151,7 @@
 
 
 
-                <TextView
 
-                    android:id="@+id/btnTag"
-
-                    style="@style/SearchFilterButton"
-
-                    android:text="🏷 태그"/>
 
 
 
