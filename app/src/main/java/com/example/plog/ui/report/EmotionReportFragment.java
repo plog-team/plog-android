@@ -4,6 +4,7 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.content.res.ColorStateList;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -55,13 +56,22 @@ public class EmotionReportFragment extends Fragment {
             0xFFE91E63, 0xFF9C27B0, 0xFFF44336
     };
 
+    // 별점 그라데이션: 1개(연보라) → 5개(#9C63F5, 버튼 primary 색과 동일)
+    private static final int[] STAR_FILL_COLORS =
+            {0xFFEDE0FC, 0xFFD4B8F9, 0xFFBF96F7, 0xFFAB7AF5, 0xFF9C63F5};
+    private static final int STAR_EMPTY_COLOR = 0xFFBDBDBD;
+
     private FragmentEmotionReportBinding binding;
     private String threadId;
     private String userName = "사용자";
     private String emotionPeriod;
+    private boolean isMockMode = false;
+    private int selectedRating = 0;
+    private TextView[] stars;
 
     private final Handler pollHandler = new Handler(Looper.getMainLooper());
     private Runnable pollRunnable;
+    private Runnable typewriterRunnable;
 
     // ──────────────────────── Lifecycle ────────────────────────
 
@@ -83,6 +93,7 @@ public class EmotionReportFragment extends Fragment {
         binding.headerEmotion.setOnClickListener(v ->
                 animateAccordion(binding.contentEmotion, binding.tvEmotionChevron));
         binding.btnFeedback.setOnClickListener(v -> submitFeedback());
+        setupStarRating();
 
         // ─── UI 테스트: showMockResult() 사용, 백엔드 완성 후 generateReport()로 교체 ───
         showMockResult();
@@ -92,6 +103,7 @@ public class EmotionReportFragment extends Fragment {
     @Override
     public void onDestroyView() {
         stopPolling();
+        if (typewriterRunnable != null) pollHandler.removeCallbacks(typewriterRunnable);
         binding = null;
         super.onDestroyView();
     }
@@ -181,6 +193,53 @@ public class EmotionReportFragment extends Fragment {
                 .setDuration(380)
                 .setInterpolator(new DecelerateInterpolator())
                 .start();
+    }
+
+    // ──────────────────────── Star rating ────────────────────────
+
+    private void setupStarRating() {
+        stars = new TextView[]{binding.star1, binding.star2, binding.star3, binding.star4, binding.star5};
+        for (int i = 0; i < stars.length; i++) {
+            final int rating = i + 1;
+            stars[i].setOnClickListener(v -> {
+                selectedRating = rating;
+                updateStarColors();
+                // 탭 바운스 효과
+                v.animate().scaleX(1.3f).scaleY(1.3f).setDuration(90)
+                        .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f).setDuration(90).start())
+                        .start();
+            });
+        }
+        updateStarColors();
+    }
+
+    private void updateStarColors() {
+        if (stars == null) return;
+        int fillColor = selectedRating > 0 ? STAR_FILL_COLORS[selectedRating - 1] : STAR_EMPTY_COLOR;
+        for (int i = 0; i < stars.length; i++) {
+            stars[i].setTextColor(i < selectedRating ? fillColor : STAR_EMPTY_COLOR);
+        }
+    }
+
+    // ──────────────────────── Typewriter ────────────────────────
+
+    // 타이핑 효과: 한 글자씩 서서히 표시
+    private void typewriterEffect(TextView tv, String text) {
+        if (typewriterRunnable != null) pollHandler.removeCallbacks(typewriterRunnable);
+        tv.setText("");
+        final int[] index = {0};
+        typewriterRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!isAdded() || binding == null) return;
+                if (index[0] <= text.length()) {
+                    tv.setText(text.substring(0, index[0]));
+                    index[0]++;
+                    if (index[0] <= text.length()) pollHandler.postDelayed(this, 20);
+                }
+            }
+        };
+        pollHandler.post(typewriterRunnable);
     }
 
     // ──────────────────────── State ────────────────────────
@@ -300,6 +359,12 @@ public class EmotionReportFragment extends Fragment {
                         params.setMargins(0, 0, 0, dpToPx(8));
                         btn.setLayoutParams(params);
                         btn.setText(option);
+                        btn.setAllCaps(false);
+                        btn.setTextColor(0xFFFFFFFF);
+                        GradientDrawable bg = new GradientDrawable();
+                        bg.setColor(0xFF9C63F5);
+                        bg.setCornerRadius(dpToPx(8));
+                        btn.setBackground(bg);
                         btn.setOnClickListener(v -> submitClarification(option));
                         binding.layoutOptions.addView(btn);
                     }
@@ -312,6 +377,18 @@ public class EmotionReportFragment extends Fragment {
     private void submitClarification(String answer) {
         binding.layoutOptions.setVisibility(View.GONE);
         binding.progressInterrupt.setVisibility(View.VISIBLE);
+
+        if (isMockMode) {
+            // 목 모드: 0.6초 후 로딩 전환 → 1.5초 후 결과 표시
+            pollHandler.postDelayed(() -> {
+                if (!isAdded()) return;
+                showState(STATE_LOADING);
+                pollHandler.postDelayed(() -> {
+                    if (isAdded()) showResult(buildMockResult());
+                }, 1500);
+            }, 600);
+            return;
+        }
 
         ApiClient.getApiService().clarifyEmotionReport(threadId, new ClarifyRequest(answer))
                 .enqueue(new Callback<ApiResponse<ReportStatusResponse>>() {
@@ -367,7 +444,8 @@ public class EmotionReportFragment extends Fragment {
 
     private void populateEmotionReport(EmotionReportData emotionData) {
         binding.tvEmotionPeriod.setText(emotionPeriod);
-        binding.tvEmotionContent.setText(emotionData.content != null ? emotionData.content : "");
+        // 타이핑 효과로 리포트 본문 표시
+        typewriterEffect(binding.tvEmotionContent, emotionData.content != null ? emotionData.content : "");
 
         if (emotionData.emotionFrequency != null && !emotionData.emotionFrequency.isEmpty()) {
             populateEmotionBars(emotionData.emotionFrequency);
@@ -395,12 +473,25 @@ public class EmotionReportFragment extends Fragment {
             ((TextView) row.findViewById(com.example.plog.R.id.tvCount)).setText(entry.getValue() + "회");
 
             ProgressBar bar = row.findViewById(com.example.plog.R.id.progressEmotion);
-            bar.setMax(max);
-            bar.setProgress(entry.getValue());
+            bar.setMax(1000);
+            bar.setProgress(0);
             bar.setProgressTintList(
                     ColorStateList.valueOf(EMOTION_COLORS[colorIdx % EMOTION_COLORS.length]));
 
             binding.layoutEmotionBars.addView(row);
+
+            // 1000 기준으로 비율 스케일링 → 부드럽게 연속 차오름
+            final int target = entry.getValue() * 1000 / max;
+            final int idx = colorIdx;
+            ValueAnimator anim = ValueAnimator.ofInt(0, target);
+            anim.setDuration(900);
+            anim.setStartDelay((long) idx * 150);
+            anim.setInterpolator(new DecelerateInterpolator());
+            anim.addUpdateListener(a -> {
+                if (isAdded()) bar.setProgress((int) a.getAnimatedValue());
+            });
+            anim.start();
+
             colorIdx++;
         }
     }
@@ -431,24 +522,26 @@ public class EmotionReportFragment extends Fragment {
     // ──────────────────────── Feedback ────────────────────────
 
     private void submitFeedback() {
-        float rating = binding.ratingBar.getRating();
-        if (rating == 0) { toast("별점을 선택해 주세요"); return; }
+        if (selectedRating == 0) { toast("별점을 선택해 주세요"); return; }
+
+        if (isMockMode) {
+            showFeedbackSuccess();
+            return;
+        }
 
         String comment = binding.etFeedback.getText().toString().trim();
         binding.btnFeedback.setEnabled(false);
 
         ApiClient.getApiService()
                 .submitEmotionReportFeedback(threadId,
-                        new ReportFeedbackRequest((int) rating, comment))
+                        new ReportFeedbackRequest(selectedRating, comment))
                 .enqueue(new Callback<Void>() {
                     @Override
                     public void onResponse(@NonNull Call<Void> call,
                                            @NonNull Response<Void> response) {
                         if (!isAdded()) return;
                         binding.btnFeedback.setEnabled(true);
-                        binding.etFeedback.setText("");
-                        binding.ratingBar.setRating(0);
-                        toast("피드백이 전달됐어요. 감사해요!");
+                        showFeedbackSuccess();
                     }
 
                     @Override
@@ -458,6 +551,19 @@ public class EmotionReportFragment extends Fragment {
                         toast("피드백 전송에 실패했어요");
                     }
                 });
+    }
+
+    private void showFeedbackSuccess() {
+        binding.layoutFeedbackForm.animate()
+                .alpha(0f)
+                .setDuration(200)
+                .withEndAction(() -> {
+                    if (!isAdded()) return;
+                    binding.layoutFeedbackForm.setVisibility(View.GONE);
+                    binding.layoutFeedbackForm.setAlpha(1f);
+                    animateIn(binding.layoutFeedbackSuccess);
+                })
+                .start();
     }
 
     // ──────────────────────── Helpers ────────────────────────
@@ -473,19 +579,34 @@ public class EmotionReportFragment extends Fragment {
     // ──────────────────────── Mock (백엔드 완성 후 제거) ────────────────────────
 
     private void showMockResult() {
+        isMockMode = true;
         showState(STATE_LOADING);
 
+        // 2초 후 인터럽트 화면 등장 (실제 LangGraph interrupt 흐름 시연)
+        pollHandler.postDelayed(() -> {
+            if (!isAdded()) return;
+            InterruptPayload payload = new InterruptPayload();
+            payload.date = "2026년 5월 19일";
+            payload.question = "이 날 일기에서 감정이 명확하지 않아요.\n아래 중 가장 가까운 감정을 골라주세요.";
+            payload.options = java.util.Arrays.asList("슬픔", "우울", "불안", "그냥 넘어가도 돼요");
+            showInterrupt(payload);
+        }, 2000);
+    }
+
+    private ReportStatusResponse buildMockResult() {
         EmotionReportData emotion = new EmotionReportData();
-        emotion.content = "이번주는 주로 기쁨을 느끼셨네요.\n가장 행복했던 날은 토요일\n카페에서 즐거운 하루를 보내셨군요\n전반적으로 긍정적인 한 주였습니다.";
+        emotion.content = "이번 주는 주로 기쁨을 느끼셨네요.\n" +
+                "가장 행복했던 날은 토요일로, 카페에서 즐거운 하루를 보내셨군요.\n" +
+                "전반적으로 긍정적인 한 주였습니다.";
         emotion.primaryEmotion = "기쁨";
         emotion.emotionFrequency = new java.util.LinkedHashMap<>();
         emotion.emotionFrequency.put("기쁨", 4);
         emotion.emotionFrequency.put("설렘", 2);
         emotion.emotionFrequency.put("평온", 1);
         emotion.emotionByDay = new java.util.ArrayList<>();
-        String[] days = {"월", "화", "수", "목", "금", "토", "일"};
-        String[] emos = {"기쁨", "슬픔", null, "설렘", "기쁨", "평온", "기쁨"};
-        String[] dates = {"5월20일", "5월21일", "5월22일", "5월23일", "5월24일", "5월25일", "5월26일"};
+        String[] days  = {"월",    "화",    "수",   "목",    "금",    "토",    "일"};
+        String[] emos  = {"기쁨",  "슬픔",  null,  "설렘",  "기쁨",  "평온",  "기쁨"};
+        String[] dates = {"5월18일","5월19일","5월20일","5월21일","5월22일","5월23일","5월24일"};
         for (int i = 0; i < 7; i++) {
             EmotionByDay d = new EmotionByDay();
             d.day = days[i]; d.date = dates[i]; d.emotion = emos[i];
@@ -496,9 +617,6 @@ public class EmotionReportFragment extends Fragment {
         mock.status = "done";
         mock.userName = "사용자명";
         mock.emotionReport = emotion;
-
-        pollHandler.postDelayed(() -> {
-            if (isAdded()) showResult(mock);
-        }, 2000);
+        return mock;
     }
 }

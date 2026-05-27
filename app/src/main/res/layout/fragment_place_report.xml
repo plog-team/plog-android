@@ -246,11 +246,12 @@
                             android:lineSpacingExtra="4dp"
                             android:layout_marginBottom="12dp" />
 
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/rvPlaces"
+                        <LinearLayout
+                            android:id="@+id/layoutPlaceBars"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:nestedScrollingEnabled="false" />
+                            android:orientation="vertical"
+                            android:layout_marginBottom="4dp" />
 
                     </LinearLayout>
 
@@ -265,49 +266,157 @@
                 android:orientation="vertical"
                 android:visibility="gone">
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="#E0E0E0"
-                    android:layout_marginBottom="16dp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="리포트가 도움이 됐나요?"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
-                    android:textColor="#212121" />
-
-                <RatingBar
-                    android:id="@+id/ratingBar"
-                    style="?android:attr/ratingBarStyleSmall"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:numStars="5"
-                    android:stepSize="1"
-                    android:rating="0"
-                    android:layout_marginTop="12dp" />
-
-                <EditText
-                    android:id="@+id/etFeedback"
+                <!-- 폼 상태 -->
+                <LinearLayout
+                    android:id="@+id/layoutFeedbackForm"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:minLines="3"
-                    android:gravity="top"
-                    android:background="#F5F5F5"
-                    android:padding="8dp"
-                    android:hint="한 마디 남겨 주세요 (선택)"
-                    android:inputType="textMultiLine"
-                    android:layout_marginTop="12dp" />
+                    android:orientation="vertical">
 
-                <Button
-                    android:id="@+id/btnFeedback"
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#E0E0E0"
+                        android:layout_marginBottom="16dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="리포트가 도움이 됐나요?"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="#212121" />
+
+                    <!-- 별점: 1→연보라 → 5→진보라 그라데이션 -->
+                    <LinearLayout
+                        android:id="@+id/layoutStars"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="12dp">
+
+                        <TextView
+                            android:id="@+id/star1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="★"
+                            android:textSize="36sp"
+                            android:paddingEnd="4dp"
+                            android:textColor="#BDBDBD"
+                            android:clickable="true"
+                            android:focusable="true" />
+
+                        <TextView
+                            android:id="@+id/star2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="★"
+                            android:textSize="36sp"
+                            android:paddingEnd="4dp"
+                            android:textColor="#BDBDBD"
+                            android:clickable="true"
+                            android:focusable="true" />
+
+                        <TextView
+                            android:id="@+id/star3"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="★"
+                            android:textSize="36sp"
+                            android:paddingEnd="4dp"
+                            android:textColor="#BDBDBD"
+                            android:clickable="true"
+                            android:focusable="true" />
+
+                        <TextView
+                            android:id="@+id/star4"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="★"
+                            android:textSize="36sp"
+                            android:paddingEnd="4dp"
+                            android:textColor="#BDBDBD"
+                            android:clickable="true"
+                            android:focusable="true" />
+
+                        <TextView
+                            android:id="@+id/star5"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="★"
+                            android:textSize="36sp"
+                            android:textColor="#BDBDBD"
+                            android:clickable="true"
+                            android:focusable="true" />
+
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/etFeedback"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minLines="3"
+                        android:gravity="top"
+                        android:background="#F5F5F5"
+                        android:padding="8dp"
+                        android:hint="한 마디 남겨 주세요 (선택)"
+                        android:inputType="textMultiLine"
+                        android:layout_marginTop="12dp" />
+
+                    <Button
+                        android:id="@+id/btnFeedback"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="피드백 보내기"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="8dp" />
+
+                </LinearLayout>
+
+                <!-- 완료 상태 -->
+                <LinearLayout
+                    android:id="@+id/layoutFeedbackSuccess"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="피드백 보내기"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginBottom="24dp" />
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:paddingTop="24dp"
+                    android:paddingBottom="32dp"
+                    android:visibility="gone">
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#E0E0E0"
+                        android:layout_marginBottom="24dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="✓"
+                        android:textSize="44sp"
+                        android:textColor="#9C63F5"
+                        android:layout_marginBottom="12dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="피드백 감사해요!"
+                        android:textSize="17sp"
+                        android:textStyle="bold"
+                        android:textColor="#212121"
+                        android:layout_marginBottom="10dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="다음 분석부터 AI가 이번 피드백을 반영해\n더 잘 맞는 리포트를 작성해 드릴게요."
+                        android:textSize="14sp"
+                        android:textColor="#666666"
+                        android:gravity="center"
+                        android:lineSpacingExtra="4dp" />
+
+                </LinearLayout>
 
             </LinearLayout>
 

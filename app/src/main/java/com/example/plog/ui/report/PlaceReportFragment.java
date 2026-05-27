@@ -11,17 +11,21 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AccelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
+import android.content.res.ColorStateList;
+import android.graphics.drawable.GradientDrawable;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
-import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.example.plog.databinding.FragmentPlaceReportBinding;
 import com.example.plog.model.ApiResponse;
 import com.example.plog.model.ClarifyRequest;
@@ -32,6 +36,9 @@ import com.example.plog.model.PlaceReportData;
 import com.example.plog.model.ReportFeedbackRequest;
 import com.example.plog.model.ReportStatusResponse;
 import com.example.plog.network.ApiClient;
+
+import java.util.Arrays;
+import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -44,11 +51,25 @@ public class PlaceReportFragment extends Fragment {
     private static final int STATE_DONE = 2;
 
     private FragmentPlaceReportBinding binding;
+    // 별점 그라데이션: 1개(연보라) → 5개(#9C63F5, 버튼 primary 색과 동일)
+    private static final int[] STAR_FILL_COLORS =
+            {0xFFEDE0FC, 0xFFD4B8F9, 0xFFBF96F7, 0xFFAB7AF5, 0xFF9C63F5};
+    // 장소 막대 그래프 색 (감정 막대와 동일 팔레트)
+    private static final int[] PLACE_BAR_COLORS = {
+            0xFF4CAF50, 0xFFFF9800, 0xFF2196F3,
+            0xFFE91E63, 0xFF9C27B0, 0xFFF44336
+    };
+    private static final int STAR_EMPTY_COLOR = 0xFFBDBDBD;
+
     private String threadId;
     private String userName = "사용자";
+    private boolean isMockMode = false;
+    private int selectedRating = 0;
+    private TextView[] stars;
 
     private final Handler pollHandler = new Handler(Looper.getMainLooper());
     private Runnable pollRunnable;
+    private Runnable typewriterRunnable;
 
     // ──────────────────────── Lifecycle ────────────────────────
 
@@ -63,14 +84,12 @@ public class PlaceReportFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        binding.rvPlaces.setLayoutManager(new LinearLayoutManager(requireContext()));
-        binding.rvPlaces.setNestedScrollingEnabled(false);
-
         binding.btnClose.setOnClickListener(v ->
                 Navigation.findNavController(requireView()).navigateUp());
         binding.headerPlace.setOnClickListener(v ->
                 animateAccordion(binding.contentPlace, binding.tvPlaceChevron));
         binding.btnFeedback.setOnClickListener(v -> submitFeedback());
+        setupStarRating();
 
         // ─── UI 테스트: showMockResult() 사용, 백엔드 완성 후 generateReport()로 교체 ───
         showMockResult();
@@ -80,6 +99,7 @@ public class PlaceReportFragment extends Fragment {
     @Override
     public void onDestroyView() {
         stopPolling();
+        if (typewriterRunnable != null) pollHandler.removeCallbacks(typewriterRunnable);
         binding = null;
         super.onDestroyView();
     }
@@ -158,6 +178,53 @@ public class PlaceReportFragment extends Fragment {
                 .setDuration(380)
                 .setInterpolator(new DecelerateInterpolator())
                 .start();
+    }
+
+    // ──────────────────────── Star rating ────────────────────────
+
+    private void setupStarRating() {
+        stars = new TextView[]{binding.star1, binding.star2, binding.star3, binding.star4, binding.star5};
+        for (int i = 0; i < stars.length; i++) {
+            final int rating = i + 1;
+            stars[i].setOnClickListener(v -> {
+                selectedRating = rating;
+                updateStarColors();
+                // 탭 바운스 효과
+                v.animate().scaleX(1.3f).scaleY(1.3f).setDuration(90)
+                        .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f).setDuration(90).start())
+                        .start();
+            });
+        }
+        updateStarColors();
+    }
+
+    private void updateStarColors() {
+        if (stars == null) return;
+        int fillColor = selectedRating > 0 ? STAR_FILL_COLORS[selectedRating - 1] : STAR_EMPTY_COLOR;
+        for (int i = 0; i < stars.length; i++) {
+            stars[i].setTextColor(i < selectedRating ? fillColor : STAR_EMPTY_COLOR);
+        }
+    }
+
+    // ──────────────────────── Typewriter ────────────────────────
+
+    // 타이핑 효과: 한 글자씩 서서히 표시
+    private void typewriterEffect(TextView tv, String text) {
+        if (typewriterRunnable != null) pollHandler.removeCallbacks(typewriterRunnable);
+        tv.setText("");
+        final int[] index = {0};
+        typewriterRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!isAdded() || binding == null) return;
+                if (index[0] <= text.length()) {
+                    tv.setText(text.substring(0, index[0]));
+                    index[0]++;
+                    if (index[0] <= text.length()) pollHandler.postDelayed(this, 20);
+                }
+            }
+        };
+        pollHandler.post(typewriterRunnable);
     }
 
     // ──────────────────────── State ────────────────────────
@@ -277,6 +344,12 @@ public class PlaceReportFragment extends Fragment {
                         params.setMargins(0, 0, 0, dpToPx(8));
                         btn.setLayoutParams(params);
                         btn.setText(option);
+                        btn.setAllCaps(false);
+                        btn.setTextColor(0xFFFFFFFF);
+                        GradientDrawable bg = new GradientDrawable();
+                        bg.setColor(0xFF9C63F5);
+                        bg.setCornerRadius(dpToPx(8));
+                        btn.setBackground(bg);
                         btn.setOnClickListener(v -> submitClarification(option));
                         binding.layoutOptions.addView(btn);
                     }
@@ -289,6 +362,18 @@ public class PlaceReportFragment extends Fragment {
     private void submitClarification(String answer) {
         binding.layoutOptions.setVisibility(View.GONE);
         binding.progressInterrupt.setVisibility(View.VISIBLE);
+
+        if (isMockMode) {
+            // 목 모드: 0.6초 후 로딩 전환 → 1.5초 후 결과 표시
+            pollHandler.postDelayed(() -> {
+                if (!isAdded()) return;
+                showState(STATE_LOADING);
+                pollHandler.postDelayed(() -> {
+                    if (isAdded()) showResult(buildMockResult());
+                }, 1500);
+            }, 600);
+            return;
+        }
 
         ApiClient.getApiService().clarifyPlaceReport(threadId, new ClarifyRequest(answer))
                 .enqueue(new Callback<ApiResponse<ReportStatusResponse>>() {
@@ -344,42 +429,84 @@ public class PlaceReportFragment extends Fragment {
 
     private void populatePlaceReport(PlaceReportData placeData) {
         binding.tvPlacePeriod.setText(placeData.period != null ? placeData.period : "");
-        binding.tvPlaceContent.setText(placeData.content != null ? placeData.content : "");
+        // 타이핑 효과로 리포트 본문 표시
+        typewriterEffect(binding.tvPlaceContent, placeData.content != null ? placeData.content : "");
 
         if (placeData.topPhotoUrl != null) {
             binding.ivTopPlacePhoto.setVisibility(View.VISIBLE);
             Glide.with(requireContext())
                     .load(placeData.topPhotoUrl)
                     .centerCrop()
+                    .transition(DrawableTransitionOptions.withCrossFade(600))
                     .into(binding.ivTopPlacePhoto);
         }
 
         if (placeData.places != null && !placeData.places.isEmpty()) {
-            binding.rvPlaces.setAdapter(new PlaceCardAdapter(placeData.places));
+            populatePlaceBars(placeData.places);
+        }
+    }
+
+    private void populatePlaceBars(List<PlaceEntry> places) {
+        binding.layoutPlaceBars.removeAllViews();
+
+        int max = 1;
+        for (PlaceEntry p : places) if (p.count > max) max = p.count;
+
+        for (int i = 0; i < places.size(); i++) {
+            PlaceEntry entry = places.get(i);
+            View row = LayoutInflater.from(requireContext())
+                    .inflate(com.example.plog.R.layout.item_place_bar,
+                            binding.layoutPlaceBars, false);
+
+            ((TextView) row.findViewById(com.example.plog.R.id.tvPlaceName))
+                    .setText(entry.placeName);
+            ((TextView) row.findViewById(com.example.plog.R.id.tvPlaceCount))
+                    .setText(entry.count + "회");
+
+            ProgressBar bar = row.findViewById(com.example.plog.R.id.progressPlace);
+            bar.setMax(1000);
+            bar.setProgress(0);
+            bar.setProgressTintList(ColorStateList.valueOf(
+                    PLACE_BAR_COLORS[i % PLACE_BAR_COLORS.length]));
+
+            binding.layoutPlaceBars.addView(row);
+
+            // 1000 기준으로 비율 스케일링 → 부드럽게 연속 차오름
+            final int target = entry.count * 1000 / max;
+            ValueAnimator anim = ValueAnimator.ofInt(0, target);
+            anim.setDuration(900);
+            anim.setStartDelay((long) i * 150);
+            anim.setInterpolator(new DecelerateInterpolator());
+            anim.addUpdateListener(a -> {
+                if (isAdded()) bar.setProgress((int) a.getAnimatedValue());
+            });
+            anim.start();
         }
     }
 
     // ──────────────────────── Feedback ────────────────────────
 
     private void submitFeedback() {
-        float rating = binding.ratingBar.getRating();
-        if (rating == 0) { toast("별점을 선택해 주세요"); return; }
+        if (selectedRating == 0) { toast("별점을 선택해 주세요"); return; }
+
+        if (isMockMode) {
+            showFeedbackSuccess();
+            return;
+        }
 
         String comment = binding.etFeedback.getText().toString().trim();
         binding.btnFeedback.setEnabled(false);
 
         ApiClient.getApiService()
                 .submitPlaceReportFeedback(threadId,
-                        new ReportFeedbackRequest((int) rating, comment))
+                        new ReportFeedbackRequest(selectedRating, comment))
                 .enqueue(new Callback<Void>() {
                     @Override
                     public void onResponse(@NonNull Call<Void> call,
                                            @NonNull Response<Void> response) {
                         if (!isAdded()) return;
                         binding.btnFeedback.setEnabled(true);
-                        binding.etFeedback.setText("");
-                        binding.ratingBar.setRating(0);
-                        toast("피드백이 전달됐어요. 감사해요!");
+                        showFeedbackSuccess();
                     }
 
                     @Override
@@ -389,6 +516,19 @@ public class PlaceReportFragment extends Fragment {
                         toast("피드백 전송에 실패했어요");
                     }
                 });
+    }
+
+    private void showFeedbackSuccess() {
+        binding.layoutFeedbackForm.animate()
+                .alpha(0f)
+                .setDuration(200)
+                .withEndAction(() -> {
+                    if (!isAdded()) return;
+                    binding.layoutFeedbackForm.setVisibility(View.GONE);
+                    binding.layoutFeedbackForm.setAlpha(1f);
+                    animateIn(binding.layoutFeedbackSuccess);
+                })
+                .start();
     }
 
     // ──────────────────────── Helpers ────────────────────────
@@ -404,25 +544,38 @@ public class PlaceReportFragment extends Fragment {
     // ──────────────────────── Mock (백엔드 완성 후 제거) ────────────────────────
 
     private void showMockResult() {
+        isMockMode = true;
         showState(STATE_LOADING);
 
+        // 2초 후 인터럽트 화면 등장 (실제 LangGraph interrupt 흐름 시연)
+        pollHandler.postDelayed(() -> {
+            if (!isAdded()) return;
+            InterruptPayload payload = new InterruptPayload();
+            payload.date = "2026년 5월 24일";
+            payload.question = "이 날 일기에서 방문한 장소가 명확하지 않아요.\n다음 중 어디를 방문하셨나요?";
+            payload.options = Arrays.asList("강남 카페거리", "홍대 거리", "한강 공원", "기타");
+            showInterrupt(payload);
+        }, 2000);
+    }
+
+    private ReportStatusResponse buildMockResult() {
         PlaceReportData place = new PlaceReportData();
         place.period = "2026년 5월";
-        place.content = "(지역명)에 자주 방문하셨네요\n'카페(or태그명)'을 자주 가셨네요\n사진이 필요하다면 사진 첨부 등등\n이번달은 ---한 패턴을 보였습니다";
-        place.topPhotoUrl = null;
+        place.content = "이번 달은 강남과 홍대를 중심으로 활발하게 활동하셨네요.\n" +
+                "카페를 자주 방문하셨고, 주말에는 한강 공원에서 여유로운 시간을 보내셨군요.\n" +
+                "전반적으로 외향적이고 활동적인 한 달이었습니다.";
+        // 목: 강남 카페거리 대표 사진 (백엔드 연결 후 가장 많이 방문한 장소의 일기 사진으로 대체됨)
+        place.topPhotoUrl = "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=800&q=80";
         place.places = new java.util.ArrayList<>();
         PlaceEntry p1 = new PlaceEntry(); p1.placeName = "강남 카페거리"; p1.count = 5; p1.mainEmotion = "기쁨";
-        PlaceEntry p2 = new PlaceEntry(); p2.placeName = "한강 공원"; p2.count = 2; p2.mainEmotion = "평온";
-        PlaceEntry p3 = new PlaceEntry(); p3.placeName = "홍대"; p3.count = 1; p3.mainEmotion = "설렘";
+        PlaceEntry p2 = new PlaceEntry(); p2.placeName = "한강 공원";     p2.count = 2; p2.mainEmotion = "평온";
+        PlaceEntry p3 = new PlaceEntry(); p3.placeName = "홍대";          p3.count = 1; p3.mainEmotion = "설렘";
         place.places.add(p1); place.places.add(p2); place.places.add(p3);
 
         ReportStatusResponse mock = new ReportStatusResponse();
         mock.status = "done";
         mock.userName = "사용자명";
         mock.placeReport = place;
-
-        pollHandler.postDelayed(() -> {
-            if (isAdded()) showResult(mock);
-        }, 2000);
+        return mock;
     }
 }
