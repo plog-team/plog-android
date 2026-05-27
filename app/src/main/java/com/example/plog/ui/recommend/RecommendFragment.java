@@ -254,23 +254,36 @@ public class RecommendFragment extends Fragment {
                         if (!isAdded()) return;
                         isLoadingMore = false;
 
-                        if (resp.isSuccessful() && resp.body() != null) {
+                        if (resp.isSuccessful() && resp.body() != null && resp.body().response != null && resp.body().response.body != null) {
                             TourResponse.Body body = resp.body().response.body;
 
-                            if (isFirst && (body.totalCount == 0
-                                    || body.items == null)) {
-                                showEmpty();
-                                return;
-                            }
-
-                            if (body.items == null || body.items.item == null
-                                    || body.items.item.isEmpty()) {
+                            if (body.totalCount == 0) {
+                                if (isFirst) showEmpty();
                                 hasMorePages = false;
                                 return;
                             }
 
-                            List<PlaceItem> newItems =
-                                    parseItems(body.items.item);
+                            if (body.items == null || !body.items.isJsonObject()) {
+                                if (isFirst) showEmpty();
+                                hasMorePages = false;
+                                return;
+                            }
+
+                            com.google.gson.JsonElement itemElement = body.items.getAsJsonObject().get("item");
+                            if (itemElement == null || !itemElement.isJsonArray()) {
+                                hasMorePages = false;
+                                return;
+                            }
+
+                            java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<TourItem>>(){}.getType();
+                            List<TourItem> rawItems = new com.google.gson.Gson().fromJson(itemElement, listType);
+
+                            if (rawItems == null || rawItems.isEmpty()) {
+                                hasMorePages = false;
+                                return;
+                            }
+
+                            List<PlaceItem> newItems = parseItems(rawItems);
 
                             // 전체 페이지 수 초과 체크
                             int totalPages = (int) Math.ceil(

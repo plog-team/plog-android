@@ -203,7 +203,14 @@ public class PlaceDetailFragment extends Fragment {
     private void setOrHide(TextView tv, String prefix, String value) {
         if (value != null && !value.isEmpty()) {
             tv.setVisibility(View.VISIBLE);
-            tv.setText(prefix + value);
+
+            String combinedText = prefix + value;
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                tv.setText(Html.fromHtml(combinedText, Html.FROM_HTML_MODE_COMPACT));
+            } else {
+                tv.setText(Html.fromHtml(combinedText));
+            }
         } else {
             tv.setVisibility(View.GONE);
         }

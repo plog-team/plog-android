@@ -1,273 +1,187 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:background="@color/white">
 
-    <!-- 정상 콘텐츠 -->
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/layoutContent"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone">
+        android:layout_height="48dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:src="@android:drawable/ic_menu_mylocation"/>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="현재 위치 기준"
+            android:textSize="13sp"
+            android:textColor="@color/gray_400"/>
+
+        <TextView
+            android:id="@+id/tvSortBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="거리순 ∨"
+            android:textSize="13sp"
+            android:textColor="@color/text_primary"/>
+    </LinearLayout>
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:scrollbars="none">
 
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-            <!-- 위치 + 정렬 -->
+            <TextView android:id="@+id/tvTabAll" android:layout_width="wrap_content" android:layout_height="32dp" android:text="전체" android:textSize="13sp" android:gravity="center" android:paddingStart="14dp" android:paddingEnd="14dp" android:layout_marginEnd="8dp"/>
+            <TextView android:id="@+id/tvTabTourist" android:layout_width="wrap_content" android:layout_height="32dp" android:text="관광지" android:textSize="13sp" android:gravity="center" android:paddingStart="14dp" android:paddingEnd="14dp" android:layout_marginEnd="8dp"/>
+            <TextView android:id="@+id/tvTabCulture" android:layout_width="wrap_content" android:layout_height="32dp" android:text="문화시설" android:textSize="13sp" android:gravity="center" android:paddingStart="14dp" android:paddingEnd="14dp" android:layout_marginEnd="8dp"/>
+            <TextView android:id="@+id/tvTabEvent" android:layout_width="wrap_content" android:layout_height="32dp" android:text="행사일정" android:textSize="13sp" android:gravity="center" android:paddingStart="14dp" android:paddingEnd="14dp" android:layout_marginEnd="8dp"/>
+            <TextView android:id="@+id/tvTabFood" android:layout_width="wrap_content" android:layout_height="32dp" android:text="음식점" android:textSize="13sp" android:gravity="center" android:paddingStart="14dp" android:paddingEnd="14dp"/>
+        </LinearLayout>
+    </HorizontalScrollView>
+
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/layoutContent"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="14dp"
-                    android:layout_height="14dp"
-                    android:src="@android:drawable/ic_menu_mylocation"/>
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
                 <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="4dp"
-                    android:text="현재 위치 기준"
-                    android:textSize="13sp"
-                    android:textColor="@color/gray_400"/>
-
-                <TextView
-                    android:id="@+id/tvSortBtn"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="거리순 ∨"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_primary"/>
-            </LinearLayout>
+                    android:text="내 취향 기반 추천 ✦"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="8dp"/>
 
-            <!-- 카테고리 탭 -->
-            <HorizontalScrollView
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:scrollbars="none">
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvFeatured"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="12dp"
+                    android:clipToPadding="false"
+                    android:orientation="horizontal"/>
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:orientation="horizontal"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="8dp"
                     android:gravity="center_vertical">
 
                     <TextView
-                        android:id="@+id/tvTabAll"
-                        android:layout_width="wrap_content"
-                        android:layout_height="32dp"
-                        android:text="전체"
-                        android:textSize="13sp"
-                        android:gravity="center"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="14dp"
-                        android:layout_marginEnd="8dp"/>
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="근처 전체"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"/>
 
                     <TextView
-                        android:id="@+id/tvTabTourist"
+                        android:id="@+id/tvNearbyCount"
                         android:layout_width="wrap_content"
-                        android:layout_height="32dp"
-                        android:text="관광지"
+                        android:layout_height="wrap_content"
+                        android:text="0곳"
                         android:textSize="13sp"
-                        android:gravity="center"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="14dp"
-                        android:layout_marginEnd="8dp"/>
-
-                    <TextView
-                        android:id="@+id/tvTabCulture"
-                        android:layout_width="wrap_content"
-                        android:layout_height="32dp"
-                        android:text="문화시설"
-                        android:textSize="13sp"
-                        android:gravity="center"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="14dp"
-                        android:layout_marginEnd="8dp"/>
-
-                    <TextView
-                        android:id="@+id/tvTabEvent"
-                        android:layout_width="wrap_content"
-                        android:layout_height="32dp"
-                        android:text="행사일정"
-                        android:textSize="13sp"
-                        android:gravity="center"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="14dp"
-                        android:layout_marginEnd="8dp"/>
-
-                    <TextView
-                        android:id="@+id/tvTabFood"
-                        android:layout_width="wrap_content"
-                        android:layout_height="32dp"
-                        android:text="음식점"
-                        android:textSize="13sp"
-                        android:gravity="center"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="14dp"/>
+                        android:textColor="@color/gray_400"/>
                 </LinearLayout>
-            </HorizontalScrollView>
 
-            <!-- 취향 기반 추천 -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvNearby"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingBottom="16dp"/>
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+
+        <LinearLayout
+            android:id="@+id/layoutLoading"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="visible">
+
+            <ProgressBar
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:indeterminateTint="@color/purple_500"/>
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="내 취향 기반 추천 ✦"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_primary"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="8dp"/>
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvFeatured"
-                android:layout_width="match_parent"
-                android:layout_height="160dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:clipToPadding="false"
-                android:orientation="horizontal"/>
-
-            <!-- 근처 전체 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:layout_marginTop="20dp"
-                android:layout_marginBottom="8dp"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="근처 전체"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary"/>
-
-                <TextView
-                    android:id="@+id/tvNearbyCount"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="0곳"
-                    android:textSize="13sp"
-                    android:textColor="@color/gray_400"/>
-            </LinearLayout>
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvNearby"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingBottom="16dp"/>
+                android:text="맞춤 장소를 불러오는 중이에요..."
+                android:textSize="13sp"
+                android:textColor="@color/gray_400"
+                android:layout_marginTop="12dp"/>
         </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
 
-    <!-- 로딩 -->
-    <LinearLayout
-        android:id="@+id/layoutLoading"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:visibility="visible">
+        <LinearLayout
+            android:id="@+id/layoutError"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone">
 
-        <ProgressBar
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:indeterminateTint="@color/purple_500"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="📡" android:textSize="48sp"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="인터넷 연결을 확인해주세요" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/text_primary" android:layout_marginTop="12dp"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="네트워크 연결 후 다시 시도해주세요" android:textSize="13sp" android:textColor="@color/gray_400" android:layout_marginTop="4dp"/>
+            <Button android:id="@+id/btnRetry" android:layout_width="wrap_content" android:layout_height="40dp" android:text="다시 시도" android:textSize="14sp" android:layout_marginTop="20dp" style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+        </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="맞춤 장소를 불러오는 중이에요..."
-            android:textSize="13sp"
-            android:textColor="@color/gray_400"
-            android:layout_marginTop="12dp"/>
-    </LinearLayout>
+        <LinearLayout
+            android:id="@+id/layoutEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone">
 
-    <!-- 네트워크 오류 -->
-    <LinearLayout
-        android:id="@+id/layoutError"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:visibility="gone">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🗺️" android:textSize="48sp"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="주변에 추천 장소가 없어요" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/text_primary" android:layout_marginTop="12dp"/>
+        </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="📡"
-            android:textSize="48sp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="인터넷 연결을 확인해주세요"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary"
-            android:layout_marginTop="12dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="네트워크 연결 후 다시 시도해주세요"
-            android:textSize="13sp"
-            android:textColor="@color/gray_400"
-            android:layout_marginTop="4dp"/>
-
-        <Button
-            android:id="@+id/btnRetry"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:text="다시 시도"
-            android:textSize="14sp"
-            android:layout_marginTop="20dp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
-    </LinearLayout>
-
-    <!-- 결과 없음 -->
-    <LinearLayout
-        android:id="@+id/layoutEmpty"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:visibility="gone">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🗺️"
-            android:textSize="48sp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="주변에 추천 장소가 없어요"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary"
-            android:layout_marginTop="12dp"/>
-    </LinearLayout>
-
-</FrameLayout>
+    </FrameLayout>
+</LinearLayout>
