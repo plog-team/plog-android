@@ -19,7 +19,11 @@
     <fragment
         android:id="@+id/diaryEditFragment"
         android:name="com.example.plog.ui.diary.DiaryEditFragment"
-        android:label="일기 작성" />
+        android:label="일기 작성">
+        <action
+            android:id="@+id/action_diaryEditFragment_to_aiGuideEntryFragment"
+            app:destination="@id/aiGuideEntryFragment" />
+    </fragment>
     <fragment
         android:id="@+id/diaryDetailFragment"
         android:name="com.example.plog.ui.diary.DiaryDetailFragment"

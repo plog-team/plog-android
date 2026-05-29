@@ -133,11 +133,15 @@ public class DiaryEditFragment extends Fragment {
             binding.btnAi.setText(show ? "×" : "+");
         });
 
-        binding.btnAiQuestion.setOnClickListener(v ->
-                Toast.makeText(requireContext(), "AI 질문 생성 화면과 연결될 예정입니다.", Toast.LENGTH_SHORT).show());
+        binding.btnAiQuestion.setOnClickListener(v -> openAiGuide(v));
+        binding.btnAiDraft.setOnClickListener(v -> openAiGuide(v));
+    }
 
-        binding.btnAiDraft.setOnClickListener(v ->
-                Toast.makeText(requireContext(), "AI 초안 생성 화면과 연결될 예정입니다.", Toast.LENGTH_SHORT).show());
+    private void openAiGuide(View view) {
+        binding.aiMenu.setVisibility(View.GONE);
+        binding.btnAi.setText("+");
+        Navigation.findNavController(view)
+                .navigate(R.id.action_diaryEditFragment_to_aiGuideEntryFragment);
     }
 
     private void openPhotoPicker() {
