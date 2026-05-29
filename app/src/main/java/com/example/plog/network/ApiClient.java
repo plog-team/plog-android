@@ -2,6 +2,8 @@ package com.example.plog.network;
 
 import com.example.plog.util.Constants;
 
+import java.util.concurrent.TimeUnit;
+
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
@@ -17,6 +19,10 @@ public class ApiClient {
             logging.setLevel(HttpLoggingInterceptor.Level.BODY);
 
             OkHttpClient client = new OkHttpClient.Builder()
+                    .connectTimeout(15, TimeUnit.SECONDS)
+                    .readTimeout(90, TimeUnit.SECONDS)
+                    .writeTimeout(90, TimeUnit.SECONDS)
+                    .addInterceptor(new UserIdInterceptor())
                     .addInterceptor(logging)
                     .build();
 

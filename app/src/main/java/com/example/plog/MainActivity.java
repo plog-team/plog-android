@@ -1,6 +1,7 @@
 package com.example.plog;
 
 import android.os.Bundle;
+import android.view.View;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
@@ -31,6 +32,12 @@ public class MainActivity extends AppCompatActivity {
 
         // 탭 전환 시 상단 타이틀 변경
         navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
+            boolean isDiaryScreen = destination.getId() == R.id.diaryEditFragment
+                    || destination.getId() == R.id.diaryDetailFragment;
+            binding.topBar.setVisibility(isDiaryScreen ? View.GONE : View.VISIBLE);
+            binding.divider.setVisibility(isDiaryScreen ? View.GONE : View.VISIBLE);
+            binding.bottomNavigation.setVisibility(isDiaryScreen ? View.GONE : View.VISIBLE);
+
             if (destination.getId() == R.id.homeFragment) {
                 binding.tvTitle.setText("홈");
             } else if (destination.getId() == R.id.recommendFragment) {
