@@ -13,6 +13,7 @@ import com.example.plog.data.db.dao.PhotoLabelDao;
 import com.example.plog.data.db.entity.LabelEntity;
 import com.example.plog.data.db.entity.PhotoLabelEntity;
 import com.example.plog.model.LabelResult;
+import com.example.plog.util.LabelTranslator;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +55,7 @@ public class LabelRepository {
 
             // ① Label upsert
             LabelEntity labelEntity = new LabelEntity();
-            labelEntity.name = result.getText().toLowerCase().trim();
+            labelEntity.name = LabelTranslator.translate(result.getText());
 
             long insertedId = labelDao.insertIgnore(labelEntity);
 

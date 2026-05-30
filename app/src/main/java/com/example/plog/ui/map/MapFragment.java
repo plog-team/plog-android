@@ -77,7 +77,8 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
     private void observeData() {
         viewModel.getLocations().observe(getViewLifecycleOwner(), locations -> {
-            if (locations == null || locations.isEmpty()) {
+            // null 체크만 진행합니다. 빈 리스트([])여도 아래로 내려가야 지도가 비워집니다.
+            if (locations == null) {
                 pbLoading.setVisibility(View.GONE);
                 return;
             }
@@ -85,7 +86,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
             pbLoading.setVisibility(View.GONE);
 
             if (isMapReady) {
-                overlayManager.renderAllWithImage(locations);  // ← 변경
+                overlayManager.renderAllWithImage(locations);  // 이미지 핀으로 그리기
             } else {
                 pendingLocations = locations;
             }
