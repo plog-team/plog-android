@@ -9,91 +9,82 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.DialogFragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.plog.R;
-import com.google.android.material.button.MaterialButton;
+import com.example.plog.network.RetrofitClient;
+import com.example.plog.network.api.NotificationApi;
+import com.example.plog.network.dto.NotificationResponse;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class NotificationFragment extends DialogFragment {
 
-    public NotificationFragment() {
+    private RecyclerView rvNotifications;
+    private TextView tvNoNotification;
+    private NotificationAdapter adapter;
+
+    public NotificationFragment() {}
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialog);
     }
 
     @Override
-    public View onCreateView(
-            @NonNull LayoutInflater inflater,
-            @Nullable ViewGroup container,
-            @Nullable Bundle savedInstanceState
-    ) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_notification, container, false);
 
-        return inflater.inflate(
-                R.layout.fragment_notification,
-                container,
-                false
-        );
+        rvNotifications = view.findViewById(R.id.rvNotifications);
+        tvNoNotification = view.findViewById(R.id.tvNoNotification);
+
+        adapter = new NotificationAdapter(new ArrayList<>(), this::markAsRead);
+        rvNotifications.setLayoutManager(new LinearLayoutManager(requireContext()));
+        rvNotifications.setAdapter(adapter);
+
+        view.findViewById(R.id.btnClose).setOnClickListener(v -> dismiss());
+
+        loadNotifications();
+        return view;
     }
 
-    @Override
-    public void onStart() {
-
-        super.onStart();
-
-        if (getDialog() != null
-                && getDialog().getWindow() != null) {
-
-            getDialog().getWindow().setLayout(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-            );
-
-            getDialog().getWindow()
-                    .setBackgroundDrawableResource(
-                            android.R.color.transparent
-                    );
-        }
+    private void loadNotifications() {
+        NotificationApi api = RetrofitClient.getClient().create(NotificationApi.class);
+        api.getNotifications(1L).enqueue(new Callback<List<NotificationResponse>>() {
+            @Override
+            public void onResponse(Call<List<NotificationResponse>> call, Response<List<NotificationResponse>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<NotificationResponse> list = response.body();
+                    adapter.updateList(list);
+                    tvNoNotification.setVisibility(list.isEmpty() ? View.VISIBLE : View.GONE);
+                    rvNotifications.setVisibility(list.isEmpty() ? View.GONE : View.VISIBLE);
+                }
+            }
+            @Override
+            public void onFailure(Call<List<NotificationResponse>> call, Throwable t) {
+                android.util.Log.e("Notification", "로드 실패: " + t.getMessage());
+            }
+        });
     }
 
-    @Override
-    public void onViewCreated(
-            @NonNull View view,
-            @Nullable Bundle savedInstanceState
-    ) {
-
-        super.onViewCreated(view, savedInstanceState);
-
-        TextView tvTitle =
-                view.findViewById(
-                        R.id.tvNotificationTitle
-                );
-
-        TextView tvMessage =
-                view.findViewById(
-                        R.id.tvNotificationMessage
-                );
-
-        MaterialButton btnClose =
-                view.findViewById(
-                        R.id.btnCloseNotification
-                );
-
-        String title = null;
-        String message = null;
-
-        if (getArguments() != null) {
-
-            title =
-                    getArguments().getString(
-                            "title"
-                    );
-
-            message =
-                    getArguments().getString(
-                            "message"
-                    );
-        }
-
-        tvTitle.setText(title);
-        tvMessage.setText(message);
-
-        btnClose.setOnClickListener(v -> dismiss());
+    private void markAsRead(Long notificationId) {
+        NotificationApi api = RetrofitClient.getClient().create(NotificationApi.class);
+        api.markAsRead(notificationId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                loadNotifications();
+            }
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                android.util.Log.e("Notification", "읽음 처리 실패: " + t.getMessage());
+            }
+        });
     }
 }
