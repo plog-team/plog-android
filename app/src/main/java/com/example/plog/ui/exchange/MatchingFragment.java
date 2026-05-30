@@ -1,6 +1,7 @@
 package com.example.plog.ui.exchange;
 
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.View;
 
 import androidx.annotation.NonNull;
@@ -17,21 +18,15 @@ public class MatchingFragment extends Fragment {
     }
 
     @Override
-    public void onViewCreated(
-            @NonNull View view,
-            @Nullable Bundle savedInstanceState
-    ) {
-
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        view.postDelayed(() -> {
-
-            NavHostFragment.findNavController(
-                    MatchingFragment.this
-            ).navigate(
-                    R.id.matchConfirmFragment
-            );
-
+        // 2초 후 상대방 찾아서 MatchConfirmFragment로 이동
+        new Handler().postDelayed(() -> {
+            if (getView() != null) {
+                NavHostFragment.findNavController(MatchingFragment.this)
+                        .navigate(R.id.matchConfirmFragment);
+            }
         }, 2000);
     }
 }

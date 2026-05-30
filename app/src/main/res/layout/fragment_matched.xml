@@ -6,7 +6,6 @@
     android:layout_height="match_parent"
     android:background="@color/white">
 
-    <!-- CONTENT AREA -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/contentArea"
         android:layout_width="0dp"
@@ -16,7 +15,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- 탭 1: 내 일기 / 상대 일기 -->
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/typeTab"
             android:layout_width="0dp"
@@ -37,7 +35,6 @@
 
         </com.google.android.material.tabs.TabLayout>
 
-        <!-- 탭 2: Day1 ~ Day7 -->
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/dayTab"
             android:layout_width="0dp"
@@ -52,32 +49,26 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Day1"/>
-
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Day2"/>
-
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Day3"/>
-
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Day4"/>
-
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Day5"/>
-
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Day6"/>
-
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -105,7 +96,6 @@
                 android:paddingEnd="20dp"
                 android:paddingBottom="40dp">
 
-                <!-- 프로필 영역 -->
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/profileContainer"
                     android:layout_width="match_parent"
@@ -119,37 +109,53 @@
                         app:cardCornerRadius="25dp"
                         app:cardElevation="0dp"
                         app:cardBackgroundColor="#E8E2FF"
-
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
-
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent">
                     </androidx.cardview.widget.CardView>
 
-                    <!-- 사용자 이름 -->
                     <TextView
                         android:id="@+id/tvUserName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-
                         android:text="사용자이름"
                         android:textSize="16sp"
                         android:textStyle="bold"
                         android:textColor="#333333"
-
                         android:visibility="gone"
-
                         android:layout_marginEnd="12dp"
-
                         app:layout_constraintEnd_toStartOf="@id/cvProfile"
                         app:layout_constraintTop_toTopOf="@id/cvProfile"
                         app:layout_constraintBottom_toBottomOf="@id/cvProfile"/>
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
-                <!-- 일기 영역 -->
                 <LinearLayout
+                    android:id="@+id/emptyDiaryLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="아직 작성된 일기가 없어요"
+                        android:textColor="#999999"
+                        android:textSize="15sp"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnWriteDiary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="일기 작성하기"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/diaryContentLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
@@ -157,7 +163,8 @@
                     android:paddingTop="16dp"
                     android:paddingEnd="20dp"
                     android:paddingBottom="40dp"
-                    android:background="#E8E2FF">
+                    android:background="#E8E2FF"
+                    android:visibility="visible">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -165,7 +172,6 @@
                         android:orientation="horizontal"
                         android:gravity="center_vertical">
 
-                        <!-- 날짜 -->
                         <TextView
                             android:id="@+id/tvDate"
                             android:layout_width="wrap_content"
@@ -181,7 +187,6 @@
                             android:textSize="13sp"
                             android:textColor="?colorPrimary" />
 
-                        <!-- 날씨 -->
                         <TextView
                             android:id="@+id/tvWeather"
                             android:layout_width="wrap_content"
@@ -195,7 +200,6 @@
                             android:layout_height="0dp"
                             android:layout_weight="1" />
 
-                        <!-- 수정 버튼 -->
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_start_match"
                             android:layout_width="wrap_content"
@@ -205,7 +209,6 @@
                             android:textSize="13sp"
                             android:textStyle="bold"
                             app:cornerRadius="20dp"
-
                             android:minHeight="0dp"
                             android:minWidth="0dp"
                             android:paddingTop="6dp"
@@ -217,7 +220,6 @@
 
                     </LinearLayout>
 
-                    <!-- 이미지 영역 -->
                     <ImageView
                         android:id="@+id/ivPhoto"
                         android:layout_width="match_parent"
@@ -226,7 +228,6 @@
                         android:scaleType="centerCrop"
                         android:background="#F5F5F5" />
 
-                    <!-- 위치 -->
                     <TextView
                         android:id="@+id/tvLocation"
                         android:layout_width="match_parent"
@@ -236,7 +237,6 @@
                         android:textColor="#999999"
                         android:paddingTop="6dp" />
 
-                    <!-- 제목 -->
                     <TextView
                         android:id="@+id/tvTitleDiary"
                         android:layout_width="match_parent"
@@ -247,7 +247,6 @@
                         android:textStyle="bold"
                         android:textColor="#333333" />
 
-                    <!-- 내용 -->
                     <TextView
                         android:id="@+id/tvBody"
                         android:layout_width="match_parent"

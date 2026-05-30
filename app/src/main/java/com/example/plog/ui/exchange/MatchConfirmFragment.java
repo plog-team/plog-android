@@ -10,7 +10,6 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 
-import com.example.plog.MainActivity;
 import com.example.plog.R;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
@@ -19,14 +18,17 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-/**
- * 교환일기 신청 전 상대방의 프로필을 확인하고 매칭을 확정하는 프래그먼트
- */
+import android.util.Log;
+import com.example.plog.network.RetrofitClient;
+import com.example.plog.network.api.ExchangeMatchApi;
+import com.example.plog.network.dto.ExchangeRoomResponse;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class MatchConfirmFragment extends Fragment {
 
-    // ==========================================
-    // 시연용 더미 데이터 세트
-    // ==========================================
+    private Call<ExchangeRoomResponse> acceptCall;
 
     private final List<List<String>> partnerPool = Arrays.asList(
             Arrays.asList("user1", "#영화", "#드라마", "#집순이"),
@@ -43,165 +45,101 @@ public class MatchConfirmFragment extends Fragment {
     }
 
     @Override
-    public void onViewCreated(
-            @NonNull View view,
-            @Nullable Bundle savedInstanceState
-    ) {
-
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // UI 컴포넌트 바인딩
-        TextView tvMessage =
-                view.findViewById(R.id.tvMatchMessage);
+        TextView tvMessage = view.findViewById(R.id.tvMatchMessage);
+        TextView tvUserNickname = view.findViewById(R.id.tvUserNickname);
+        Chip chipTag1 = view.findViewById(R.id.chipTag1);
+        Chip chipTag2 = view.findViewById(R.id.chipTag2);
+        Chip chipTag3 = view.findViewById(R.id.chipTag3);
+        LinearLayout layoutButtons = view.findViewById(R.id.layoutButtons);
+        MaterialButton btnAccept = view.findViewById(R.id.btnAccept);
+        MaterialButton btnReject = view.findViewById(R.id.btnReject);
+        MaterialButton btnCancel = view.findViewById(R.id.btnCancel);
 
-        TextView tvUserNickname =
-                view.findViewById(R.id.tvUserNickname);
+        setNewPartner(tvUserNickname, chipTag1, chipTag2, chipTag3);
 
-        Chip chipTag1 =
-                view.findViewById(R.id.chipTag1);
-
-        Chip chipTag2 =
-                view.findViewById(R.id.chipTag2);
-
-        Chip chipTag3 =
-                view.findViewById(R.id.chipTag3);
-
-        LinearLayout layoutButtons =
-                view.findViewById(R.id.layoutButtons);
-
-        MaterialButton btnAccept =
-                view.findViewById(R.id.btnAccept);
-
-        MaterialButton btnReject =
-                view.findViewById(R.id.btnReject);
-
-        MaterialButton btnCancel =
-                view.findViewById(R.id.btnCancel);
-
-        // 초기 데이터 로드
-        setNewPartner(
-                tvUserNickname,
-                chipTag1,
-                chipTag2,
-                chipTag3
-        );
-
-        // ==========================================
-        // 교환 신청 수락
-        // ==========================================
-
+        // 예 버튼
         btnAccept.setOnClickListener(v -> {
-
-            tvMessage.setText("상대방의 응답을 기다리는 중...");
-
+            tvMessage.setText("매칭 중...");
             layoutButtons.setVisibility(View.GONE);
-
             btnCancel.setVisibility(View.VISIBLE);
 
-            // 2초 대기
-            view.postDelayed(() -> {
+            ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
 
-                // 알림 표시
-                if (getActivity() instanceof MainActivity) {
+            api.createMatch(new com.example.plog.network.dto.ExchangeMatchRequest(1L))
+                    .enqueue(new Callback<com.example.plog.network.dto.ExchangeMatchResponse>() {
+                        @Override
+                        public void onResponse(Call<com.example.plog.network.dto.ExchangeMatchResponse> call,
+                                               Response<com.example.plog.network.dto.ExchangeMatchResponse> response) {
+                            if (response.isSuccessful() && response.body() != null) {
+                                Long newMatchId = response.body().getId();
 
-                    ((MainActivity) getActivity()).showNotification(
-                            "매칭 성공!",
-                            tvUserNickname.getText()
-                                    + "님이 신청을 수락했습니다."
-                    );
-                }
+                                acceptCall = api.acceptMatch(newMatchId);
+                                acceptCall.enqueue(new Callback<ExchangeRoomResponse>() {
+                                    @Override
+                                    public void onResponse(Call<ExchangeRoomResponse> call,
+                                                           Response<ExchangeRoomResponse> response) {
+                                        if (response.isSuccessful() && response.body() != null) {
+                                            Long roomId = response.body().getId();
+                                            Bundle bundle = new Bundle();
+                                            bundle.putString("partnerName", tvUserNickname.getText().toString());
+                                            bundle.putLong("roomId", roomId);
+                                            NavHostFragment.findNavController(MatchConfirmFragment.this)
+                                                    .navigate(R.id.matchedFragment, bundle);
+                                        }
+                                    }
 
-                // 1.5초 후 이동
-                view.postDelayed(() -> {
+                                    @Override
+                                    public void onFailure(Call<ExchangeRoomResponse> call, Throwable t) {
+                                        if (!call.isCanceled()) {
+                                            Log.e("MatchConfirm", "수락 실패: " + t.getMessage());
+                                        }
+                                    }
+                                });
+                            }
+                        }
 
-                    Bundle bundle = new Bundle();
-
-                    bundle.putString(
-                            "partnerName",
-                            tvUserNickname.getText().toString()
-                    );
-
-                    NavHostFragment.findNavController(
-                            MatchConfirmFragment.this
-                    ).navigate(
-                            R.id.matchedFragment,
-                            bundle
-                    );
-
-                }, 1500);
-
-            }, 2000);
+                        @Override
+                        public void onFailure(Call<com.example.plog.network.dto.ExchangeMatchResponse> call, Throwable t) {
+                            Log.e("MatchConfirm", "신청 실패: " + t.getMessage());
+                        }
+                    });
         });
 
-        // ==========================================
-        // 다시 찾기
-        // ==========================================
-
+        // 다시 찾기 버튼
         btnReject.setOnClickListener(v -> {
-
             int nextIndex = currentPartnerIndex;
-
             if (partnerPool.size() > 1) {
-
                 Random random = new Random();
-
                 while (nextIndex == currentPartnerIndex) {
-
-                    nextIndex =
-                            random.nextInt(partnerPool.size());
+                    nextIndex = random.nextInt(partnerPool.size());
                 }
-
             } else {
-
                 nextIndex = 0;
             }
-
             currentPartnerIndex = nextIndex;
-
-            setNewPartner(
-                    tvUserNickname,
-                    chipTag1,
-                    chipTag2,
-                    chipTag3
-            );
+            setNewPartner(tvUserNickname, chipTag1, chipTag2, chipTag3);
         });
 
-        // ==========================================
-        // 신청 취소
-        // ==========================================
-
+        // 취소 버튼
         btnCancel.setOnClickListener(v -> {
-
-            tvMessage.setText(
-                    "이 사용자에게 교환일기를 신청할까요?"
-            );
-
+            if (acceptCall != null) {
+                acceptCall.cancel();
+                acceptCall = null;
+            }
+            tvMessage.setText("이 사용자에게 교환일기를 신청할까요?");
             layoutButtons.setVisibility(View.VISIBLE);
-
             btnCancel.setVisibility(View.GONE);
         });
     }
 
-    // ==========================================
-    // UI 데이터 갱신
-    // ==========================================
-
-    private void setNewPartner(
-            TextView tvNickname,
-            Chip chip1,
-            Chip chip2,
-            Chip chip3
-    ) {
-
-        List<String> partnerData =
-                partnerPool.get(currentPartnerIndex);
-
+    private void setNewPartner(TextView tvNickname, Chip chip1, Chip chip2, Chip chip3) {
+        List<String> partnerData = partnerPool.get(currentPartnerIndex);
         tvNickname.setText(partnerData.get(0));
-
         chip1.setText(partnerData.get(1));
-
         chip2.setText(partnerData.get(2));
-
         chip3.setText(partnerData.get(3));
     }
 }

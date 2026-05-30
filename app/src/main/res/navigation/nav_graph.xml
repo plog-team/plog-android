@@ -7,22 +7,35 @@
     <fragment
         android:id="@+id/homeFragment"
         android:name="com.example.plog.ui.home.HomeFragment"
-        android:label="홈" />
+        android:label="홈">
+        <action
+            android:id="@+id/action_homeFragment_to_diaryEditFragment"
+            app:destination="@id/diaryEditFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/diaryEditFragment"
+        android:name="com.example.plog.ui.diary.DiaryEditFragment"
+        android:label="일기 작성" />
+
     <fragment
         android:id="@+id/recommendFragment"
-        android:name="com.example.plog.ui.recommend.RecommendFragment"
+        android:name="com.example.plog.ui.placeholder.PlaceholderFragment"
         android:label="추천" />
+
     <fragment
         android:id="@+id/localFragment"
-        android:name="com.example.plog.ui.local.LocalFragment"
+        android:name="com.example.plog.ui.placeholder.PlaceholderFragment"
         android:label="로컬" />
+
     <fragment
         android:id="@+id/searchFragment"
-        android:name="com.example.plog.ui.search.SearchFragment"
+        android:name="com.example.plog.ui.placeholder.PlaceholderFragment"
         android:label="검색" />
+
     <fragment
         android:id="@+id/myFragment"
-        android:name="com.example.plog.ui.my.MyFragment"
+        android:name="com.example.plog.ui.placeholder.PlaceholderFragment"
         android:label="My" />
 
     <fragment
@@ -33,16 +46,28 @@
     <fragment
         android:id="@+id/matchedFragment"
         android:name="com.example.plog.ui.exchange.MatchedFragment"
-        android:label="matchedFragment" />
+        android:label="MatchedFragment">
+        <action
+            android:id="@+id/action_matchedFragment_to_diaryEditFragment"
+            app:destination="@id/diaryEditFragment" />
+        <action
+            android:id="@+id/action_matchedFragment_to_exchangeDiaryEditFragment"
+            app:destination="@id/exchangeDiaryEditFragment" />
+    </fragment>
 
     <fragment
         android:id="@+id/matchingFragment"
         android:name="com.example.plog.ui.exchange.MatchingFragment"
-        android:label="matchingFragment"/>
+        android:label="matchingFragment" />
 
     <fragment
         android:id="@+id/matchConfirmFragment"
         android:name="com.example.plog.ui.exchange.MatchConfirmFragment"
-        android:label="matchedConfirmFragment"/>
+        android:label="matchedConfirmFragment" />
+
+    <fragment
+        android:id="@+id/exchangeDiaryEditFragment"
+        android:name="com.example.plog.ui.exchange.ExchangeDiaryEditFragment"
+        android:label="교환일기 작성" />
 
 </navigation>

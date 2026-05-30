@@ -1,13 +1,15 @@
 package com.example.plog.ui.home;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.Navigation;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.example.plog.R;
@@ -22,33 +24,40 @@ public class HomeFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-
+        // 뷰 바인딩 초기화
         binding = FragmentHomeBinding.inflate(inflater, container, false);
+        return binding.getRoot();
+    }
 
-        // 교환일기 버튼 클릭 (테스트를 위한 버튼임)
-        binding.btnDiary.setOnClickListener(v -> {
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
 
-            boolean isMatched = false;
+        // 1. 기존 일기 작성 배너 클릭
+        binding.cardDiaryBanner.setOnClickListener(v ->
+                Navigation.findNavController(v).navigate(R.id.action_homeFragment_to_diaryEditFragment));
 
-            if (isMatched) {
+        // 2. 교환일기 배너 클릭 (상태에 따른 분기 처리)
+        binding.cardExchangeBanner.setOnClickListener(v -> {
+            SharedPreferences sharedPref = requireContext()
+                    .getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE);
 
-                NavHostFragment.findNavController(this)
-                        .navigate(R.id.matchedFragment);
+            // start_time이 0이면 매칭 기록이 없는 것(미매칭)
+            long startTime = sharedPref.getLong("start_time", 0L);
 
+            if (startTime != 0L) {
+                // 매칭 중 -> 매칭 화면 이동
+                NavHostFragment.findNavController(this).navigate(R.id.matchedFragment);
             } else {
-
-                NavHostFragment.findNavController(this)
-                        .navigate(R.id.notMatchedFragment);
-
+                // 매칭 안 됨 -> 미매칭 화면 이동
+                NavHostFragment.findNavController(this).navigate(R.id.notMatchedFragment);
             }
         });
-
-        return binding.getRoot();
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        binding = null;
+        binding = null; // 메모리 누수 방지
     }
 }
