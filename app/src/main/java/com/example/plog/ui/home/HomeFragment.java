@@ -7,7 +7,14 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.Navigation;
+import com.example.plog.R;
+import com.example.plog.data.DiaryRepository;
 import com.example.plog.databinding.FragmentHomeBinding;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class HomeFragment extends Fragment {
 
@@ -20,6 +27,19 @@ public class HomeFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
         return binding.getRoot();
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        binding.cardDiaryBanner.setOnClickListener(v -> {
+            DiaryRepository repository = new DiaryRepository(requireContext());
+            String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
+            int actionId = repository.getDiary(todayKey) == null
+                    ? R.id.action_homeFragment_to_diaryEditFragment
+                    : R.id.action_homeFragment_to_diaryDetailFragment;
+            Navigation.findNavController(v).navigate(actionId);
+        });
     }
 
     @Override
