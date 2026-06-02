@@ -1,5 +1,6 @@
 package com.example.plog.network;
 
+import com.example.plog.api.model.BookmarkRequest;
 import com.example.plog.model.AnswerRequest;
 import com.example.plog.model.ApiResponse;
 import com.example.plog.model.CreateSessionRequest;
@@ -11,19 +12,22 @@ import com.example.plog.model.PhotoUploadBatchResponse;
 import com.example.plog.model.SendChatRequest;
 import com.example.plog.model.SendChatResponse;
 import com.example.plog.model.SessionDetailResponse;
-
 import okhttp3.MultipartBody;
 import retrofit2.Call;
-import retrofit2.http.Body;
-import retrofit2.http.GET;
-import retrofit2.http.Multipart;
-import retrofit2.http.POST;
-import retrofit2.http.Part;
-import retrofit2.http.Path;
+import retrofit2.http.*;
+import java.util.Map;
 
 public interface ApiService {
 
-    /** 사진 멀티파트 업로드. files[] 배치 및 단일 file 파라미터 모두 허용. */
+    @POST("/api/bookmarks")
+    Call<Void> addBookmark(@Body BookmarkRequest req);
+
+    @DELETE("/api/bookmarks/{contentId}")
+    Call<Void> removeBookmark(@Path("contentId") String contentId);
+
+    @GET("/api/bookmarks/{contentId}/status")
+    Call<Map<String, Boolean>> isBookmarked(@Path("contentId") String contentId);
+
     @Multipart
     @POST("api/photos")
     Call<ApiResponse<PhotoUploadBatchResponse>> uploadPhoto(@Part MultipartBody.Part file);
@@ -42,7 +46,10 @@ public interface ApiService {
     );
 
     @POST("api/ai-guide/sessions/{sessionId}/chat")
-    Call<ApiResponse<SendChatResponse>> sendChat(@Path("sessionId") long sessionId, @Body SendChatRequest request);
+    Call<ApiResponse<SendChatResponse>> sendChat(
+        @Path("sessionId") long sessionId,
+        @Body SendChatRequest request
+    );
 
     @POST("api/ai-guide/sessions/{sessionId}/draft")
     Call<ApiResponse<DraftResponse>> generateDraft(@Path("sessionId") long sessionId);
@@ -51,5 +58,8 @@ public interface ApiService {
     Call<ApiResponse<SessionDetailResponse>> confirmSession(@Path("sessionId") long sessionId);
 
     @POST("api/ai-guide/sessions/{sessionId}/feedback")
-    Call<Void> submitFeedback(@Path("sessionId") long sessionId, @Body FeedbackRequest request);
+    Call<Void> submitFeedback(
+        @Path("sessionId") long sessionId,
+        @Body FeedbackRequest request
+    );
 }
