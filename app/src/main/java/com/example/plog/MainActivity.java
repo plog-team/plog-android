@@ -37,6 +37,18 @@ public class MainActivity extends AppCompatActivity {
                     navController
             );
 
+            // 하단바 홈 버튼 클릭 시 홈으로 이동
+            binding.bottomNavigation.setOnItemSelectedListener(item -> {
+                int id = item.getItemId();
+                if (id == R.id.homeFragment) {
+                    navController.popBackStack(R.id.homeFragment, false);
+                    navController.navigate(R.id.homeFragment);
+                    return true;
+                }
+                NavigationUI.onNavDestinationSelected(item, navController);
+                return true;
+            });
+
             // 종 아이콘 클릭 시 알림 다이얼로그
             binding.ivNotification.setOnClickListener(v -> {
                 NotificationFragment dialog = new NotificationFragment();
