@@ -85,10 +85,40 @@ public class PlaceDetailFragment extends Fragment {
 
         // 북마크
         view.findViewById(R.id.btnBookmark)
-                .setOnClickListener(v ->
-                        Toast.makeText(requireContext(),
-                                title + " 북마크 추가됨",
-                                Toast.LENGTH_SHORT).show());
+                .setOnClickListener(v -> {
+                    com.example.plog.api.model.BookmarkRequest req =
+                            new com.example.plog.api.model.BookmarkRequest(
+                                    contentId, title, address, imageUrl, category, contentTypeId);
+                    com.example.plog.network.ApiClient.getApiService()
+                            .addBookmark(req)
+                            .enqueue(new Callback<Void>() {
+                                @Override
+                                public void onResponse(@NonNull Call<Void> call,
+                                                       @NonNull Response<Void> resp) {
+                                    if (!isAdded()) return;
+                                    requireActivity().runOnUiThread(() -> {
+                                        if (resp.isSuccessful()) {
+                                            Toast.makeText(requireContext(),
+                                                    title + " 북마크 추가됨",
+                                                    Toast.LENGTH_SHORT).show();
+                                        } else {
+                                            Toast.makeText(requireContext(),
+                                                    "북마크 실패: " + resp.code(),
+                                                    Toast.LENGTH_SHORT).show();
+                                        }
+                                    });
+                                }
+                                @Override
+                                public void onFailure(@NonNull Call<Void> call,
+                                                      @NonNull Throwable t) {
+                                    if (!isAdded()) return;
+                                    requireActivity().runOnUiThread(() ->
+                                            Toast.makeText(requireContext(),
+                                                    "서버 연결 실패",
+                                                    Toast.LENGTH_SHORT).show());
+                                }
+                            });
+                });
 
         // 상세 정보 API 호출
         if (!contentId.isEmpty()) {
@@ -157,9 +187,9 @@ public class PlaceDetailFragment extends Fragment {
                                                         resp.body().response.body.items.item.get(0);
 
                                                 requireActivity().runOnUiThread(() -> {
-                                                    setOrHide(tvUsetime,  "🕐 ", d.getUsetime());
+                                                    setOrHideHtml(tvUsetime,  "🕐 ", d.getUsetime());
                                                     setOrHide(tvUsefee,   "💰 ", d.getUsefee());
-                                                    setOrHide(tvRestdate, "🚫 ", d.getRestdate());
+                                                    setOrHideHtml(tvRestdate, "🚫 ", d.getRestdate());
 
                                                     if (d.eventstartdate != null
                                                             && !d.eventstartdate.isEmpty()) {
@@ -199,18 +229,21 @@ public class PlaceDetailFragment extends Fragment {
         }
     }
 
+    // HTML 태그 포함된 값 처리
+    private void setOrHideHtml(TextView tv, String prefix, String value) {
+        if (value != null && !value.isEmpty()) {
+            tv.setVisibility(View.VISIBLE);
+            tv.setText(Html.fromHtml(prefix + value, Html.FROM_HTML_MODE_COMPACT));
+        } else {
+            tv.setVisibility(View.GONE);
+        }
+    }
+
     // 값 있으면 보여주고 없으면 숨기기
     private void setOrHide(TextView tv, String prefix, String value) {
         if (value != null && !value.isEmpty()) {
             tv.setVisibility(View.VISIBLE);
-
-            String combinedText = prefix + value;
-
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                tv.setText(Html.fromHtml(combinedText, Html.FROM_HTML_MODE_COMPACT));
-            } else {
-                tv.setText(Html.fromHtml(combinedText));
-            }
+            tv.setText(prefix + value);
         } else {
             tv.setVisibility(View.GONE);
         }

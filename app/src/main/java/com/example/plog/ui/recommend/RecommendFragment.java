@@ -1,7 +1,7 @@
 package com.example.plog.ui.recommend;
 import androidx.core.widget.NestedScrollView;
-import android.widget.Toast;
 import android.Manifest;
+import android.app.AlertDialog;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.*;
@@ -43,6 +43,7 @@ public class RecommendFragment extends Fragment {
 
     private double currentLat = 37.5665;
     private double currentLon = 126.9780;
+    private boolean locationFailed = false;
     private String selectedTypeId = "";
     private boolean isSortedByPopularity = false;
     private boolean isLoadingMore = false;
@@ -99,27 +100,23 @@ public class RecommendFragment extends Fragment {
         rvNearby.setAdapter(recommendAdapter);
     }
 
-    // 스크롤 페이지네이션
     private void setupScrollPagination() {
         layoutContent.setOnScrollChangeListener(
                 (NestedScrollView.OnScrollChangeListener)
-                (v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
-                    View child = layoutContent.getChildAt(0);
-                    if (child == null) return;
-                    int diff = child.getBottom()
-                            - (layoutContent.getHeight() + scrollY);
-                    if (diff <= 300 && !isLoadingMore && hasMorePages) {
-                        loadMorePlaces();
-                    }
-                });
+                        (v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+                            View child = layoutContent.getChildAt(0);
+                            if (child == null) return;
+                            int diff = child.getBottom()
+                                    - (layoutContent.getHeight() + scrollY);
+                            if (diff <= 300 && !isLoadingMore && hasMorePages) {
+                                loadMorePlaces();
+                            }
+                        });
     }
 
-    // 정렬 드롭다운
     private void setupSortButton() {
         tvSortBtn.setOnClickListener(v -> {
             PopupMenu popup = new PopupMenu(requireContext(), tvSortBtn);
-
-            // 현재 정렬 기준이 위에 오도록
             if (isSortedByPopularity) {
                 popup.getMenu().add(0, 1, 0, "인기순 ✓");
                 popup.getMenu().add(0, 2, 1, "거리순");
@@ -127,19 +124,14 @@ public class RecommendFragment extends Fragment {
                 popup.getMenu().add(0, 2, 0, "거리순 ✓");
                 popup.getMenu().add(0, 1, 1, "인기순");
             }
-
             popup.setOnMenuItemClickListener(item -> {
                 if (item.getItemId() == 1) {
-                    // 인기순 선택
                     if (!isSortedByPopularity) {
                         isSortedByPopularity = true;
                         tvSortBtn.setText("인기순 ∨");
-                        if (!originalList.isEmpty()) {
-                            fetchCongestionAndSort();
-                        }
+                        if (!originalList.isEmpty()) fetchCongestionAndSort();
                     }
                 } else {
-                    // 거리순 선택
                     if (isSortedByPopularity) {
                         isSortedByPopularity = false;
                         tvSortBtn.setText("거리순 ∨");
@@ -171,8 +163,7 @@ public class RecommendFragment extends Fragment {
             tab.setTextColor(requireContext().getColor(R.color.gray_400));
         }
         selected.setBackgroundResource(R.drawable.bg_tab_selected);
-        selected.setTextColor(
-                requireContext().getColor(android.R.color.white));
+        selected.setTextColor(requireContext().getColor(android.R.color.white));
         isSortedByPopularity = false;
         tvSortBtn.setText("거리순 ∨");
         currentPage = 1;
@@ -183,8 +174,11 @@ public class RecommendFragment extends Fragment {
     }
 
     private void getLocationAndLoad() {
+        locationFailed = false;
         fusedLocationClient = LocationServices
                 .getFusedLocationProviderClient(requireActivity());
+
+        // 권한 없으면 요청
         if (ActivityCompat.checkSelfPermission(requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -194,8 +188,6 @@ public class RecommendFragment extends Fragment {
             return;
         }
 
-        // getLastLocation은 에뮬레이터에서 null을 반환하는 경우가 많으므로
-        // getCurrentLocation으로 실시간 위치를 요청한다
         com.google.android.gms.location.CurrentLocationRequest locationRequest =
                 new com.google.android.gms.location.CurrentLocationRequest.Builder()
                         .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
@@ -208,24 +200,40 @@ public class RecommendFragment extends Fragment {
                     if (loc != null) {
                         currentLat = loc.getLatitude();
                         currentLon = loc.getLongitude();
+                    } else {
+                        // loc null → fallback + 팝업
+                        showLocationFallbackDialog();
                     }
                     loadPlaces();
                 })
-                .addOnFailureListener(e -> {
-                    // 실패 시 getLastLocation으로 fallback
-                    fusedLocationClient.getLastLocation()
-                            .addOnSuccessListener(loc -> {
-                                if (loc != null) {
-                                    currentLat = loc.getLatitude();
-                                    currentLon = loc.getLongitude();
-                                }
-                                loadPlaces();
-                            })
-                            .addOnFailureListener(e2 -> loadPlaces());
-                });
+                .addOnFailureListener(e ->
+                        fusedLocationClient.getLastLocation()
+                                .addOnSuccessListener(loc -> {
+                                    if (loc != null) {
+                                        currentLat = loc.getLatitude();
+                                        currentLon = loc.getLongitude();
+                                    } else {
+                                        showLocationFallbackDialog();
+                                    }
+                                    loadPlaces();
+                                })
+                                .addOnFailureListener(e2 -> {
+                                    showLocationFallbackDialog();
+                                    loadPlaces();
+                                }));
     }
 
-    // 첫 페이지 로드
+    // 위치 실패 팝업 (폴백은 유지)
+    private void showLocationFallbackDialog() {
+        if (!isAdded()) return;
+        requireActivity().runOnUiThread(() ->
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("위치를 가져올 수 없어요")
+                        .setMessage("현재 위치를 확인할 수 없어\n서울 기본 위치 기준으로 장소를 보여드립니다.")
+                        .setPositiveButton("확인", null)
+                        .show());
+    }
+
     private void loadPlaces() {
         currentPage = 1;
         hasMorePages = true;
@@ -233,7 +241,6 @@ public class RecommendFragment extends Fragment {
         fetchPage(currentPage, true);
     }
 
-    // 추가 페이지 로드
     private void loadMorePlaces() {
         if (isLoadingMore || !hasMorePages) return;
         isLoadingMore = true;
@@ -254,38 +261,46 @@ public class RecommendFragment extends Fragment {
                         if (!isAdded()) return;
                         isLoadingMore = false;
 
-                        if (resp.isSuccessful() && resp.body() != null && resp.body().response != null && resp.body().response.body != null) {
+                        if (resp.isSuccessful() && resp.body() != null) {
                             TourResponse.Body body = resp.body().response.body;
 
-                            if (body.totalCount == 0) {
-                                if (isFirst) showEmpty();
-                                hasMorePages = false;
+                            if (isFirst && (body.totalCount == 0
+                                    || body.items == null
+                                    || body.items.isJsonNull())) {
+                                showEmpty();
                                 return;
                             }
 
-                            if (body.items == null || !body.items.isJsonObject()) {
-                                if (isFirst) showEmpty();
-                                hasMorePages = false;
-                                return;
+                            // items가 빈 객체로 올 수 있어서 JsonElement로 직접 파싱
+                            List<TourItem> rawItems = null;
+                            try {
+                                if (body.items != null
+                                        && body.items.isJsonObject()
+                                        && body.items.getAsJsonObject().has("item")) {
+                                    com.google.gson.JsonElement itemEl =
+                                            body.items.getAsJsonObject().get("item");
+                                    com.google.gson.Gson gson = new com.google.gson.Gson();
+                                    if (itemEl.isJsonArray()) {
+                                        rawItems = gson.fromJson(itemEl,
+                                                new com.google.gson.reflect.TypeToken<
+                                                        List<TourItem>>(){}.getType());
+                                    } else if (itemEl.isJsonObject()) {
+                                        // 결과가 1개일 때 배열 대신 객체로 오는 경우
+                                        rawItems = new ArrayList<>();
+                                        rawItems.add(gson.fromJson(itemEl, TourItem.class));
+                                    }
+                                }
+                            } catch (Exception e) {
+                                rawItems = null;
                             }
-
-                            com.google.gson.JsonElement itemElement = body.items.getAsJsonObject().get("item");
-                            if (itemElement == null || !itemElement.isJsonArray()) {
-                                hasMorePages = false;
-                                return;
-                            }
-
-                            java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<List<TourItem>>(){}.getType();
-                            List<TourItem> rawItems = new com.google.gson.Gson().fromJson(itemElement, listType);
 
                             if (rawItems == null || rawItems.isEmpty()) {
                                 hasMorePages = false;
+                                if (isFirst) showEmpty();
                                 return;
                             }
 
                             List<PlaceItem> newItems = parseItems(rawItems);
-
-                            // 전체 페이지 수 초과 체크
                             int totalPages = (int) Math.ceil(
                                     (double) body.totalCount / PAGE_SIZE);
                             if (page >= totalPages) hasMorePages = false;
@@ -295,7 +310,6 @@ public class RecommendFragment extends Fragment {
                                 nearbyList.clear();
                                 featuredList.clear();
                             }
-
                             originalList.addAll(newItems);
 
                             requireActivity().runOnUiThread(() -> {
@@ -323,21 +337,129 @@ public class RecommendFragment extends Fragment {
                 });
     }
 
-    // 인기순 정렬
-    // 서울시 권역 목록
+    private void fetchCongestionAndSort() {
+        if (originalList.isEmpty()) return;
+
+        Map<String, List<PlaceItem>> areaMap = new HashMap<>();
+        for (PlaceItem item : originalList) {
+            String area = matchAreaFromAddress(item.getAddress(), item.getTitle());
+            if (area != null) {
+                if (!areaMap.containsKey(area)) areaMap.put(area, new ArrayList<>());
+                areaMap.get(area).add(item);
+            }
+        }
+
+        if (areaMap.isEmpty()) {
+            for (PlaceItem item : originalList) {
+                String area = getNearestSeoulArea(item.getLatitude(), item.getLongitude());
+                if (area != null) {
+                    if (!areaMap.containsKey(area)) areaMap.put(area, new ArrayList<>());
+                    areaMap.get(area).add(item);
+                }
+            }
+        }
+
+        if (areaMap.isEmpty()) {
+            // 서울 외 지역 → 거리순 유지 + 안내
+            requireActivity().runOnUiThread(() -> {
+                isSortedByPopularity = false;
+                tvSortBtn.setText("거리순 ∨");
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("인기순 정렬 불가")
+                        .setMessage("주변에 실시간 혼잡도 지원 지역이 없어\n거리순으로 유지합니다.")
+                        .setPositiveButton("확인", null)
+                        .show();
+            });
+            return;
+        }
+
+        int[] completed = {0};
+        int[] successCount = {0};
+        int total = areaMap.size();
+
+        for (String area : areaMap.keySet()) {
+            List<PlaceItem> itemsInArea = areaMap.get(area);
+            String encodedArea;
+            try { encodedArea = java.net.URLEncoder.encode(area, "UTF-8"); }
+            catch (Exception e) { encodedArea = area; }
+
+            TourApiClient.getSeoulService()
+                    .getRealtimeData(TourApiClient.SEOUL_API_KEY, encodedArea)
+                    .enqueue(new Callback<SeoulResponse>() {
+                        @Override
+                        public void onResponse(@NonNull Call<SeoulResponse> call,
+                                               @NonNull Response<SeoulResponse> resp) {
+                            if (resp.isSuccessful()
+                                    && resp.body() != null
+                                    && resp.body().CITYDATA != null
+                                    && resp.body().CITYDATA.LIVE_PPLTN_STTS != null
+                                    && !resp.body().CITYDATA.LIVE_PPLTN_STTS.isEmpty()) {
+                                int score = congestionToScore(
+                                        resp.body().CITYDATA.LIVE_PPLTN_STTS
+                                                .get(0).AREA_CONGEST_LVL);
+                                for (PlaceItem item : itemsInArea) {
+                                    item.setCongestionScore(score);
+                                }
+                                synchronized (completed) { successCount[0]++; }
+                            }
+                            checkAndSort(completed, total, successCount);
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<SeoulResponse> call,
+                                              @NonNull Throwable t) {
+                            checkAndSort(completed, total, successCount);
+                        }
+                    });
+        }
+    }
+
+    private void checkAndSort(int[] completed, int total, int[] successCount) {
+        synchronized (completed) {
+            completed[0]++;
+            if (completed[0] >= total) {
+                // 성공한 권역이 하나도 없으면 안내 + 거리순 유지
+                if (successCount[0] == 0) {
+                    if (isAdded()) {
+                        requireActivity().runOnUiThread(() -> {
+                            isSortedByPopularity = false;
+                            tvSortBtn.setText("거리순 ∨");
+                            new AlertDialog.Builder(requireContext())
+                                    .setTitle("인기순 정렬 실패")
+                                    .setMessage("혼잡도 정보를 가져오지 못했어요.\n거리순으로 유지합니다.")
+                                    .setPositiveButton("확인", null)
+                                    .show();
+                        });
+                    }
+                    return;
+                }
+
+                List<PlaceItem> sorted = new ArrayList<>(originalList);
+                Collections.sort(sorted,
+                        (a, b) -> b.getCongestionScore() - a.getCongestionScore());
+                if (isAdded()) {
+                    requireActivity().runOnUiThread(() -> {
+                        nearbyList.clear();
+                        nearbyList.addAll(sorted);
+                        recommendAdapter.updateItems(nearbyList);
+                    });
+                }
+            }
+        }
+    }
+
     private String matchAreaFromAddress(String address, String title) {
         if (address == null && title == null) return null;
         String text = (address != null ? address : "")
                 + (title != null ? title : "");
-
-        if (text.contains("강남") || text.contains("삼성")
-                || text.contains("코엑스"))        return "강남 MICE 관광특구";
+        if (text.contains("강남") || text.contains("삼성") || text.contains("코엑스"))
+            return "강남 MICE 관광특구";
         if (text.contains("동대문") || text.contains("DDP"))
             return "동대문 관광특구";
         if (text.contains("명동") || text.contains("충무로"))
             return "명동 관광특구";
-        if (text.contains("홍대") || text.contains("홍익")
-                || text.contains("합정"))          return "홍대 관광특구";
+        if (text.contains("홍대") || text.contains("홍익") || text.contains("합정"))
+            return "홍대 관광특구";
         if (text.contains("이태원") || text.contains("한남"))
             return "이태원 관광특구";
         if (text.contains("종로") || text.contains("청계"))
@@ -352,128 +474,34 @@ public class RecommendFragment extends Fragment {
             return "경복궁";
         if (text.contains("창덕궁") || text.contains("종묘"))
             return "창덕궁·종묘";
-        if (text.contains("남산"))                 return "남산공원";
+        if (text.contains("남산"))
+            return "남산공원";
         if (text.contains("서울숲") || text.contains("성수"))
             return "서울숲";
-        if (text.contains("여의도"))               return "여의도";
+        if (text.contains("여의도"))
+            return "여의도";
         if (text.contains("영등포") || text.contains("타임스퀘어"))
             return "영등포·타임스퀘어";
-        if (text.contains("신촌") || text.contains("이대")
-                || text.contains("이화여대"))      return "신촌·이대";
+        if (text.contains("신촌") || text.contains("이대") || text.contains("이화여대"))
+            return "신촌·이대";
         if (text.contains("왕십리") || text.contains("뚝섬"))
             return "왕십리·성수·뚝섬";
         if (text.contains("노원") || text.contains("불암산"))
             return "노원·불암산";
         if (text.contains("수유") || text.contains("도봉"))
             return "수유리·도봉산";
-        if (text.contains("어린이대공원")
-                || text.contains("광진"))          return "어린이대공원";
-        return null; // 매칭 안 되면 score 0
+        if (text.contains("어린이대공원") || text.contains("광진"))
+            return "어린이대공원";
+        return null;
     }
 
-    private void fetchCongestionAndSort() {
-        if (originalList.isEmpty()) return;
-
-        // 각 장소마다 권역 매칭
-        Map<String, List<PlaceItem>> areaMap = new HashMap<>();
-        for (PlaceItem item : originalList) {
-            String area = matchAreaFromAddress(
-                    item.getAddress(), item.getTitle());
-            if (area != null) {
-                if (!areaMap.containsKey(area)) {
-                    areaMap.put(area, new ArrayList<>());
-                }
-                areaMap.get(area).add(item);
-            }
-        }
-
-        if (areaMap.isEmpty()) {
-            // 서울 권역 매칭 없음 → 좌표 기반 가장 가까운 권역으로 fallback
-            for (PlaceItem item : originalList) {
-                String area = getNearestSeoulArea(
-                        item.getLatitude(), item.getLongitude());
-                if (area != null) {
-                    if (!areaMap.containsKey(area)) areaMap.put(area, new ArrayList<>());
-                    areaMap.get(area).add(item);
-                }
-            }
-        }
-
-        if (areaMap.isEmpty()) {
-            // 그래도 매칭 없으면 (서울 외 지역) 정렬 불가 안내
-            Toast.makeText(requireContext(),
-                    "주변에 실시간 혼잡도 지원 지역이 없어요",
-                    Toast.LENGTH_SHORT).show();
-            isSortedByPopularity = false;
-            tvSortBtn.setText("거리순 ∨");
-            return;
-        }
-
-        // 매칭된 권역마다 서울시 API 호출
-        int[] completed = {0};
-        int total = areaMap.size();
-
-        for (String area : areaMap.keySet()) {
-            List<PlaceItem> itemsInArea = areaMap.get(area);
-            String encodedArea;
-            try {
-                encodedArea = java.net.URLEncoder.encode(area, "UTF-8");
-            } catch (Exception e) {
-                encodedArea = area;
-            }
-            TourApiClient.getSeoulService()
-                    .getRealtimeData(TourApiClient.SEOUL_API_KEY, encodedArea)
-                    .enqueue(new Callback<SeoulResponse>() {
-                        @Override
-                        public void onResponse(
-                                @NonNull Call<SeoulResponse> call,
-                                @NonNull Response<SeoulResponse> resp) {
-                            if (resp.isSuccessful()
-                                    && resp.body() != null
-                                    && resp.body().CITYDATA != null
-                                    && resp.body().CITYDATA.LIVE_PPLTN_STTS != null
-                                    && !resp.body().CITYDATA
-                                    .LIVE_PPLTN_STTS.isEmpty()) {
-                                int score = congestionToScore(
-                                        resp.body().CITYDATA
-                                                .LIVE_PPLTN_STTS.get(0)
-                                                .AREA_CONGEST_LVL);
-                                // 해당 권역 장소들에만 점수 부여
-                                for (PlaceItem item : itemsInArea) {
-                                    item.setCongestionScore(score);
-                                }
-                            }
-                            checkAndSort(completed, total);
-                        }
-                        @Override
-                        public void onFailure(
-                                @NonNull Call<SeoulResponse> call,
-                                @NonNull Throwable t) {
-                            checkAndSort(completed, total);
-                        }
-                    });
-        }
-    }
-
-    // 위도/경도로 가장 가까운 서울 권역 반환
     private String getNearestSeoulArea(double lat, double lon) {
-        // 서울 범위 밖이면 null
         if (lat < 37.4 || lat > 37.7 || lon < 126.7 || lon > 127.2) return null;
-
-        // 주요 권역 좌표 매핑
         double[][] areas = {
-                {37.5636, 126.9869}, // 명동 관광특구
-                {37.5563, 126.9236}, // 홍대 관광특구
-                {37.5172, 127.0473}, // 강남 MICE 관광특구
-                {37.5796, 126.9770}, // 경복궁
-                {37.5340, 126.9940}, // 이태원 관광특구
-                {37.5133, 127.1001}, // 잠실 관광특구
-                {37.5714, 126.9882}, // 인사동·익선동
-                {37.5824, 126.9830}, // 북촌 한옥마을
-                {37.5648, 127.0816}, // 어린이대공원
-                {37.5443, 127.0557}, // 왕십리·성수·뚝섬
-                {37.5219, 126.9245}, // 여의도
-                {37.5572, 126.9368}, // 신촌·이대
+                {37.5636, 126.9869}, {37.5563, 126.9236}, {37.5172, 127.0473},
+                {37.5796, 126.9770}, {37.5340, 126.9940}, {37.5133, 127.1001},
+                {37.5714, 126.9882}, {37.5824, 126.9830}, {37.5648, 127.0816},
+                {37.5443, 127.0557}, {37.5219, 126.9245}, {37.5572, 126.9368},
         };
         String[] names = {
                 "명동 관광특구", "홍대 관광특구", "강남 MICE 관광특구",
@@ -481,28 +509,13 @@ public class RecommendFragment extends Fragment {
                 "인사동·익선동", "북촌한옥마을", "어린이대공원",
                 "왕십리·성수·뚝섬", "여의도", "신촌·이대"
         };
-
         double minDist = Double.MAX_VALUE;
         String nearest = null;
         for (int i = 0; i < areas.length; i++) {
-            double d = Math.pow(lat - areas[i][0], 2)
-                    + Math.pow(lon - areas[i][1], 2);
-            if (d < minDist) {
-                minDist = d;
-                nearest = names[i];
-            }
+            double d = Math.pow(lat - areas[i][0], 2) + Math.pow(lon - areas[i][1], 2);
+            if (d < minDist) { minDist = d; nearest = names[i]; }
         }
         return nearest;
-    }
-
-    private String congestionToLabel(int score) {
-        switch (score) {
-            case 4: return "매우붐빔";
-            case 3: return "붐빔";
-            case 2: return "보통";
-            case 1: return "여유";
-            default: return "정보없음";
-        }
     }
 
     private List<PlaceItem> parseItems(List<TourItem> raw) {
@@ -519,13 +532,13 @@ public class RecommendFragment extends Fragment {
     private void navigateToDetail(PlaceItem item) {
         Bundle b = new Bundle();
         b.putString("contentId",     item.getContentId());
-        b.putString("contentTypeId", item.getContentTypeId()); // 타입별 상세 필드 수신용
+        b.putString("contentTypeId", item.getContentTypeId());
         b.putString("title",         item.getTitle());
         b.putString("address",       item.getAddress());
         b.putString("imageUrl",      item.getImageUrl());
         b.putString("category",      item.getCategory());
         b.putString("distance",      item.getDistance());
-        b.putString("congestion",    item.getCongestion()); // 추가
+        b.putString("congestion",    item.getCongestion());
         b.putFloat("latitude",       (float) item.getLatitude());
         b.putFloat("longitude",      (float) item.getLongitude());
         Navigation.findNavController(requireView())
@@ -561,35 +574,17 @@ public class RecommendFragment extends Fragment {
         });
     }
 
-    private void checkAndSort(int[] completed, int total) {
-        synchronized (completed) {
-            completed[0]++;
-            if (completed[0] >= total) {
-                List<PlaceItem> sorted = new ArrayList<>(originalList);
-                Collections.sort(sorted,
-                        (a, b) -> b.getCongestionScore()
-                                - a.getCongestionScore());
-                if (isAdded()) {
-                    requireActivity().runOnUiThread(() -> {
-                        nearbyList.clear();
-                        nearbyList.addAll(sorted);
-                        recommendAdapter.updateItems(nearbyList);
-                    });
-                }
-            }
-        }
-    }
-
     private int congestionToScore(String level) {
         if (level == null) return 0;
         switch (level) {
-            case "매우붐빔": return 4;
-            case "붐빔":     return 3;
-            case "보통":     return 2;
-            case "여유":     return 1;
+            case "매우붐빔": return 3;
+            case "붐빔":     return 2;
+            case "보통":     return 1;
+            case "여유":     return 0;
             default:         return 0;
         }
     }
+
     private String getCategoryName(String typeId) {
         if (typeId == null) return "기타";
         switch (typeId) {
@@ -608,11 +603,23 @@ public class RecommendFragment extends Fragment {
 
     @Override
     public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String[] permissions, @NonNull int[] grantResults) {
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
         if (requestCode == LOCATION_REQUEST
                 && grantResults.length > 0
                 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             getLocationAndLoad();
-        } else { loadPlaces(); }
+        } else {
+            // 권한 거부 → 팝업 + 기본 폴백
+            if (isAdded()) {
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("위치 권한이 없어요")
+                        .setMessage("위치 권한을 허용하지 않아\n서울 기본 위치 기준으로 장소를 보여드립니다.")
+                        .setPositiveButton("확인", (d, w) -> loadPlaces())
+                        .show();
+            } else {
+                loadPlaces();
+            }
+        }
     }
 }
