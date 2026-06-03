@@ -130,6 +130,45 @@
                             android:textColor="#666666"
                             android:layout_marginTop="8dp" />
 
+                        <!-- 일기 열람 토글 -->
+                        <TextView
+                            android:id="@+id/tvDiaryToggle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="일기 열람 ▼"
+                            android:textSize="13sp"
+                            android:textColor="#9C63F5"
+                            android:layout_marginTop="8dp"
+                            android:clickable="true"
+                            android:focusable="true" />
+
+                        <!-- 일기 본문 (접힘) -->
+                        <LinearLayout
+                            android:id="@+id/layoutDiaryContent"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="#E8E0F8"
+                                android:layout_marginTop="10dp"
+                                android:layout_marginBottom="10dp" />
+
+                            <TextView
+                                android:id="@+id/tvDiaryBody"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="13sp"
+                                android:textColor="#424242"
+                                android:lineSpacingExtra="4dp"
+                                android:background="#F7F2FE"
+                                android:padding="12dp" />
+
+                        </LinearLayout>
+
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"
@@ -146,11 +185,41 @@
                             android:lineSpacingExtra="2dp"
                             android:layout_marginBottom="16dp" />
 
+                        <!-- 선택지 버튼 목록 -->
                         <LinearLayout
                             android:id="@+id/layoutOptions"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="vertical" />
+
+                        <!-- 자유 입력 (options 없을 때 표시) -->
+                        <LinearLayout
+                            android:id="@+id/layoutFreeAnswer"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <EditText
+                                android:id="@+id/etFreeAnswer"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:hint="직접 입력해 주세요"
+                                android:inputType="text"
+                                android:background="#F5F5F5"
+                                android:padding="12dp"
+                                android:layout_marginBottom="8dp" />
+
+                            <Button
+                                android:id="@+id/btnSubmitFreeAnswer"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="확인"
+                                android:textColor="#FFFFFF"
+                                android:backgroundTint="#9C63F5"
+                                android:layout_marginBottom="4dp" />
+
+                        </LinearLayout>
 
                         <ProgressBar
                             android:id="@+id/progressInterrupt"

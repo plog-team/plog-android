@@ -6,6 +6,7 @@ import com.example.plog.model.ApiResponse;
 import com.example.plog.model.ClarifyRequest;
 import com.example.plog.model.CreateSessionRequest;
 import com.example.plog.model.CreateSessionResponse;
+import com.example.plog.model.DiarySimpleResponse;
 import com.example.plog.model.DraftResponse;
 import com.example.plog.model.FeedbackRequest;
 import com.example.plog.model.GenerateReportRequest;
@@ -72,6 +73,11 @@ public interface ApiService {
         @Path("sessionId") long sessionId,
         @Body FeedbackRequest request
     );
+
+    // ── 일기 열람 ──────────────────────────────────────────────
+
+    @GET("api/diaries/{diaryId}")
+    Call<ApiResponse<DiarySimpleResponse>> getDiary(@Path("diaryId") long diaryId);
 
     // ── 장소 리포트 (월간) ──────────────────────────────────────
 

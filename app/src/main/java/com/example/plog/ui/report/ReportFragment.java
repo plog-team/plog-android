@@ -426,8 +426,9 @@ public class ReportFragment extends Fragment {
             ((TextView) row.findViewById(R.id.tvDate)).setText(item.date);
 
             TextView tvDayEmotion = row.findViewById(R.id.tvDayEmotion);
-            if (item.emotion != null) {
-                tvDayEmotion.setText(item.emotion);
+            if (item.emotions != null && !item.emotions.isEmpty()) {
+                tvDayEmotion.setText(String.join(" · ", item.emotions));
+                tvDayEmotion.setAlpha(1f);
             } else {
                 tvDayEmotion.setText("기록 없음");
                 tvDayEmotion.setAlpha(0.4f);
@@ -532,11 +533,18 @@ public class ReportFragment extends Fragment {
         emotion.emotionFrequency.put("평온", 1);
         emotion.emotionByDay = new java.util.ArrayList<>();
         String[] days = {"월", "화", "수", "목", "금", "토", "일"};
-        String[] emos = {"기쁨", "슬픔", null, "설렘", "기쁨", "평온", "기쁨"};
         String[] dates = {"5월20일", "5월21일", "5월22일", "5월23일", "5월24일", "5월25일", "5월26일"};
+        java.util.List<?>[] emoLists = {
+            java.util.List.of("기쁨"), java.util.List.of("슬픔"), null,
+            java.util.List.of("설렘"), java.util.List.of("기쁨"), java.util.List.of("평온"), java.util.List.of("기쁨")
+        };
         for (int i = 0; i < 7; i++) {
             EmotionByDay d = new EmotionByDay();
-            d.day = days[i]; d.date = dates[i]; d.emotion = emos[i];
+            d.day = days[i]; d.date = dates[i];
+            @SuppressWarnings("unchecked")
+            java.util.List<String> emoList = (java.util.List<String>) emoLists[i];
+            d.emotions = emoList;
+            d.hasDiary = emoList != null;
             emotion.emotionByDay.add(d);
         }
 

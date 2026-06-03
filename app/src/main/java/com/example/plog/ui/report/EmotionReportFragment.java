@@ -27,6 +27,7 @@ import androidx.navigation.Navigation;
 import com.example.plog.databinding.FragmentEmotionReportBinding;
 import com.example.plog.model.ApiResponse;
 import com.example.plog.model.ClarifyRequest;
+import com.example.plog.model.DiarySimpleResponse;
 import com.example.plog.model.EmotionByDay;
 import com.example.plog.model.EmotionReportData;
 import com.example.plog.model.GenerateReportRequest;
@@ -65,7 +66,6 @@ public class EmotionReportFragment extends Fragment {
     private String threadId;
     private String userName = "사용자";
     private String emotionPeriod;
-    private boolean isMockMode = false;
     private int selectedRating = 0;
     private TextView[] stars;
 
@@ -95,9 +95,7 @@ public class EmotionReportFragment extends Fragment {
         binding.btnFeedback.setOnClickListener(v -> submitFeedback());
         setupStarRating();
 
-        // ─── UI 테스트: showMockResult() 사용, 백엔드 완성 후 generateReport()로 교체 ───
-        showMockResult();
-        // generateReport();
+        generateReport();
     }
 
     @Override
@@ -339,7 +337,6 @@ public class EmotionReportFragment extends Fragment {
     // ──────────────────────── Interrupt ────────────────────────
 
     private void showInterrupt(InterruptPayload payload) {
-        // 로딩 페이드아웃 후 인터럽트 카드 슬라이드인
         binding.layoutLoading.animate()
                 .alpha(0f)
                 .setDuration(180)
@@ -350,25 +347,101 @@ public class EmotionReportFragment extends Fragment {
 
                     binding.tvInterruptDate.setText(payload.date + " 일기");
                     binding.tvInterruptQuestion.setText(payload.question);
-                    binding.layoutOptions.removeAllViews();
-                    for (String option : payload.options) {
-                        Button btn = new Button(requireContext());
-                        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.WRAP_CONTENT);
-                        params.setMargins(0, 0, 0, dpToPx(8));
-                        btn.setLayoutParams(params);
-                        btn.setText(option);
-                        btn.setAllCaps(false);
-                        btn.setTextColor(0xFFFFFFFF);
-                        GradientDrawable bg = new GradientDrawable();
-                        bg.setColor(0xFF9C63F5);
-                        bg.setCornerRadius(dpToPx(8));
-                        btn.setBackground(bg);
-                        btn.setOnClickListener(v -> submitClarification(option));
-                        binding.layoutOptions.addView(btn);
-                    }
+                    binding.layoutDiaryContent.setVisibility(View.GONE);
+                    binding.tvDiaryBody.setText("");
                     binding.progressInterrupt.setVisibility(View.GONE);
+
+                    // 일기 열람 토글
+                    final boolean[] diaryLoaded = {false};
+                    binding.tvDiaryToggle.setOnClickListener(v -> {
+                        if (binding.layoutDiaryContent.getVisibility() == View.VISIBLE) {
+                            binding.layoutDiaryContent.setVisibility(View.GONE);
+                            binding.tvDiaryToggle.setText("일기 열람 ▼");
+                        } else if (diaryLoaded[0]) {
+                            binding.layoutDiaryContent.setVisibility(View.VISIBLE);
+                            binding.tvDiaryToggle.setText("일기 접기 ▲");
+                        } else {
+                            binding.tvDiaryToggle.setText("불러오는 중...");
+                            ApiClient.getApiService().getDiary(payload.diaryId)
+                                    .enqueue(new Callback<ApiResponse<DiarySimpleResponse>>() {
+                                        @Override
+                                        public void onResponse(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
+                                                               @NonNull Response<ApiResponse<DiarySimpleResponse>> response) {
+                                            if (!isAdded()) return;
+                                            if (response.isSuccessful() && response.body() != null
+                                                    && response.body().success) {
+                                                DiarySimpleResponse diary = response.body().data;
+                                                String bodyText = (diary.body != null && !diary.body.isBlank())
+                                                        ? diary.body : "(내용 없음)";
+                                                binding.tvDiaryBody.setText(bodyText);
+                                                diaryLoaded[0] = true;
+                                                binding.layoutDiaryContent.setVisibility(View.VISIBLE);
+                                                binding.tvDiaryToggle.setText("일기 접기 ▲");
+                                            } else {
+                                                binding.tvDiaryToggle.setText("일기 열람 ▼");
+                                                toast("일기를 불러올 수 없어요");
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onFailure(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
+                                                              @NonNull Throwable t) {
+                                            if (!isAdded()) return;
+                                            binding.tvDiaryToggle.setText("일기 열람 ▼");
+                                            toast("일기 로딩에 실패했어요");
+                                        }
+                                    });
+                        }
+                    });
+
+                    // 선택지 버튼 or 자유 입력
+                    binding.layoutOptions.removeAllViews();
+                    boolean hasOptions = payload.options != null && !payload.options.isEmpty();
+                    if (hasOptions) {
+                        binding.layoutOptions.setVisibility(View.VISIBLE);
+                        binding.layoutFreeAnswer.setVisibility(View.GONE);
+                        for (String option : payload.options) {
+                            Button btn = new Button(requireContext());
+                            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.WRAP_CONTENT);
+                            params.setMargins(0, 0, 0, dpToPx(8));
+                            btn.setLayoutParams(params);
+                            btn.setText(option);
+                            btn.setAllCaps(false);
+                            btn.setTextColor(0xFFFFFFFF);
+                            GradientDrawable bg = new GradientDrawable();
+                            bg.setColor(0xFF9C63F5);
+                            bg.setCornerRadius(dpToPx(8));
+                            btn.setBackground(bg);
+                            if (option.contains("직접 입력")) {
+                                btn.setOnClickListener(v -> {
+                                    binding.layoutOptions.setVisibility(View.GONE);
+                                    binding.etFreeAnswer.setText("");
+                                    binding.etFreeAnswer.setHint("감정을 직접 입력해 주세요");
+                                    binding.layoutFreeAnswer.setVisibility(View.VISIBLE);
+                                    binding.btnSubmitFreeAnswer.setOnClickListener(sv -> {
+                                        String answer = binding.etFreeAnswer.getText().toString().trim();
+                                        if (answer.isEmpty()) { toast("내용을 입력해 주세요"); return; }
+                                        submitClarification(answer);
+                                    });
+                                });
+                            } else {
+                                btn.setOnClickListener(v -> submitClarification(option));
+                            }
+                            binding.layoutOptions.addView(btn);
+                        }
+                    } else {
+                        binding.layoutOptions.setVisibility(View.GONE);
+                        binding.layoutFreeAnswer.setVisibility(View.VISIBLE);
+                        binding.etFreeAnswer.setText("");
+                        binding.btnSubmitFreeAnswer.setOnClickListener(v -> {
+                            String answer = binding.etFreeAnswer.getText().toString().trim();
+                            if (answer.isEmpty()) { toast("내용을 입력해 주세요"); return; }
+                            submitClarification(answer);
+                        });
+                    }
+
                     animateIn(binding.layoutInterrupt);
                 })
                 .start();
@@ -376,19 +449,8 @@ public class EmotionReportFragment extends Fragment {
 
     private void submitClarification(String answer) {
         binding.layoutOptions.setVisibility(View.GONE);
+        binding.layoutFreeAnswer.setVisibility(View.GONE);
         binding.progressInterrupt.setVisibility(View.VISIBLE);
-
-        if (isMockMode) {
-            // 목 모드: 0.6초 후 로딩 전환 → 1.5초 후 결과 표시
-            pollHandler.postDelayed(() -> {
-                if (!isAdded()) return;
-                showState(STATE_LOADING);
-                pollHandler.postDelayed(() -> {
-                    if (isAdded()) showResult(buildMockResult());
-                }, 1500);
-            }, 600);
-            return;
-        }
 
         ApiClient.getApiService().clarifyEmotionReport(threadId, new ClarifyRequest(answer))
                 .enqueue(new Callback<ApiResponse<ReportStatusResponse>>() {
@@ -508,8 +570,9 @@ public class EmotionReportFragment extends Fragment {
             ((TextView) row.findViewById(com.example.plog.R.id.tvDate)).setText(item.date);
 
             TextView tvDayEmotion = row.findViewById(com.example.plog.R.id.tvDayEmotion);
-            if (item.emotion != null) {
-                tvDayEmotion.setText(item.emotion);
+            if (item.emotions != null && !item.emotions.isEmpty()) {
+                tvDayEmotion.setText(String.join(" · ", item.emotions));
+                tvDayEmotion.setAlpha(1f);
             } else {
                 tvDayEmotion.setText("기록 없음");
                 tvDayEmotion.setAlpha(0.4f);
@@ -523,11 +586,6 @@ public class EmotionReportFragment extends Fragment {
 
     private void submitFeedback() {
         if (selectedRating == 0) { toast("별점을 선택해 주세요"); return; }
-
-        if (isMockMode) {
-            showFeedbackSuccess();
-            return;
-        }
 
         String comment = binding.etFeedback.getText().toString().trim();
         binding.btnFeedback.setEnabled(false);
@@ -576,47 +634,4 @@ public class EmotionReportFragment extends Fragment {
         return Math.round(dp * requireContext().getResources().getDisplayMetrics().density);
     }
 
-    // ──────────────────────── Mock (백엔드 완성 후 제거) ────────────────────────
-
-    private void showMockResult() {
-        isMockMode = true;
-        showState(STATE_LOADING);
-
-        // 2초 후 인터럽트 화면 등장 (실제 LangGraph interrupt 흐름 시연)
-        pollHandler.postDelayed(() -> {
-            if (!isAdded()) return;
-            InterruptPayload payload = new InterruptPayload();
-            payload.date = "2026년 5월 19일";
-            payload.question = "이 날 일기에서 감정이 명확하지 않아요.\n아래 중 가장 가까운 감정을 골라주세요.";
-            payload.options = java.util.Arrays.asList("슬픔", "우울", "불안", "그냥 넘어가도 돼요");
-            showInterrupt(payload);
-        }, 2000);
-    }
-
-    private ReportStatusResponse buildMockResult() {
-        EmotionReportData emotion = new EmotionReportData();
-        emotion.content = "이번 주는 주로 기쁨을 느끼셨네요.\n" +
-                "가장 행복했던 날은 토요일로, 카페에서 즐거운 하루를 보내셨군요.\n" +
-                "전반적으로 긍정적인 한 주였습니다.";
-        emotion.primaryEmotion = "기쁨";
-        emotion.emotionFrequency = new java.util.LinkedHashMap<>();
-        emotion.emotionFrequency.put("기쁨", 4);
-        emotion.emotionFrequency.put("설렘", 2);
-        emotion.emotionFrequency.put("평온", 1);
-        emotion.emotionByDay = new java.util.ArrayList<>();
-        String[] days  = {"월",    "화",    "수",   "목",    "금",    "토",    "일"};
-        String[] emos  = {"기쁨",  "슬픔",  null,  "설렘",  "기쁨",  "평온",  "기쁨"};
-        String[] dates = {"5월18일","5월19일","5월20일","5월21일","5월22일","5월23일","5월24일"};
-        for (int i = 0; i < 7; i++) {
-            EmotionByDay d = new EmotionByDay();
-            d.day = days[i]; d.date = dates[i]; d.emotion = emos[i];
-            emotion.emotionByDay.add(d);
-        }
-
-        ReportStatusResponse mock = new ReportStatusResponse();
-        mock.status = "done";
-        mock.userName = "사용자명";
-        mock.emotionReport = emotion;
-        return mock;
-    }
 }

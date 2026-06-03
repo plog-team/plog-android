@@ -29,6 +29,7 @@ import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.example.plog.databinding.FragmentPlaceReportBinding;
 import com.example.plog.model.ApiResponse;
 import com.example.plog.model.ClarifyRequest;
+import com.example.plog.model.DiarySimpleResponse;
 import com.example.plog.model.GenerateReportRequest;
 import com.example.plog.model.InterruptPayload;
 import com.example.plog.model.PlaceEntry;
@@ -37,7 +38,6 @@ import com.example.plog.model.ReportFeedbackRequest;
 import com.example.plog.model.ReportStatusResponse;
 import com.example.plog.network.ApiClient;
 
-import java.util.Arrays;
 import java.util.List;
 
 import retrofit2.Call;
@@ -63,7 +63,6 @@ public class PlaceReportFragment extends Fragment {
 
     private String threadId;
     private String userName = "사용자";
-    private boolean isMockMode = false;
     private int selectedRating = 0;
     private TextView[] stars;
 
@@ -91,9 +90,7 @@ public class PlaceReportFragment extends Fragment {
         binding.btnFeedback.setOnClickListener(v -> submitFeedback());
         setupStarRating();
 
-        // ─── UI 테스트: showMockResult() 사용, 백엔드 완성 후 generateReport()로 교체 ───
-        showMockResult();
-        // generateReport();
+        generateReport();
     }
 
     @Override
@@ -324,7 +321,6 @@ public class PlaceReportFragment extends Fragment {
     // ──────────────────────── Interrupt ────────────────────────
 
     private void showInterrupt(InterruptPayload payload) {
-        // 로딩 페이드아웃 후 인터럽트 카드 슬라이드인
         binding.layoutLoading.animate()
                 .alpha(0f)
                 .setDuration(180)
@@ -335,25 +331,101 @@ public class PlaceReportFragment extends Fragment {
 
                     binding.tvInterruptDate.setText(payload.date + " 일기");
                     binding.tvInterruptQuestion.setText(payload.question);
-                    binding.layoutOptions.removeAllViews();
-                    for (String option : payload.options) {
-                        Button btn = new Button(requireContext());
-                        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.WRAP_CONTENT);
-                        params.setMargins(0, 0, 0, dpToPx(8));
-                        btn.setLayoutParams(params);
-                        btn.setText(option);
-                        btn.setAllCaps(false);
-                        btn.setTextColor(0xFFFFFFFF);
-                        GradientDrawable bg = new GradientDrawable();
-                        bg.setColor(0xFF9C63F5);
-                        bg.setCornerRadius(dpToPx(8));
-                        btn.setBackground(bg);
-                        btn.setOnClickListener(v -> submitClarification(option));
-                        binding.layoutOptions.addView(btn);
-                    }
+                    binding.layoutDiaryContent.setVisibility(View.GONE);
+                    binding.tvDiaryBody.setText("");
                     binding.progressInterrupt.setVisibility(View.GONE);
+
+                    // 일기 열람 토글
+                    final boolean[] diaryLoaded = {false};
+                    binding.tvDiaryToggle.setOnClickListener(v -> {
+                        if (binding.layoutDiaryContent.getVisibility() == View.VISIBLE) {
+                            binding.layoutDiaryContent.setVisibility(View.GONE);
+                            binding.tvDiaryToggle.setText("일기 열람 ▼");
+                        } else if (diaryLoaded[0]) {
+                            binding.layoutDiaryContent.setVisibility(View.VISIBLE);
+                            binding.tvDiaryToggle.setText("일기 접기 ▲");
+                        } else {
+                            binding.tvDiaryToggle.setText("불러오는 중...");
+                            ApiClient.getApiService().getDiary(payload.diaryId)
+                                    .enqueue(new Callback<ApiResponse<DiarySimpleResponse>>() {
+                                        @Override
+                                        public void onResponse(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
+                                                               @NonNull Response<ApiResponse<DiarySimpleResponse>> response) {
+                                            if (!isAdded()) return;
+                                            if (response.isSuccessful() && response.body() != null
+                                                    && response.body().success) {
+                                                DiarySimpleResponse diary = response.body().data;
+                                                String bodyText = (diary.body != null && !diary.body.isBlank())
+                                                        ? diary.body : "(내용 없음)";
+                                                binding.tvDiaryBody.setText(bodyText);
+                                                diaryLoaded[0] = true;
+                                                binding.layoutDiaryContent.setVisibility(View.VISIBLE);
+                                                binding.tvDiaryToggle.setText("일기 접기 ▲");
+                                            } else {
+                                                binding.tvDiaryToggle.setText("일기 열람 ▼");
+                                                toast("일기를 불러올 수 없어요");
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onFailure(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
+                                                              @NonNull Throwable t) {
+                                            if (!isAdded()) return;
+                                            binding.tvDiaryToggle.setText("일기 열람 ▼");
+                                            toast("일기 로딩에 실패했어요");
+                                        }
+                                    });
+                        }
+                    });
+
+                    // 선택지 버튼 or 자유 입력
+                    binding.layoutOptions.removeAllViews();
+                    boolean hasOptions = payload.options != null && !payload.options.isEmpty();
+                    if (hasOptions) {
+                        binding.layoutOptions.setVisibility(View.VISIBLE);
+                        binding.layoutFreeAnswer.setVisibility(View.GONE);
+                        for (String option : payload.options) {
+                            Button btn = new Button(requireContext());
+                            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.WRAP_CONTENT);
+                            params.setMargins(0, 0, 0, dpToPx(8));
+                            btn.setLayoutParams(params);
+                            btn.setText(option);
+                            btn.setAllCaps(false);
+                            btn.setTextColor(0xFFFFFFFF);
+                            GradientDrawable bg = new GradientDrawable();
+                            bg.setColor(0xFF9C63F5);
+                            bg.setCornerRadius(dpToPx(8));
+                            btn.setBackground(bg);
+                            if (option.contains("직접 입력")) {
+                                btn.setOnClickListener(v -> {
+                                    binding.layoutOptions.setVisibility(View.GONE);
+                                    binding.etFreeAnswer.setText("");
+                                    binding.etFreeAnswer.setHint("장소를 직접 입력해 주세요");
+                                    binding.layoutFreeAnswer.setVisibility(View.VISIBLE);
+                                    binding.btnSubmitFreeAnswer.setOnClickListener(sv -> {
+                                        String answer = binding.etFreeAnswer.getText().toString().trim();
+                                        if (answer.isEmpty()) { toast("내용을 입력해 주세요"); return; }
+                                        submitClarification(answer);
+                                    });
+                                });
+                            } else {
+                                btn.setOnClickListener(v -> submitClarification(option));
+                            }
+                            binding.layoutOptions.addView(btn);
+                        }
+                    } else {
+                        binding.layoutOptions.setVisibility(View.GONE);
+                        binding.layoutFreeAnswer.setVisibility(View.VISIBLE);
+                        binding.etFreeAnswer.setText("");
+                        binding.btnSubmitFreeAnswer.setOnClickListener(v -> {
+                            String answer = binding.etFreeAnswer.getText().toString().trim();
+                            if (answer.isEmpty()) { toast("내용을 입력해 주세요"); return; }
+                            submitClarification(answer);
+                        });
+                    }
+
                     animateIn(binding.layoutInterrupt);
                 })
                 .start();
@@ -361,19 +433,8 @@ public class PlaceReportFragment extends Fragment {
 
     private void submitClarification(String answer) {
         binding.layoutOptions.setVisibility(View.GONE);
+        binding.layoutFreeAnswer.setVisibility(View.GONE);
         binding.progressInterrupt.setVisibility(View.VISIBLE);
-
-        if (isMockMode) {
-            // 목 모드: 0.6초 후 로딩 전환 → 1.5초 후 결과 표시
-            pollHandler.postDelayed(() -> {
-                if (!isAdded()) return;
-                showState(STATE_LOADING);
-                pollHandler.postDelayed(() -> {
-                    if (isAdded()) showResult(buildMockResult());
-                }, 1500);
-            }, 600);
-            return;
-        }
 
         ApiClient.getApiService().clarifyPlaceReport(threadId, new ClarifyRequest(answer))
                 .enqueue(new Callback<ApiResponse<ReportStatusResponse>>() {
@@ -489,11 +550,6 @@ public class PlaceReportFragment extends Fragment {
     private void submitFeedback() {
         if (selectedRating == 0) { toast("별점을 선택해 주세요"); return; }
 
-        if (isMockMode) {
-            showFeedbackSuccess();
-            return;
-        }
-
         String comment = binding.etFeedback.getText().toString().trim();
         binding.btnFeedback.setEnabled(false);
 
@@ -541,41 +597,4 @@ public class PlaceReportFragment extends Fragment {
         return Math.round(dp * requireContext().getResources().getDisplayMetrics().density);
     }
 
-    // ──────────────────────── Mock (백엔드 완성 후 제거) ────────────────────────
-
-    private void showMockResult() {
-        isMockMode = true;
-        showState(STATE_LOADING);
-
-        // 2초 후 인터럽트 화면 등장 (실제 LangGraph interrupt 흐름 시연)
-        pollHandler.postDelayed(() -> {
-            if (!isAdded()) return;
-            InterruptPayload payload = new InterruptPayload();
-            payload.date = "2026년 5월 24일";
-            payload.question = "이 날 일기에서 방문한 장소가 명확하지 않아요.\n다음 중 어디를 방문하셨나요?";
-            payload.options = Arrays.asList("강남 카페거리", "홍대 거리", "한강 공원", "기타");
-            showInterrupt(payload);
-        }, 2000);
-    }
-
-    private ReportStatusResponse buildMockResult() {
-        PlaceReportData place = new PlaceReportData();
-        place.period = "2026년 5월";
-        place.content = "이번 달은 강남과 홍대를 중심으로 활발하게 활동하셨네요.\n" +
-                "카페를 자주 방문하셨고, 주말에는 한강 공원에서 여유로운 시간을 보내셨군요.\n" +
-                "전반적으로 외향적이고 활동적인 한 달이었습니다.";
-        // 목: 강남 카페거리 대표 사진 (백엔드 연결 후 가장 많이 방문한 장소의 일기 사진으로 대체됨)
-        place.topPhotoUrl = "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=800&q=80";
-        place.places = new java.util.ArrayList<>();
-        PlaceEntry p1 = new PlaceEntry(); p1.placeName = "강남 카페거리"; p1.count = 5; p1.mainEmotion = "기쁨";
-        PlaceEntry p2 = new PlaceEntry(); p2.placeName = "한강 공원";     p2.count = 2; p2.mainEmotion = "평온";
-        PlaceEntry p3 = new PlaceEntry(); p3.placeName = "홍대";          p3.count = 1; p3.mainEmotion = "설렘";
-        place.places.add(p1); place.places.add(p2); place.places.add(p3);
-
-        ReportStatusResponse mock = new ReportStatusResponse();
-        mock.status = "done";
-        mock.userName = "사용자명";
-        mock.placeReport = place;
-        return mock;
-    }
 }
