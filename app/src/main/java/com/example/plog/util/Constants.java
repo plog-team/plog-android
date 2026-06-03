@@ -19,4 +19,5 @@ public class Constants {
 
     public static final String HEADER_USER_ID = "X-User-Id";
     public static final long TEMP_USER_ID = 1L;
+    public static final long DEV_USER_ID = 1L;
 }

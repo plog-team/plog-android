@@ -3,12 +3,17 @@ package com.example.plog.network;
 import com.example.plog.api.model.BookmarkRequest;
 import com.example.plog.model.AnswerRequest;
 import com.example.plog.model.ApiResponse;
+import com.example.plog.model.ClarifyRequest;
 import com.example.plog.model.CreateSessionRequest;
 import com.example.plog.model.CreateSessionResponse;
+import com.example.plog.model.DiarySimpleResponse;
 import com.example.plog.model.DraftResponse;
 import com.example.plog.model.FeedbackRequest;
+import com.example.plog.model.GenerateReportRequest;
 import com.example.plog.model.GuideQuestionDto;
 import com.example.plog.model.PhotoUploadBatchResponse;
+import com.example.plog.model.ReportFeedbackRequest;
+import com.example.plog.model.ReportStatusResponse;
 import com.example.plog.model.SendChatRequest;
 import com.example.plog.model.SendChatResponse;
 import com.example.plog.model.SessionDetailResponse;
@@ -19,6 +24,8 @@ import java.util.Map;
 
 public interface ApiService {
 
+    // ── 북마크 ──────────────────────────────────────────────────
+
     @POST("/api/bookmarks")
     Call<Void> addBookmark(@Body BookmarkRequest req);
 
@@ -28,9 +35,13 @@ public interface ApiService {
     @GET("/api/bookmarks/{contentId}/status")
     Call<Map<String, Boolean>> isBookmarked(@Path("contentId") String contentId);
 
+    // ── 사진 ────────────────────────────────────────────────────
+
     @Multipart
     @POST("api/photos")
     Call<ApiResponse<PhotoUploadBatchResponse>> uploadPhoto(@Part MultipartBody.Part file);
+
+    // ── AI 가이드 ────────────────────────────────────────────────
 
     @POST("api/ai-guide/sessions")
     Call<ApiResponse<CreateSessionResponse>> createAiSession(@Body CreateSessionRequest request);
@@ -62,4 +73,45 @@ public interface ApiService {
         @Path("sessionId") long sessionId,
         @Body FeedbackRequest request
     );
+
+    // ── 일기 열람 ──────────────────────────────────────────────
+
+    @GET("api/diaries/{diaryId}")
+    Call<ApiResponse<DiarySimpleResponse>> getDiary(@Path("diaryId") long diaryId);
+
+    // ── 장소 리포트 (월간) ──────────────────────────────────────
+
+    @POST("api/report/place/generate")
+    Call<ApiResponse<ReportStatusResponse>> generatePlaceReport(@Body GenerateReportRequest request);
+
+    @GET("api/report/place/{threadId}")
+    Call<ApiResponse<ReportStatusResponse>> getPlaceReportStatus(@Path("threadId") String threadId);
+
+    @POST("api/report/place/{threadId}/clarify")
+    Call<ApiResponse<ReportStatusResponse>> clarifyPlaceReport(
+            @Path("threadId") String threadId,
+            @Body ClarifyRequest request);
+
+    @POST("api/report/place/{threadId}/feedback")
+    Call<Void> submitPlaceReportFeedback(
+            @Path("threadId") String threadId,
+            @Body ReportFeedbackRequest request);
+
+    // ── 감정 리포트 (주간) ──────────────────────────────────────
+
+    @POST("api/report/emotion/generate")
+    Call<ApiResponse<ReportStatusResponse>> generateEmotionReport(@Body GenerateReportRequest request);
+
+    @GET("api/report/emotion/{threadId}")
+    Call<ApiResponse<ReportStatusResponse>> getEmotionReportStatus(@Path("threadId") String threadId);
+
+    @POST("api/report/emotion/{threadId}/clarify")
+    Call<ApiResponse<ReportStatusResponse>> clarifyEmotionReport(
+            @Path("threadId") String threadId,
+            @Body ClarifyRequest request);
+
+    @POST("api/report/emotion/{threadId}/feedback")
+    Call<Void> submitEmotionReportFeedback(
+            @Path("threadId") String threadId,
+            @Body ReportFeedbackRequest request);
 }

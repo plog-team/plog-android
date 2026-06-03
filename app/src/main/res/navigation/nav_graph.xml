@@ -14,6 +14,12 @@
         <action
             android:id="@+id/action_homeFragment_to_diaryDetailFragment"
             app:destination="@id/diaryDetailFragment" />
+        <action
+            android:id="@+id/action_home_to_place_report"
+            app:destination="@id/placeReportFragment" />
+        <action
+            android:id="@+id/action_home_to_emotion_report"
+            app:destination="@id/emotionReportFragment" />
     </fragment>
 
     <fragment
@@ -107,5 +113,15 @@
         android:label="AI 초안">
         <argument android:name="sessionId" app:argType="long" android:defaultValue="-1L" />
     </fragment>
+
+    <fragment
+        android:id="@+id/placeReportFragment"
+        android:name="com.example.plog.ui.report.PlaceReportFragment"
+        android:label="월간 장소 분석 리포트" />
+
+    <fragment
+        android:id="@+id/emotionReportFragment"
+        android:name="com.example.plog.ui.report.EmotionReportFragment"
+        android:label="주간 감정 분석 리포트" />
 
 </navigation>
