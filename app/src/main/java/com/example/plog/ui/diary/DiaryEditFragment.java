@@ -1,9 +1,15 @@
 package com.example.plog.ui.diary;
 
+import android.Manifest;
+import android.app.Activity;
+import android.content.ClipData;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.ExifInterface;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -17,12 +23,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
+
+import com.example.plog.ui.photo.PhotoViewModel;
 
 import com.bumptech.glide.Glide;
 import com.example.plog.R;
@@ -45,28 +54,53 @@ public class DiaryEditFragment extends Fragment {
 
     private FragmentDiaryEditBinding binding;
     private DiaryRepository repository;
+    private PhotoViewModel photoViewModel;
     private String todayKey;
     private boolean isSecret;
     private boolean isBookmarked;
     private int representativePhotoIndex;
     private int previewPhotoIndex;
     private PopupWindow representativePopup;
-    private final List<Uri> selectedPhotos = new ArrayList<>();
+    private final List<Uri>    selectedPhotos    = new ArrayList<>();
+    /** DB photo.image_url 에 저장된 갤러리 URI 목록 — 사진 교체 시 소프트 삭제 대상 */
+    private final List<String> activeGalleryUris = new ArrayList<>();
 
-    private final ActivityResultLauncher<PickVisualMediaRequest> photoPicker =
-            registerForActivityResult(new ActivityResultContracts.PickMultipleVisualMedia(MAX_PHOTO_COUNT), uris -> {
-                if (uris == null || uris.isEmpty()) {
-                    return;
+    private final ActivityResultLauncher<String> requestLocationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted ->
+                    openGalleryIntent());
+
+    private final ActivityResultLauncher<Intent> photoPicker =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) return;
+
+                List<Uri> uris = new ArrayList<>();
+                ClipData clip = result.getData().getClipData();
+                if (clip != null) {
+                    for (int i = 0; i < clip.getItemCount(); i++) uris.add(clip.getItemAt(i).getUri());
+                } else if (result.getData().getData() != null) {
+                    uris.add(result.getData().getData());
                 }
+                if (uris.isEmpty()) return;
 
+                // 기존에 DB에 저장됐던 사진들 소프트 삭제
+                for (String oldUri : activeGalleryUris) {
+                    photoViewModel.removePhotoByUrl(oldUri);
+                }
+                activeGalleryUris.clear();
                 selectedPhotos.clear();
-                for (Uri uri : uris.subList(0, Math.min(uris.size(), MAX_PHOTO_COUNT))) {
+
+                List<Uri> limited = uris.subList(0, Math.min(uris.size(), MAX_PHOTO_COUNT));
+                for (Uri uri : limited) {
+                    requireContext().getContentResolver()
+                            .takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    photoViewModel.processPhoto(uri);
+                    activeGalleryUris.add(uri.toString()); // 갤러리 URI 추적
                     Uri localUri = copyPhotoToLocalStorage(uri);
                     selectedPhotos.add(localUri == null ? uri : localUri);
                 }
                 representativePhotoIndex = 0;
                 previewPhotoIndex = 0;
-                readPhotoMetadata(uris.get(0));
+                readPhotoMetadata(limited.get(0));
                 renderPhotos();
             });
 
@@ -83,6 +117,7 @@ public class DiaryEditFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         repository = new DiaryRepository(requireContext());
+        photoViewModel = new ViewModelProvider(this).get(PhotoViewModel.class);
         todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
 
         setupInitialState();
@@ -109,6 +144,11 @@ public class DiaryEditFragment extends Fragment {
         representativePhotoIndex = existingEntry.getRepresentativePhotoIndex();
         previewPhotoIndex = representativePhotoIndex;
         updateBookmarkUi();
+
+        activeGalleryUris.clear();
+        if (existingEntry.getGalleryPhotoUris() != null) {
+            activeGalleryUris.addAll(existingEntry.getGalleryPhotoUris());
+        }
 
         selectedPhotos.clear();
         for (String photoUri : existingEntry.getPhotoUris()) {
@@ -145,9 +185,23 @@ public class DiaryEditFragment extends Fragment {
     }
 
     private void openPhotoPicker() {
-        photoPicker.launch(new PickVisualMediaRequest.Builder()
-                .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
-                .build());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                && ContextCompat.checkSelfPermission(requireContext(),
+                        Manifest.permission.ACCESS_MEDIA_LOCATION)
+                        != PackageManager.PERMISSION_GRANTED) {
+            requestLocationPermissionLauncher.launch(Manifest.permission.ACCESS_MEDIA_LOCATION);
+        } else {
+            openGalleryIntent();
+        }
+    }
+
+    private void openGalleryIntent() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.setType("image/*");
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        photoPicker.launch(intent);
     }
 
     private void renderPhotos() {
@@ -366,6 +420,7 @@ public class DiaryEditFragment extends Fragment {
             photoUriStrings.add(uri.toString());
         }
         entry.setPhotoUris(photoUriStrings);
+        entry.setGalleryPhotoUris(new ArrayList<>(activeGalleryUris));
 
         repository.saveDiary(entry);
         Toast.makeText(requireContext(), "일기가 저장되었습니다.", Toast.LENGTH_SHORT).show();

@@ -11,6 +11,7 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.example.plog.data.repository.LabelRepository;
 import com.example.plog.data.repository.PhotoRepository;
+import com.example.plog.util.Constants;
 import com.example.plog.util.ImageLabelerHelper;
 import com.example.plog.util.SessionManager;
 
@@ -41,12 +42,14 @@ public class PhotoViewModel extends AndroidViewModel {
     public LiveData<Boolean> getIsLoading()    { return isLoading;    }
     public LiveData<String>  getErrorMsg()     { return errorMsg;     }
 
+    /** 일기 수정 시 교체된 갤러리 URI를 DB에서 소프트 삭제 */
+    public void removePhotoByUrl(@NonNull String imageUrl) {
+        executor.execute(() -> photoRepository.softDeleteByImageUrl(imageUrl));
+    }
+
     public void processPhoto(@NonNull Uri uri) {
-        int userId = sessionManager.getUserId();
-        if (userId == -1) {
-            errorMsg.setValue("로그인 정보가 없습니다.");
-            return;
-        }
+        int raw = sessionManager.getUserId();
+        int userId = (raw == -1) ? (int) Constants.DEV_USER_ID : raw;
 
         isLoading.setValue(true);
 

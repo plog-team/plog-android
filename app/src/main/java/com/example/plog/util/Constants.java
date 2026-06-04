@@ -4,7 +4,7 @@ public class Constants {
     public static final String BASE_URL = "http://10.0.2.2:8080/";
 
     // Kakao REST API KEY
-    public static final String KAKAO_REST_API_KEY = "";
+    public static final String KAKAO_REST_API_KEY = "52561ed4a8e63e6d5e5dcd340c4965bd";
 
     // OpenWeather API KEY
     public static final String OPENWEATHER_API_KEY = "";

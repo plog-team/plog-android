@@ -13,9 +13,12 @@ public class DiaryEntry {
     private boolean bookmarked;
     private int representativePhotoIndex;
     private List<String> photoUris;
+    /** photo 테이블 image_url 에 저장된 갤러리 URI — 일기 수정 시 DB 정합성 유지에 사용 */
+    private List<String> galleryPhotoUris;
 
     public DiaryEntry() {
         photoUris = new ArrayList<>();
+        galleryPhotoUris = new ArrayList<>();
     }
 
     public String getDate() {
@@ -80,6 +83,14 @@ public class DiaryEntry {
 
     public void setPhotoUris(List<String> photoUris) {
         this.photoUris = photoUris == null ? new ArrayList<>() : photoUris;
+    }
+
+    public List<String> getGalleryPhotoUris() {
+        return galleryPhotoUris;
+    }
+
+    public void setGalleryPhotoUris(List<String> galleryPhotoUris) {
+        this.galleryPhotoUris = galleryPhotoUris == null ? new ArrayList<>() : galleryPhotoUris;
     }
 
     public String getRepresentativePhotoUri() {

@@ -12,6 +12,7 @@ import com.example.plog.model.FeedbackRequest;
 import com.example.plog.model.GenerateReportRequest;
 import com.example.plog.model.GuideQuestionDto;
 import com.example.plog.model.PhotoUploadBatchResponse;
+import com.example.plog.model.PreferenceUpdateRequest;
 import com.example.plog.model.ReportFeedbackRequest;
 import com.example.plog.model.ReportStatusResponse;
 import com.example.plog.model.SendChatRequest;
@@ -23,6 +24,12 @@ import retrofit2.http.*;
 import java.util.Map;
 
 public interface ApiService {
+
+    // ── 선호도 ──────────────────────────────────────────────────
+
+    // TODO: 백엔드 컨트롤러 URL 확인 후 경로 수정 필요
+    @PUT("api/preferences")
+    Call<Void> updatePreferences(@Body PreferenceUpdateRequest request);
 
     // ── 북마크 ──────────────────────────────────────────────────
 
@@ -40,6 +47,9 @@ public interface ApiService {
     @Multipart
     @POST("api/photos")
     Call<ApiResponse<PhotoUploadBatchResponse>> uploadPhoto(@Part MultipartBody.Part file);
+
+    @DELETE("api/photos/{photoId}")
+    Call<Void> deletePhoto(@Path("photoId") long photoId);
 
     // ── AI 가이드 ────────────────────────────────────────────────
 

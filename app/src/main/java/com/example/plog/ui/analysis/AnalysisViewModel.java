@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+
 public class AnalysisViewModel extends AndroidViewModel {
 
     private final MutableLiveData<MonthlyReport> report    = new MutableLiveData<>();
@@ -30,17 +31,19 @@ public class AnalysisViewModel extends AndroidViewModel {
 
 
     private final AnalysisRepository repository;
+    private final PhotoRepository     photoRepository;
     private final int                 userId;
     private final ExecutorService     executor = Executors.newSingleThreadExecutor();
 
     public AnalysisViewModel(@NonNull Application application) {
         super(application);
-        repository = new AnalysisRepository(application);
-        userId     = new SessionManager(application).getUserId();
+        repository     = new AnalysisRepository(application);
+        photoRepository = new PhotoRepository(application);
+        userId         = new SessionManager(application).getUserId();
 
-        // 지도 위치 데이터 초기화
-        PhotoRepository photoRepository = new PhotoRepository(application);
-        locations = photoRepository.getAllLocationsWithImage(userId);
+        // 지도 위치 데이터 — 현재 월(일기 사진 추가일 기준)만 표시
+        long[] range = currentMonthRange();
+        locations = photoRepository.getMonthlyLocationsWithImage(userId, range[0], range[1]);
     }
 
     public LiveData<MonthlyReport>             getReport()    { return report;    }
@@ -58,6 +61,8 @@ public class AnalysisViewModel extends AndroidViewModel {
         isLoading.setValue(true);
         executor.execute(() -> {
             try {
+                // 기존 사진 중 location_name 없는 항목 역지오코딩 보정
+                photoRepository.backfillLocationNames(getApplication());
                 MonthlyReport result = repository.buildReport(userId, year, month);
                 report.postValue(result);
             } catch (Exception e) {
@@ -66,6 +71,24 @@ public class AnalysisViewModel extends AndroidViewModel {
                 isLoading.postValue(false);
             }
         });
+    }
+
+    private static long[] currentMonthRange() {
+        Calendar start = Calendar.getInstance();
+        start.set(Calendar.DAY_OF_MONTH, 1);
+        start.set(Calendar.HOUR_OF_DAY, 0);
+        start.set(Calendar.MINUTE, 0);
+        start.set(Calendar.SECOND, 0);
+        start.set(Calendar.MILLISECOND, 0);
+
+        Calendar end = Calendar.getInstance();
+        end.set(Calendar.DAY_OF_MONTH, end.getActualMaximum(Calendar.DAY_OF_MONTH));
+        end.set(Calendar.HOUR_OF_DAY, 23);
+        end.set(Calendar.MINUTE, 59);
+        end.set(Calendar.SECOND, 59);
+        end.set(Calendar.MILLISECOND, 999);
+
+        return new long[]{ start.getTimeInMillis(), end.getTimeInMillis() };
     }
 
     @Override

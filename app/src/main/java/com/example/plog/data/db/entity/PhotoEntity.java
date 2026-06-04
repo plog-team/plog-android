@@ -52,4 +52,7 @@ public class PhotoEntity {
 
     @ColumnInfo(name = "is_deleted")
     public boolean isDeleted = false;
+
+    @ColumnInfo(name = "server_photo_id")
+    public Long serverPhotoId;
 }

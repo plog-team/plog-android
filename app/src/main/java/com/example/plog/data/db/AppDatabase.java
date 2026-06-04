@@ -10,32 +10,35 @@ import com.example.plog.data.db.dao.LabelDao;
 import com.example.plog.data.db.dao.PhotoDao;
 import com.example.plog.data.db.dao.PhotoLabelDao;
 import com.example.plog.data.db.dao.PhotoLocationDao;
+import com.example.plog.data.db.dao.UserPreferenceScoreDao;
 import com.example.plog.data.db.entity.LabelEntity;
 import com.example.plog.data.db.entity.PhotoEntity;
 import com.example.plog.data.db.entity.PhotoLabelEntity;
 import com.example.plog.data.db.entity.PhotoLocationEntity;
 import com.example.plog.data.db.entity.UserEntity;
+import com.example.plog.data.db.entity.UserPreferenceScoreEntity;
 
 @Database(
         entities = {
-                UserEntity.class,          // ← 추가
+                UserEntity.class,
                 PhotoEntity.class,
                 PhotoLocationEntity.class,
                 LabelEntity.class,
-                PhotoLabelEntity.class
-                // 팀원 담당: UserEntity, DiaryEntity, DiaryPhotoEntity 등 추가 예정
+                PhotoLabelEntity.class,
+                UserPreferenceScoreEntity.class
         },
-        version = 1,
+        version = 3,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
 
     private static volatile AppDatabase INSTANCE;
 
-    public abstract PhotoDao         photoDao();
-    public abstract PhotoLocationDao photoLocationDao();
-    public abstract LabelDao         labelDao();
-    public abstract PhotoLabelDao    photoLabelDao();
+    public abstract PhotoDao                photoDao();
+    public abstract PhotoLocationDao        photoLocationDao();
+    public abstract LabelDao                labelDao();
+    public abstract PhotoLabelDao           photoLabelDao();
+    public abstract UserPreferenceScoreDao  userPreferenceScoreDao();
 
 
     public static AppDatabase getInstance(Context context) {
@@ -46,7 +49,7 @@ public abstract class AppDatabase extends RoomDatabase {
                             context.getApplicationContext(),
                             AppDatabase.class,
                             "diary_app.db"
-                    ).build();
+                    ).fallbackToDestructiveMigration().build();
                 }
             }
         }

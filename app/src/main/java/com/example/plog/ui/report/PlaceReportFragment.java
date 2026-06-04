@@ -87,6 +87,9 @@ public class PlaceReportFragment extends Fragment {
                 Navigation.findNavController(requireView()).navigateUp());
         binding.headerPlace.setOnClickListener(v ->
                 animateAccordion(binding.contentPlace, binding.tvPlaceChevron));
+        binding.btnRouteAnalysis.setOnClickListener(v ->
+                Navigation.findNavController(requireView())
+                        .navigate(com.example.plog.R.id.action_placeReport_to_analysisFragment));
         binding.btnFeedback.setOnClickListener(v -> submitFeedback());
         setupStarRating();
 

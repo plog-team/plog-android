@@ -23,6 +23,15 @@ public interface PhotoDao {
     @Query("UPDATE photo SET is_deleted = 1 WHERE id = :id")
     void softDelete(int id);
 
+    @Query("UPDATE photo SET is_deleted = 1 WHERE image_url = :imageUrl")
+    void softDeleteByImageUrl(String imageUrl);
+
+    @Query("SELECT server_photo_id FROM photo WHERE image_url = :imageUrl AND is_deleted = 0")
+    Long getServerPhotoIdByImageUrl(String imageUrl);
+
+    @Query("UPDATE photo SET server_photo_id = :serverPhotoId WHERE image_url = :imageUrl")
+    void updateServerPhotoId(String imageUrl, long serverPhotoId);
+
     // data/db/dao/PhotoDao.java 에 추가
     @Query("SELECT COUNT(DISTINCT " +
             "  STRFTIME('%Y-%m-%d', created_at / 1000, 'unixepoch', 'localtime')) " +

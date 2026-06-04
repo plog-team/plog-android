@@ -36,16 +36,18 @@ public class MonthlyReport {
         public final int    visitCount;
         public final long   firstVisit;
         public final long   lastVisit;
-        public final String placeLabel;   // "1위 장소" or 역지오코딩 결과
+        public final String placeLabel;    // "1위 장소", "2위 장소" …
+        public final String locationName;  // 역지오코딩 결과 (없으면 null)
 
         public PlaceItem(double lat, double lng, int count,
-                         long first, long last, String label) {
-            this.clusterLat = lat;
-            this.clusterLng = lng;
-            this.visitCount = count;
-            this.firstVisit = first;
-            this.lastVisit  = last;
-            this.placeLabel = label;
+                         long first, long last, String label, String locationName) {
+            this.clusterLat   = lat;
+            this.clusterLng   = lng;
+            this.visitCount   = count;
+            this.firstVisit   = first;
+            this.lastVisit    = last;
+            this.placeLabel   = label;
+            this.locationName = locationName;
         }
     }
 

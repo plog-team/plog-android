@@ -20,6 +20,9 @@
         <action
             android:id="@+id/action_home_to_emotion_report"
             app:destination="@id/emotionReportFragment" />
+        <action
+            android:id="@+id/action_home_to_analysis"
+            app:destination="@id/analysisFragment" />
     </fragment>
 
     <fragment
@@ -117,7 +120,11 @@
     <fragment
         android:id="@+id/placeReportFragment"
         android:name="com.example.plog.ui.report.PlaceReportFragment"
-        android:label="월간 장소 분석 리포트" />
+        android:label="월간 장소 분석 리포트">
+        <action
+            android:id="@+id/action_placeReport_to_analysisFragment"
+            app:destination="@id/analysisFragment" />
+    </fragment>
 
     <fragment
         android:id="@+id/emotionReportFragment"

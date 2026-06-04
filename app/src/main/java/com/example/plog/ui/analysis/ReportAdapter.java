@@ -32,13 +32,13 @@ public class ReportAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
         // 2. TOP3 장소
         if (report.topPlaces != null && !report.topPlaces.isEmpty()) {
-            items.add(new ReportItem.HeaderItem("자주 찾은 장소 TOP3"));
+            items.add(new ReportItem.HeaderItem("사진 많이 찍은 장소 TOP3"));
             for (int i = 0; i < report.topPlaces.size(); i++) {
                 items.add(new ReportItem.PlaceItem(i + 1, report.topPlaces.get(i)));
             }
         } else {
             // 데이터 없을 때도 헤더 + 안내 문구 표시
-            items.add(new ReportItem.HeaderItem("자주 찾은 장소 TOP3"));
+            items.add(new ReportItem.HeaderItem("사진 많이 찍은 장소 TOP3"));
             items.add(new ReportItem.HeaderItem("이번 달 GPS 데이터가 없어요."));
         }
 
@@ -54,7 +54,7 @@ public class ReportAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         }
 
         // 4. 활동 반경
-        if (report.activityRadius != null && report.activityRadius.radiusMeters > 0) {
+        if (report.activityRadius != null) {
             items.add(new ReportItem.HeaderItem("이번 달 활동 반경"));
             items.add(new ReportItem.RadiusItem(report.activityRadius));
         }
@@ -140,8 +140,14 @@ public class ReportAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             MonthlyReport.PlaceItem d = item.data;
             tvRank.setText(item.rank + "위");
             tvLabel.setText(d.placeLabel);
-            tvVisitCount.setText(d.visitCount + "회 방문");
-            tvCoord.setText(String.format("%.3f, %.3f", d.clusterLat, d.clusterLng));
+            tvVisitCount.setText("사진 " + d.visitCount + "장");
+            if (d.locationName != null) {
+                tvCoord.setText(d.locationName);
+                tvCoord.setVisibility(View.VISIBLE);
+            } else {
+                tvCoord.setText(String.format("%.3f, %.3f", d.clusterLat, d.clusterLng));
+                tvCoord.setVisibility(View.VISIBLE);
+            }
         }
     }
 
