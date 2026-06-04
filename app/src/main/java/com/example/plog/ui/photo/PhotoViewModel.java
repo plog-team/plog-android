@@ -1,6 +1,5 @@
 // ui/photo/PhotoViewModel.java
 package com.example.plog.ui.photo;
-
 import android.app.Application;
 import android.net.Uri;
 
@@ -18,9 +17,12 @@ import com.example.plog.util.SessionManager;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.example.plog.autofill.PhotoSaveResult;
 public class PhotoViewModel extends AndroidViewModel {
 
     private final MutableLiveData<Long>    savedPhotoId = new MutableLiveData<>();
+    //자동입력용 객체
+    private final MutableLiveData<PhotoSaveResult> savedPhotoResult = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isLoading    = new MutableLiveData<>(false);
     private final MutableLiveData<String>  errorMsg     = new MutableLiveData<>();
 
@@ -41,6 +43,16 @@ public class PhotoViewModel extends AndroidViewModel {
     public LiveData<Long>    getSavedPhotoId() { return savedPhotoId; }
     public LiveData<Boolean> getIsLoading()    { return isLoading;    }
     public LiveData<String>  getErrorMsg()     { return errorMsg;     }
+
+    /** 사진 저장 결과를 원본 URI와 photoId로 함께 반환 */
+    public LiveData<PhotoSaveResult> getSavedPhotoResult() {
+        return savedPhotoResult;
+    }
+
+    /** 갤러리 URI로 서버 photoId 조회 */
+    public Long getServerPhotoIdByImageUrl(String imageUrl) {
+        return photoRepository.getServerPhotoIdByImageUrl(imageUrl);
+    }
 
     /** 일기 수정 시 교체된 갤러리 URI를 DB에서 소프트 삭제 */
     public void removePhotoByUrl(@NonNull String imageUrl) {
@@ -85,6 +97,7 @@ public class PhotoViewModel extends AndroidViewModel {
 
                 // ── 3. 저장 완료 알림 ──────────────────────────────────────
                 savedPhotoId.postValue(photoId);
+                savedPhotoResult.postValue(new PhotoSaveResult(uri.toString(), photoId));
                 android.util.Log.d("PhotoViewModel",
                         "전체 저장 완료 — photoId: " + photoId);
 

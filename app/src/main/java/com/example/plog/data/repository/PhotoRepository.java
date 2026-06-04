@@ -268,4 +268,9 @@ public class PhotoRepository {
             Log.w("PhotoRepository", "역지오코딩 실패: " + e.getMessage());
         }
     }
+    /** 갤러리 URI로 서버 photoId 조회 */
+    @WorkerThread
+    public Long getServerPhotoIdByImageUrl(String imageUrl) {
+        return photoDao.getServerPhotoIdByImageUrl(imageUrl);
+    }
 }

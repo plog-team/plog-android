@@ -26,7 +26,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.plog.R;
 
 import java.util.List;
-
+import com.bumptech.glide.Glide;
+import com.example.plog.util.Constants;
 // 검색된 일기 데이터를 RecyclerView에 출력하는 Adapter
 public class SearchDiaryAdapter extends RecyclerView.Adapter<SearchDiaryAdapter.ViewHolder> {
 
@@ -93,11 +94,22 @@ public class SearchDiaryAdapter extends RecyclerView.Adapter<SearchDiaryAdapter.
         );
 
         // TODO: 이미지 URL 연동 예정
-        /*
-        Glide.with(holder.itemView.getContext())
-                .load(diary.getImageUrl())
-                .into(holder.ivDiaryPhoto);
-        */
+        String imageUrl = diary.getImageUrl();
+
+        if (imageUrl != null && !imageUrl.trim().isEmpty() && !"null".equals(imageUrl)) {
+            String fullImageUrl = imageUrl.startsWith("http")
+                    ? imageUrl
+                    : Constants.BASE_URL + imageUrl.replaceFirst("^/", "");
+
+            Glide.with(holder.itemView.getContext())
+                    .load(fullImageUrl)
+                    .placeholder(R.drawable.bg_photo_placeholder)
+                    .error(R.drawable.bg_photo_placeholder)
+                    .centerCrop()
+                    .into(holder.ivDiaryPhoto);
+        } else {
+            holder.ivDiaryPhoto.setImageResource(R.drawable.bg_photo_placeholder);
+        }
     }
 
     // Step 3. RecyclerView 아이템 개수 반환

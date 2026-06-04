@@ -48,6 +48,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
 
 public class DiaryEditFragment extends Fragment {
     private static final int MAX_PHOTO_COUNT = 10;
@@ -68,6 +70,9 @@ public class DiaryEditFragment extends Fragment {
     private final ActivityResultLauncher<String> requestLocationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted ->
                     openGalleryIntent());
+
+    /** 원본 갤러리 URI와 DB photoId 매핑 */
+    private final Map<String, Long> photoIdByGalleryUri = new HashMap<>();
 
     private final ActivityResultLauncher<Intent> photoPicker =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -100,8 +105,11 @@ public class DiaryEditFragment extends Fragment {
                 }
                 representativePhotoIndex = 0;
                 previewPhotoIndex = 0;
-                readPhotoMetadata(limited.get(0));
                 renderPhotos();
+
+                if (!activeGalleryUris.isEmpty()) {
+                    applyAutoInputByGalleryUri(activeGalleryUris.get(0));
+                }
             });
 
     @Nullable
@@ -122,8 +130,16 @@ public class DiaryEditFragment extends Fragment {
 
         setupInitialState();
         setupListeners();
+        observePhotoSaveResult();
     }
 
+    /** 사진 저장 완료 시 원본 URI와 photoId를 매핑 */
+    private void observePhotoSaveResult() {
+        photoViewModel.getSavedPhotoResult().observe(getViewLifecycleOwner(), result -> {
+            if (result == null) return;
+            photoIdByGalleryUri.put(result.getUri(), result.getPhotoId());
+        });
+    }
     private void setupInitialState() {
         binding.tvDate.setText(formatDisplayDate(new Date()));
 
@@ -155,6 +171,11 @@ public class DiaryEditFragment extends Fragment {
             selectedPhotos.add(Uri.parse(photoUri));
         }
         renderPhotos();
+
+        if (!activeGalleryUris.isEmpty()) {
+            int safeIndex = Math.max(0, Math.min(representativePhotoIndex, activeGalleryUris.size() - 1));
+            applyAutoInputByGalleryUri(activeGalleryUris.get(safeIndex));
+        }
     }
 
     private void setupListeners() {
@@ -288,7 +309,16 @@ public class DiaryEditFragment extends Fragment {
         action.setTextSize(12);
         action.setEnabled(photoIndex != representativePhotoIndex);
         action.setOnClickListener(v -> {
+            if (photoIndex == representativePhotoIndex) {
+                dismissRepresentativePopup();
+                return;
+            }
+
             representativePhotoIndex = photoIndex;
+
+            String selectedGalleryUri = activeGalleryUris.get(photoIndex);
+            applyAutoInputByGalleryUri(selectedGalleryUri);
+
             dismissRepresentativePopup();
             renderPhotos();
             Toast.makeText(requireContext(), "대표사진이 변경되었습니다.", Toast.LENGTH_SHORT).show();
@@ -388,7 +418,104 @@ public class DiaryEditFragment extends Fragment {
 
         popupWindow.showAtLocation(binding.getRoot(), Gravity.TOP | Gravity.END, dp(20), dp(72));
     }
+    /** 대표사진 URI로 서버 photoId를 조회한 뒤 자동입력 API를 호출 */
+    private void applyAutoInputByGalleryUri(String galleryUri) {
+        new Thread(() -> {
+            try {
+                requireActivity().runOnUiThread(() -> {
+                    binding.tvDate.setText("날짜 불러오는 중...");
+                    binding.etLocation.setText("위치 불러오는 중...");
+                    binding.etWeather.setText("날씨 불러오는 중...");
+                });
 
+                Long serverPhotoId = null;
+
+                // 서버 업로드 완료될 때까지 최대 10초 대기
+                for (int i = 0; i < 20; i++) {
+                    serverPhotoId = photoViewModel.getServerPhotoIdByImageUrl(galleryUri);
+
+                    if (serverPhotoId != null) {
+                        break;
+                    }
+
+                    Thread.sleep(500);
+                }
+
+                if (serverPhotoId == null) {
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(
+                                    requireContext(),
+                                    "사진 분석 중입니다. 잠시 후 대표사진을 다시 선택해주세요.",
+                                    Toast.LENGTH_SHORT
+                            ).show()
+                    );
+                    return;
+                }
+
+                retrofit2.Response<com.example.plog.model.ApiResponse<com.example.plog.model.PhotoAutoInputContext>> response =
+                        com.example.plog.network.ApiClient.getApiService()
+                                .getPhotoAutoInput(serverPhotoId)
+                                .execute();
+
+                if (!response.isSuccessful()
+                        || response.body() == null
+                        || response.body().data == null) {
+
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(
+                                    requireContext(),
+                                    "자동입력 정보를 불러오지 못했습니다.",
+                                    Toast.LENGTH_SHORT
+                            ).show()
+                    );
+                    return;
+                }
+
+                com.example.plog.model.PhotoAutoInputContext context = response.body().data;
+
+                requireActivity().runOnUiThread(() -> {
+                    binding.tvDate.setText(
+                            context.date != null && !context.date.trim().isEmpty()
+                                    ? context.date
+                                    : "날짜 정보 없음"
+                    );
+
+                    binding.etLocation.setText(
+                            context.locationHint != null && !context.locationHint.trim().isEmpty()
+                                    ? context.locationHint
+                                    : "위치 정보 없음"
+                    );
+
+                    String weatherText;
+                    if (context.weather != null && !context.weather.trim().isEmpty()) {
+                        weatherText = context.weather;
+                        if (context.temperature != null) {
+                            weatherText += " / " + context.temperature + "℃";
+                        }
+                    } else {
+                        weatherText = "날씨 정보 없음";
+                    }
+
+                    binding.etWeather.setText(weatherText);
+
+                    Toast.makeText(
+                            requireContext(),
+                            "자동입력 정보가 반영되었습니다.",
+                            Toast.LENGTH_SHORT
+                    ).show();
+                });
+
+            } catch (Exception e) {
+                requireActivity().runOnUiThread(() ->
+                        Toast.makeText(
+                                requireContext(),
+                                "자동입력 오류: " + e.getMessage(),
+                                Toast.LENGTH_SHORT
+                        ).show()
+                );
+            }
+        }).start();
+    }
     private boolean saveDiary() {
         String title = binding.etTitle.getText().toString().trim();
         String body = binding.etBody.getText().toString().trim();

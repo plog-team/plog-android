@@ -22,6 +22,7 @@ import okhttp3.MultipartBody;
 import retrofit2.Call;
 import retrofit2.http.*;
 import java.util.Map;
+import com.example.plog.model.PhotoAutoInputContext;
 
 public interface ApiService {
 
@@ -51,6 +52,11 @@ public interface ApiService {
     @DELETE("api/photos/{photoId}")
     Call<Void> deletePhoto(@Path("photoId") long photoId);
 
+    /** photoId로 사진 자동입력 정보를 조회 */
+    @GET("api/photos/{photoId}/auto-input")
+    Call<ApiResponse<PhotoAutoInputContext>> getPhotoAutoInput(
+            @Path("photoId") long photoId
+    );
     // ── AI 가이드 ────────────────────────────────────────────────
 
     @POST("api/ai-guide/sessions")

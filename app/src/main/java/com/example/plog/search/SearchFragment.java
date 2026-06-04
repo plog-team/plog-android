@@ -57,7 +57,7 @@ import okhttp3.Callback;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-
+import android.widget.TextView;
 // 검색 화면 Fragment
 public class SearchFragment extends Fragment {
 
@@ -70,6 +70,9 @@ public class SearchFragment extends Fragment {
 
     private EditText etSearch;
     private ImageButton btnSearch;
+    private TextView tvSortLatest;
+    private String currentSort = "latest";
+    private ImageButton btnSort;
 
     // Step 1. 화면 생성 및 초기 설정
     @Nullable
@@ -95,6 +98,7 @@ public class SearchFragment extends Fragment {
         rvSearchDiary = view.findViewById(R.id.rvSearchDiary);
         etSearch = view.findViewById(R.id.et_search);
         btnSearch = view.findViewById(R.id.btnSearch);
+        tvSortLatest = view.findViewById(R.id.tvSortLatest);
     }
 
     // Step 3. RecyclerView 초기화
@@ -114,7 +118,17 @@ public class SearchFragment extends Fragment {
         btnSearch.setOnClickListener(
                 v -> searchByKeyword()
         );
+        tvSortLatest.setOnClickListener(v -> {
+            if ("latest".equals(currentSort)) {
+                currentSort = "oldest";
+                tvSortLatest.setText("오래된순");
+            } else {
+                currentSort = "latest";
+                tvSortLatest.setText("최신순");
+            }
 
+            searchByKeyword();
+        });
         etSearch.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 searchByKeyword();
@@ -184,6 +198,7 @@ public class SearchFragment extends Fragment {
         Request request =
                 new Request.Builder()
                         .url(url)
+                        .addHeader("X-User-Id", String.valueOf(Constants.DEV_USER_ID))
                         .get()
                         .build();
 
@@ -217,29 +232,32 @@ public class SearchFragment extends Fragment {
 
     // Step 8. 검색 요청 URL 생성
     private String buildSearchUrl(String keyword) {
-        String baseUrl =
-                Constants.BASE_URL + "api/diaries/search";
-
-        if (keyword == null || keyword.isEmpty()) {
-            return baseUrl;
-        }
+        String baseUrl = Constants.BASE_URL + "api/diaries/search";
 
         try {
-            String encodedKeyword =
-                    URLEncoder.encode(keyword, "UTF-8");
+            StringBuilder urlBuilder = new StringBuilder(baseUrl);
+            urlBuilder.append("?sort=").append(currentSort);
 
-            return baseUrl + "?keyword=" + encodedKeyword;
+            if (keyword != null && !keyword.isEmpty()) {
+                String encodedKeyword = URLEncoder.encode(keyword, "UTF-8");
+                urlBuilder.append("&keyword=").append(encodedKeyword);
+            }
+
+            return urlBuilder.toString();
 
         } catch (Exception e) {
             Log.e(TAG, "검색어 인코딩 실패", e);
-            return baseUrl;
+            return baseUrl + "?sort=" + currentSort;
         }
     }
 
     // Step 9. 서버 응답 JSON 파싱 후 UI 갱신
     private void parseDiariesAndUpdateUi(String json) {
         try {
-            JSONArray array = new JSONArray(json);
+            JSONObject root = new JSONObject(json);
+            JSONArray array = root.getJSONArray("data");
+
+            Log.d(TAG, "data 배열 개수: " + array.length());
 
             requireActivity().runOnUiThread(() -> {
                 try {
@@ -247,19 +265,21 @@ public class SearchFragment extends Fragment {
 
                     for (int i = 0; i < array.length(); i++) {
                         JSONObject obj = array.getJSONObject(i);
+                        Log.d(TAG, "item " + i + ": " + obj.toString());
 
                         diaryList.add(
                                 new SearchDiary(
-                                        obj.optString("diary_date"),
-                                        obj.optString("emotion"),
-                                        obj.optString("title"),
-                                        obj.optString("content"),
-                                        obj.optString("location_name"),
-                                        obj.optString("image_url")
+                                        obj.optString("diary_date", obj.optString("date")),
+                                        obj.optString("emotion", ""),
+                                        obj.optString("title", ""),
+                                        obj.optString("content", obj.optString("body")),
+                                        obj.optString("location_name", obj.optString("location")),
+                                        obj.optString("image_url", obj.optString("imageUrl"))
                                 )
                         );
                     }
 
+                    Log.d(TAG, "RecyclerView 갱신 개수: " + diaryList.size());
                     adapter.notifyDataSetChanged();
 
                 } catch (Exception e) {
