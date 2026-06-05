@@ -7,6 +7,12 @@ import com.example.plog.model.ClarifyRequest;
 import com.example.plog.model.CreateSessionRequest;
 import com.example.plog.model.CreateSessionResponse;
 import com.example.plog.model.DiarySimpleResponse;
+import com.example.plog.model.DiaryEmojiDecorationRequest;
+import com.example.plog.model.DiaryEmojiDecorationResponse;
+import com.example.plog.model.DiaryLineCommentRequest;
+import com.example.plog.model.DiaryLineCommentResponse;
+import com.example.plog.model.DiaryLineCommentUpdateRequest;
+import com.example.plog.model.DiaryUpsertRequest;
 import com.example.plog.model.DraftResponse;
 import com.example.plog.model.FeedbackRequest;
 import com.example.plog.model.GenerateReportRequest;
@@ -21,6 +27,7 @@ import com.example.plog.model.SessionDetailResponse;
 import okhttp3.MultipartBody;
 import retrofit2.Call;
 import retrofit2.http.*;
+import java.util.List;
 import java.util.Map;
 import com.example.plog.model.PhotoAutoInputContext;
 
@@ -92,8 +99,67 @@ public interface ApiService {
 
     // ── 일기 열람 ──────────────────────────────────────────────
 
+    @POST("api/diaries")
+    Call<ApiResponse<DiarySimpleResponse>> saveDiary(@Body DiaryUpsertRequest request);
+
+    @PUT("api/diaries/{diaryId}")
+    Call<ApiResponse<DiarySimpleResponse>> updateDiary(
+            @Path("diaryId") long diaryId,
+            @Body DiaryUpsertRequest request
+    );
+
     @GET("api/diaries/{diaryId}")
     Call<ApiResponse<DiarySimpleResponse>> getDiary(@Path("diaryId") long diaryId);
+
+    @GET("api/diaries/by-date/{date}")
+    Call<ApiResponse<DiarySimpleResponse>> getDiaryByDate(@Path("date") String date);
+
+    @GET("api/diaries/{diaryId}/comments")
+    Call<ApiResponse<List<DiaryLineCommentResponse>>> getDiaryComments(
+            @Path("diaryId") long diaryId,
+            @Query("lineIndex") Integer lineIndex
+    );
+
+    @POST("api/diaries/{diaryId}/comments")
+    Call<ApiResponse<DiaryLineCommentResponse>> createDiaryComment(
+            @Path("diaryId") long diaryId,
+            @Body DiaryLineCommentRequest request
+    );
+
+    @PUT("api/diaries/{diaryId}/comments/{commentId}")
+    Call<ApiResponse<DiaryLineCommentResponse>> updateDiaryComment(
+            @Path("diaryId") long diaryId,
+            @Path("commentId") long commentId,
+            @Body DiaryLineCommentUpdateRequest request
+    );
+
+    @DELETE("api/diaries/{diaryId}/comments/{commentId}")
+    Call<Void> deleteDiaryComment(
+            @Path("diaryId") long diaryId,
+            @Path("commentId") long commentId
+    );
+
+    @GET("api/diaries/{diaryId}/decorations")
+    Call<ApiResponse<List<DiaryEmojiDecorationResponse>>> getDiaryDecorations(@Path("diaryId") long diaryId);
+
+    @POST("api/diaries/{diaryId}/decorations")
+    Call<ApiResponse<DiaryEmojiDecorationResponse>> createDiaryDecoration(
+            @Path("diaryId") long diaryId,
+            @Body DiaryEmojiDecorationRequest request
+    );
+
+    @PUT("api/diaries/{diaryId}/decorations/{decorationId}")
+    Call<ApiResponse<DiaryEmojiDecorationResponse>> updateDiaryDecoration(
+            @Path("diaryId") long diaryId,
+            @Path("decorationId") long decorationId,
+            @Body DiaryEmojiDecorationRequest request
+    );
+
+    @DELETE("api/diaries/{diaryId}/decorations/{decorationId}")
+    Call<Void> deleteDiaryDecoration(
+            @Path("diaryId") long diaryId,
+            @Path("decorationId") long decorationId
+    );
 
     // ── 장소 리포트 (월간) ──────────────────────────────────────
 
