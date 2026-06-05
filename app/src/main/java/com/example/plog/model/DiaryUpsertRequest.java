@@ -4,11 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 import java.util.List;
 
-public class DiarySimpleResponse {
-
-    @SerializedName("diaryId")
-    public long diaryId;
-
+public class DiaryUpsertRequest {
     @SerializedName("date")
     public String date;
 

@@ -29,15 +29,20 @@
         android:id="@+id/diaryEditFragment"
         android:name="com.example.plog.ui.diary.DiaryEditFragment"
         android:label="일기 작성">
+        <argument android:name="diaryId" app:argType="long" android:defaultValue="-1L" />
         <action
             android:id="@+id/action_diaryEditFragment_to_aiGuideEntryFragment"
             app:destination="@id/aiGuideEntryFragment" />
+        <action
+            android:id="@+id/action_diaryEditFragment_to_diaryDetailFragment"
+            app:destination="@id/diaryDetailFragment" />
     </fragment>
 
     <fragment
         android:id="@+id/diaryDetailFragment"
         android:name="com.example.plog.ui.diary.DiaryDetailFragment"
         android:label="일기 열람">
+        <argument android:name="diaryId" app:argType="long" android:defaultValue="-1L" />
         <action
             android:id="@+id/action_diaryDetailFragment_to_diaryEditFragment"
             app:destination="@id/diaryEditFragment" />
