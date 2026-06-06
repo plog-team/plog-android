@@ -7,6 +7,9 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.Navigation;
+
+import com.example.plog.R;
 import com.example.plog.databinding.FragmentHomeBinding;
 
 public class HomeFragment extends Fragment {
@@ -19,6 +22,11 @@ public class HomeFragment extends Fragment {
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
+
+        binding.cardAiChat.setOnClickListener(v ->
+                Navigation.findNavController(v).navigate(R.id.action_home_to_aiChatEntry)
+        );
+
         return binding.getRoot();
     }
 
