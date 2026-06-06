@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+
+    <style name="SearchFilterButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:layout_marginEnd">6dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">#444444</item>
+        <item name="android:background">@drawable/bg_filter_button</item>
+    </style>
+
+
+
+    <style name="BottomNavItem">
+
+        <item name="android:layout_width">
+            0dp
+        </item>
+
+        <item name="android:layout_height">
+            match_parent
+        </item>
+
+        <item name="android:layout_weight">
+            1
+        </item>
+
+        <item name="android:gravity">
+            center
+        </item>
+
+        <item name="android:textSize">
+            11sp
+        </item>
+
+    </style>
+
+
+
+    <style name="BottomNavItemSelected">
+
+        <item name="android:textColor">
+            #A020F0
+        </item>
+
+    </style>
+
+
+</resources>

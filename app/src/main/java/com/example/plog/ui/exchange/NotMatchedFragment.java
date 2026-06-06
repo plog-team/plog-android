@@ -67,6 +67,7 @@ public class NotMatchedFragment extends Fragment {
         api.getPendingMatches().enqueue(new Callback<List<ExchangeMatchResponse>>() {
             @Override
             public void onResponse(Call<List<ExchangeMatchResponse>> call, Response<List<ExchangeMatchResponse>> response) {
+                if (!isAdded()) return;
                 if (response.isSuccessful() && response.body() != null) {
                     List<ExchangeMatchResponse> list = response.body();
                     adapter.updateList(list);
@@ -82,13 +83,12 @@ public class NotMatchedFragment extends Fragment {
     }
 
     private void acceptMatch(Long matchId) {
-        // 닉네임 가져오기
         String nickname = adapter.getNickname(matchId);
-
         ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
         api.acceptMatch(matchId).enqueue(new Callback<ExchangeRoomResponse>() {
             @Override
             public void onResponse(Call<ExchangeRoomResponse> call, Response<ExchangeRoomResponse> response) {
+                if (!isAdded()) return;
                 if (response.isSuccessful() && response.body() != null) {
                     Bundle bundle = new Bundle();
                     bundle.putLong("roomId", response.body().getId());
@@ -109,6 +109,7 @@ public class NotMatchedFragment extends Fragment {
         api.rejectMatch(matchId).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
+                if (!isAdded()) return;
                 Toast.makeText(requireContext(), "거절했어요", Toast.LENGTH_SHORT).show();
                 loadPendingMatches();
             }

@@ -46,6 +46,15 @@ public class DiaryRepository {
                 }
             }
             entry.setPhotoUris(photoUris);
+
+            JSONArray galleryPhotos = json.optJSONArray("galleryPhotoUris");
+            List<String> galleryPhotoUris = new ArrayList<>();
+            if (galleryPhotos != null) {
+                for (int i = 0; i < galleryPhotos.length(); i++) {
+                    galleryPhotoUris.add(galleryPhotos.optString(i));
+                }
+            }
+            entry.setGalleryPhotoUris(galleryPhotoUris);
             return entry;
         } catch (JSONException e) {
             return null;
@@ -73,6 +82,14 @@ public class DiaryRepository {
                 photos.put(photoUri);
             }
             json.put("photoUris", photos);
+
+            JSONArray galleryPhotos = new JSONArray();
+            if (entry.getGalleryPhotoUris() != null) {
+                for (String uri : entry.getGalleryPhotoUris()) {
+                    galleryPhotos.put(uri);
+                }
+            }
+            json.put("galleryPhotoUris", galleryPhotos);
 
             preferences.edit()
                     .putString(entry.getDate(), json.toString())

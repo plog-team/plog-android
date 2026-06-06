@@ -23,19 +23,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupNavigation() {
-
-        NavHostFragment navHostFragment =
-                (NavHostFragment) getSupportFragmentManager()
-                        .findFragmentById(R.id.navHostFragment);
+        NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.navHostFragment);
 
         if (navHostFragment != null) {
-
             navController = navHostFragment.getNavController();
 
-            NavigationUI.setupWithNavController(
-                    binding.bottomNavigation,
-                    navController
-            );
+            NavigationUI.setupWithNavController(binding.bottomNavigation, navController);
 
             // 하단바 홈 버튼 클릭 시 홈으로 이동
             binding.bottomNavigation.setOnItemSelectedListener(item -> {
@@ -55,30 +49,26 @@ public class MainActivity extends AppCompatActivity {
                 dialog.show(getSupportFragmentManager(), "notification");
             });
 
-            navController.addOnDestinationChangedListener(
-                    (controller, destination, arguments) -> {
-
-                        int id = destination.getId();
-
-                        if (id == R.id.homeFragment) {
-                            binding.tvTitle.setText("홈");
-                        } else if (id == R.id.recommendFragment) {
-                            binding.tvTitle.setText("추천");
-                        } else if (id == R.id.localFragment) {
-                            binding.tvTitle.setText("로컬");
-                        } else if (id == R.id.searchFragment) {
-                            binding.tvTitle.setText("검색");
-                        } else if (id == R.id.myFragment) {
-                            binding.tvTitle.setText("My");
-                        } else if (
-                                id == R.id.notMatchedFragment ||
-                                        id == R.id.matchingFragment ||
-                                        id == R.id.matchedFragment ||
-                                        id == R.id.matchConfirmFragment
-                        ) {
-                            binding.tvTitle.setText("교환일기");
-                        }
-                    });
+            navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
+                if (destination.getId() == R.id.homeFragment) {
+                    binding.tvTitle.setText("홈");
+                } else if (destination.getId() == R.id.recommendFragment) {
+                    binding.tvTitle.setText("추천");
+                } else if (destination.getId() == R.id.localFragment) {
+                    binding.tvTitle.setText("로컬");
+                } else if (destination.getId() == R.id.searchFragment) {
+                    binding.tvTitle.setText("검색");
+                } else if (destination.getId() == R.id.myFragment) {
+                    binding.tvTitle.setText("My");
+                } else if (
+                        destination.getId() == R.id.notMatchedFragment ||
+                                destination.getId() == R.id.matchingFragment ||
+                                destination.getId() == R.id.matchedFragment ||
+                                destination.getId() == R.id.matchConfirmFragment
+                ) {
+                    binding.tvTitle.setText("교환일기");
+                }
+            });
         }
     }
 

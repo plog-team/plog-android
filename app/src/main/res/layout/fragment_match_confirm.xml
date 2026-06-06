@@ -22,7 +22,7 @@
             android:layout_height="120dp"
             app:cardCornerRadius="60dp"
             app:cardElevation="0dp"
-            app:cardBackgroundColor="#F0F0F0">
+            app:cardBackgroundColor="#E8E2FF">
         </androidx.cardview.widget.CardView>
 
         <TextView
@@ -30,7 +30,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="User1234"
+            android:text=""
             android:textColor="#333333"
             android:textSize="22sp"
             android:textStyle="bold" />
@@ -46,7 +46,7 @@
                 style="@style/Widget.MaterialComponents.Chip.Action"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="#영화"
+                android:text=""
                 app:chipBackgroundColor="#E8E2FF"
                 app:chipCornerRadius="20dp"
                 app:chipStrokeWidth="0dp" />
@@ -60,7 +60,7 @@
                 style="@style/Widget.MaterialComponents.Chip.Action"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="#드라마"
+                android:text=""
                 app:chipBackgroundColor="#E8E2FF"
                 app:chipCornerRadius="20dp"
                 app:chipStrokeWidth="0dp" />
@@ -74,12 +74,22 @@
                 style="@style/Widget.MaterialComponents.Chip.Action"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="#집돌이"
+                android:text=""
                 app:chipBackgroundColor="#E8E2FF"
                 app:chipCornerRadius="20dp"
                 app:chipStrokeWidth="0dp" />
 
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvSimilarity"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text=""
+            android:textColor="#333333"
+            android:textSize="13sp"
+            android:textStyle="bold" />
 
         <View
             android:layout_width="match_parent"

@@ -1,9 +1,14 @@
 package com.example.plog.ui.exchange;
 
+import com.example.plog.network.dto.MatchRecommendResponse;
+
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -11,34 +16,34 @@ import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.example.plog.R;
+import com.example.plog.network.RetrofitClient;
+import com.example.plog.network.api.ExchangeMatchApi;
+import com.example.plog.network.dto.ExchangeMatchRequest;
+import com.example.plog.network.dto.ExchangeMatchResponse;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 import android.util.Log;
-import com.example.plog.network.RetrofitClient;
-import com.example.plog.network.api.ExchangeMatchApi;
-import com.example.plog.network.dto.ExchangeRoomResponse;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 public class MatchConfirmFragment extends Fragment {
 
-    private Call<ExchangeRoomResponse> acceptCall;
-
-    private final List<List<String>> partnerPool = Arrays.asList(
-            Arrays.asList("user1", "#영화", "#드라마", "#집순이"),
-            Arrays.asList("user2", "#카페", "#사진", "#여행"),
-            Arrays.asList("user3", "#개발", "#독서", "#고양이"),
-            Arrays.asList("user4", "#맛집", "#베이킹", "#디저트"),
-            Arrays.asList("user5", "#음악", "#기타", "#감성")
-    );
-
+    private Long pendingMatchId = null;
+    private final Handler pollingHandler = new Handler(Looper.getMainLooper());
+    private Runnable pollingRunnable;
+    private List<MatchRecommendResponse> recommendList = new ArrayList<>();
     private int currentPartnerIndex = 0;
+
+    // UI 참조 (cancelMatch에서 사용)
+    private TextView tvMessage;
+    private TextView tvSimilarity;
+    private LinearLayout layoutButtons;
+    private MaterialButton btnCancel;
 
     public MatchConfirmFragment() {
         super(R.layout.fragment_match_confirm);
@@ -48,98 +53,203 @@ public class MatchConfirmFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        TextView tvMessage = view.findViewById(R.id.tvMatchMessage);
+        tvMessage = view.findViewById(R.id.tvMatchMessage);
         TextView tvUserNickname = view.findViewById(R.id.tvUserNickname);
+        tvSimilarity = view.findViewById(R.id.tvSimilarity);
         Chip chipTag1 = view.findViewById(R.id.chipTag1);
         Chip chipTag2 = view.findViewById(R.id.chipTag2);
         Chip chipTag3 = view.findViewById(R.id.chipTag3);
         LinearLayout layoutButtons = view.findViewById(R.id.layoutButtons);
+        this.layoutButtons = layoutButtons;
         MaterialButton btnAccept = view.findViewById(R.id.btnAccept);
         MaterialButton btnReject = view.findViewById(R.id.btnReject);
-        MaterialButton btnCancel = view.findViewById(R.id.btnCancel);
+        btnCancel = view.findViewById(R.id.btnCancel);
 
-        setNewPartner(tvUserNickname, chipTag1, chipTag2, chipTag3);
+        if (getArguments() != null) {
+            long matchId = getArguments().getLong("matchId", -1L);
+            if (matchId != -1L) {
+                // 이미 신청한 매칭 - 수락 대기 화면
+                pendingMatchId = matchId;
+                showWaitingUI();
 
-        // 예 버튼
-        btnAccept.setOnClickListener(v -> {
-            tvMessage.setText("매칭 중...");
-            layoutButtons.setVisibility(View.GONE);
-            btnCancel.setVisibility(View.VISIBLE);
-
-            ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
-
-            api.createMatch(new com.example.plog.network.dto.ExchangeMatchRequest(1L))
-                    .enqueue(new Callback<com.example.plog.network.dto.ExchangeMatchResponse>() {
-                        @Override
-                        public void onResponse(Call<com.example.plog.network.dto.ExchangeMatchResponse> call,
-                                               Response<com.example.plog.network.dto.ExchangeMatchResponse> response) {
-                            if (response.isSuccessful() && response.body() != null) {
-                                Long newMatchId = response.body().getId();
-
-                                acceptCall = api.acceptMatch(newMatchId);
-                                acceptCall.enqueue(new Callback<ExchangeRoomResponse>() {
-                                    @Override
-                                    public void onResponse(Call<ExchangeRoomResponse> call,
-                                                           Response<ExchangeRoomResponse> response) {
-                                        if (response.isSuccessful() && response.body() != null) {
-                                            Long roomId = response.body().getId();
-                                            Bundle bundle = new Bundle();
-                                            bundle.putString("partnerName", tvUserNickname.getText().toString());
-                                            bundle.putLong("roomId", roomId);
-                                            NavHostFragment.findNavController(MatchConfirmFragment.this)
-                                                    .navigate(R.id.matchedFragment, bundle);
-                                        }
-                                    }
-
-                                    @Override
-                                    public void onFailure(Call<ExchangeRoomResponse> call, Throwable t) {
-                                        if (!call.isCanceled()) {
-                                            Log.e("MatchConfirm", "수락 실패: " + t.getMessage());
-                                        }
-                                    }
-                                });
+                ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
+                api.getMatch(matchId).enqueue(new Callback<ExchangeMatchResponse>() {
+                    @Override
+                    public void onResponse(Call<ExchangeMatchResponse> call, Response<ExchangeMatchResponse> response) {
+                        if (!isAdded()) return;
+                        if (response.isSuccessful() && response.body() != null) {
+                            String nickname = response.body().getRequesterNickname();
+                            if (nickname != null) tvUserNickname.setText(nickname);
+                            List<String> categories = response.body().getTopCategories();
+                            if (categories != null) {
+                                chipTag1.setText(categories.size() > 0 ? "#" + categories.get(0) : "");
+                                chipTag2.setText(categories.size() > 1 ? "#" + categories.get(1) : "");
+                                chipTag3.setText(categories.size() > 2 ? "#" + categories.get(2) : "");
                             }
                         }
+                    }
+                    @Override
+                    public void onFailure(Call<ExchangeMatchResponse> call, Throwable t) {
+                        Log.e("MatchConfirm", "매칭 정보 조회 실패: " + t.getMessage());
+                    }
+                });
 
+                startPolling(tvUserNickname);
+                btnCancel.setOnClickListener(v -> cancelMatch());
+                return;
+            }
+
+            // 새로운 추천 유저 화면
+            recommendList = (ArrayList<MatchRecommendResponse>) getArguments().getSerializable("recommendList");
+            if (recommendList != null && !recommendList.isEmpty()) {
+                updatePartnerUI(tvUserNickname, chipTag1, chipTag2, chipTag3);
+            }
+        }
+
+        btnAccept.setOnClickListener(v -> {
+            MatchRecommendResponse partner = (recommendList != null && !recommendList.isEmpty())
+                    ? recommendList.get(currentPartnerIndex) : null;
+            Long targetUserId = partner != null ? partner.getUserId() : null;
+
+            showWaitingUI();
+
+            ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
+            api.createMatch(new ExchangeMatchRequest(1L, targetUserId))
+                    .enqueue(new Callback<ExchangeMatchResponse>() {
                         @Override
-                        public void onFailure(Call<com.example.plog.network.dto.ExchangeMatchResponse> call, Throwable t) {
-                            Log.e("MatchConfirm", "신청 실패: " + t.getMessage());
+                        public void onResponse(Call<ExchangeMatchResponse> call, Response<ExchangeMatchResponse> response) {
+                            if (!isAdded()) return;
+                            if (response.isSuccessful() && response.body() != null) {
+                                pendingMatchId = response.body().getId();
+                                Toast.makeText(requireContext(), "매칭 신청 완료!", Toast.LENGTH_SHORT).show();
+                                startPolling(tvUserNickname);
+                                btnCancel.setOnClickListener(cv -> cancelMatch());
+                            } else {
+                                Toast.makeText(requireContext(), "이미 진행 중인 매칭이 있어요.", Toast.LENGTH_SHORT).show();
+                                showMatchUI();
+                            }
+                        }
+                        @Override
+                        public void onFailure(Call<ExchangeMatchResponse> call, Throwable t) {
+                            if (!isAdded()) return;
+                            Toast.makeText(requireContext(), "서버 연결에 실패했어요.", Toast.LENGTH_SHORT).show();
+                            showMatchUI();
                         }
                     });
         });
 
-        // 다시 찾기 버튼
         btnReject.setOnClickListener(v -> {
-            int nextIndex = currentPartnerIndex;
-            if (partnerPool.size() > 1) {
-                Random random = new Random();
-                while (nextIndex == currentPartnerIndex) {
-                    nextIndex = random.nextInt(partnerPool.size());
-                }
-            } else {
-                nextIndex = 0;
+            if (recommendList != null && recommendList.size() > 1) {
+                currentPartnerIndex = (currentPartnerIndex + 1) % recommendList.size();
+                updatePartnerUI(tvUserNickname, chipTag1, chipTag2, chipTag3);
             }
-            currentPartnerIndex = nextIndex;
-            setNewPartner(tvUserNickname, chipTag1, chipTag2, chipTag3);
-        });
-
-        // 취소 버튼
-        btnCancel.setOnClickListener(v -> {
-            if (acceptCall != null) {
-                acceptCall.cancel();
-                acceptCall = null;
-            }
-            tvMessage.setText("이 사용자에게 교환일기를 신청할까요?");
-            layoutButtons.setVisibility(View.VISIBLE);
-            btnCancel.setVisibility(View.GONE);
         });
     }
 
-    private void setNewPartner(TextView tvNickname, Chip chip1, Chip chip2, Chip chip3) {
-        List<String> partnerData = partnerPool.get(currentPartnerIndex);
-        tvNickname.setText(partnerData.get(0));
-        chip1.setText(partnerData.get(1));
-        chip2.setText(partnerData.get(2));
-        chip3.setText(partnerData.get(3));
+    private void showWaitingUI() {
+        tvMessage.setText("매칭 중... 상대방의 수락을 기다리고 있어요.");
+        tvSimilarity.setVisibility(View.GONE);
+        layoutButtons.setVisibility(View.GONE);
+        btnCancel.setVisibility(View.VISIBLE);
+    }
+
+    private void showMatchUI() {
+        tvMessage.setText("이 사용자에게 교환일기를 신청할까요?");
+        tvSimilarity.setVisibility(View.VISIBLE);
+        layoutButtons.setVisibility(View.VISIBLE);
+        btnCancel.setVisibility(View.GONE);
+    }
+
+    private void cancelMatch() {
+        stopPolling();
+        if (pendingMatchId != null) {
+            ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
+            api.rejectMatch(pendingMatchId).enqueue(new Callback<Void>() {
+                @Override
+                public void onResponse(Call<Void> call, Response<Void> response) {
+                    if (!isAdded()) return;
+                    pendingMatchId = null;
+                    if (recommendList != null && !recommendList.isEmpty()) {
+                        // 추천 유저 있으면 그 화면으로 돌아가기
+                        showMatchUI();
+                    } else {
+                        // 추천 유저 없으면 새로 추천 받기
+                        NavHostFragment.findNavController(MatchConfirmFragment.this)
+                                .navigate(R.id.matchingFragment);
+                    }
+                }
+                @Override
+                public void onFailure(Call<Void> call, Throwable t) {
+                    if (!isAdded()) return;
+                    pendingMatchId = null;
+                    NavHostFragment.findNavController(MatchConfirmFragment.this)
+                            .navigate(R.id.matchingFragment);
+                }
+            });
+        }
+    }
+
+    private void startPolling(TextView tvUserNickname) {
+        stopPolling();
+        ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
+        pollingRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (pendingMatchId == null || !isAdded()) return;
+                api.getMatch(pendingMatchId).enqueue(new Callback<ExchangeMatchResponse>() {
+                    @Override
+                    public void onResponse(Call<ExchangeMatchResponse> call, Response<ExchangeMatchResponse> response) {
+                        if (!isAdded()) return;
+                        if (response.isSuccessful() && response.body() != null) {
+                            String status = response.body().getStatus();
+                            if ("MATCHED".equals(status)) {
+                                stopPolling();
+                                Bundle bundle = new Bundle();
+                                bundle.putString("partnerName", tvUserNickname.getText().toString());
+                                NavHostFragment.findNavController(MatchConfirmFragment.this)
+                                        .navigate(R.id.matchedFragment, bundle);
+                            } else if ("REJECTED".equals(status)) {
+                                stopPolling();
+                                Toast.makeText(requireContext(), "매칭이 거절됐어요.", Toast.LENGTH_SHORT).show();
+                                NavHostFragment.findNavController(MatchConfirmFragment.this)
+                                        .navigate(R.id.matchingFragment);
+                            } else {
+                                pollingHandler.postDelayed(pollingRunnable, 3000);
+                            }
+                        }
+                    }
+                    @Override
+                    public void onFailure(Call<ExchangeMatchResponse> call, Throwable t) {
+                        if (isAdded()) pollingHandler.postDelayed(pollingRunnable, 3000);
+                    }
+                });
+            }
+        };
+        pollingHandler.post(pollingRunnable);
+    }
+
+    private void stopPolling() {
+        if (pollingRunnable != null) {
+            pollingHandler.removeCallbacks(pollingRunnable);
+            pollingRunnable = null;
+        }
+    }
+
+    private void updatePartnerUI(TextView tvNickname, Chip chip1, Chip chip2, Chip chip3) {
+        if (recommendList == null || recommendList.isEmpty()) return;
+        MatchRecommendResponse partner = recommendList.get(currentPartnerIndex);
+        tvNickname.setText(partner.getNickname());
+        List<String> categories = partner.getTopCategories();
+        chip1.setText(categories != null && categories.size() > 0 ? "#" + categories.get(0) : "");
+        chip2.setText(categories != null && categories.size() > 1 ? "#" + categories.get(1) : "");
+        chip3.setText(categories != null && categories.size() > 2 ? "#" + categories.get(2) : "");
+        TextView tvSimilarity = requireView().findViewById(R.id.tvSimilarity);
+        tvSimilarity.setText("나와 " + (int)(partner.getSimilarityScore() * 100) + "% 일치해요!");
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        stopPolling();
     }
 }
