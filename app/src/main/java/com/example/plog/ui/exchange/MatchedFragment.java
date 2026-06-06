@@ -125,6 +125,20 @@ public class MatchedFragment extends Fragment {
                 if (!isAdded()) return;
                 if (response.isSuccessful() && response.body() != null) {
                     sessionId = response.body().getId();
+                    // endDate로 만료 시간 설정
+                    String endDate = response.body().getEndDate();
+                    if (endDate != null) {
+                        try {
+                            java.time.LocalDate end = java.time.LocalDate.parse(endDate);
+                            long endTimeMs = end.atStartOfDay()
+                                    .toInstant(java.time.ZoneOffset.UTC)
+                                    .toEpochMilli();
+                            requireActivity().getSharedPreferences("ExchangeSessionPref", android.content.Context.MODE_PRIVATE)
+                                    .edit().putLong("start_time", endTimeMs - SEVEN_DAYS_IN_MS).apply();
+                        } catch (Exception e) {
+                            android.util.Log.e("MatchedFragment", "날짜 파싱 오류: " + e.getMessage());
+                        }
+                    }
                     loadDiaries();
                 }
             }
@@ -267,6 +281,7 @@ public class MatchedFragment extends Fragment {
 
     private void navigateToEdit() {
         Bundle bundle = new Bundle();
+        bundle.putBoolean("isExchange", true);
         bundle.putLong("sessionId", sessionId != null ? sessionId : 1L);
         bundle.putLong("userId", 1L);
         bundle.putInt("dayNumber", currentDay);
@@ -274,7 +289,7 @@ public class MatchedFragment extends Fragment {
             bundle.putLong("diaryId", currentDiary.getId());
         }
         Navigation.findNavController(requireView())
-                .navigate(R.id.action_matchedFragment_to_exchangeDiaryEditFragment, bundle);
+                .navigate(R.id.action_matchedFragment_to_diaryEditFragment, bundle);
     }
 
     @Override
@@ -328,7 +343,24 @@ public class MatchedFragment extends Fragment {
     private void terminateSession() {
         requireActivity().getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE)
                 .edit().remove("start_time").apply();
-        NavHostFragment.findNavController(this).navigate(R.id.notMatchedFragment);
+        // 교환방도 닫기
+        if (roomId != null) {
+            ExchangeRoomApi roomApi = RetrofitClient.getClient().create(ExchangeRoomApi.class);
+            roomApi.closeRoom(roomId).enqueue(new retrofit2.Callback<ExchangeRoomResponse>() {
+                @Override
+                public void onResponse(retrofit2.Call<ExchangeRoomResponse> call, retrofit2.Response<ExchangeRoomResponse> response) {
+                    if (!isAdded()) return;
+                    NavHostFragment.findNavController(MatchedFragment.this).navigate(R.id.notMatchedFragment);
+                }
+                @Override
+                public void onFailure(retrofit2.Call<ExchangeRoomResponse> call, Throwable t) {
+                    if (!isAdded()) return;
+                    NavHostFragment.findNavController(MatchedFragment.this).navigate(R.id.notMatchedFragment);
+                }
+            });
+        } else {
+            NavHostFragment.findNavController(this).navigate(R.id.notMatchedFragment);
+        }
     }
 
     private void animateSmoothTransition(Runnable onContentUpdate) {
