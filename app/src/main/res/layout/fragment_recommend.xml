@@ -58,7 +58,6 @@
         </LinearLayout>
     </HorizontalScrollView>
 
-
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -74,27 +73,35 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="내 취향 기반 추천 ✦"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary"
-                    android:layout_marginStart="16dp"
-                    android:layout_marginTop="16dp"
-                    android:layout_marginBottom="8dp"/>
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rvFeatured"
+                <!-- 전체 탭일 때만 표시되는 취향 추천 섹션 -->
+                <LinearLayout
+                    android:id="@+id/layoutFeaturedSection"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="12dp"
-                    android:clipToPadding="false"
-                    android:orientation="horizontal"/>
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="내 취향 기반 추천 ✦"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="8dp"/>
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvFeatured"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="12dp"
+                        android:clipToPadding="false"
+                        android:orientation="horizontal"/>
+                </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"

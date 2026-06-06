@@ -19,18 +19,22 @@ import com.google.android.gms.location.Priority;
 import com.example.plog.R;
 import com.example.plog.api.*;
 import com.example.plog.api.model.*;
+import com.example.plog.network.ApiClient;
 import com.example.plog.ui.recommend.adapter.*;
 import com.example.plog.ui.recommend.model.PlaceItem;
+import com.example.plog.api.model.PreferenceResponse;
 import java.util.*;
 import retrofit2.*;
 
 public class RecommendFragment extends Fragment {
 
     private static final int LOCATION_REQUEST = 1001;
-    private static final int PAGE_SIZE = 5;
+    private static final int PAGE_SIZE        = 5;
+    private static final int NEARBY_RADIUS    = 2000;
+    private static final int FEATURED_RADIUS  = 1000;
 
     private NestedScrollView layoutContent;
-    private View layoutLoading, layoutError, layoutEmpty;
+    private View layoutLoading, layoutError, layoutEmpty, layoutFeaturedSection;
     private RecyclerView rvFeatured, rvNearby;
     private TextView tvNearbyCount, tvSortBtn;
     private TextView tvTabAll, tvTabTourist, tvTabCulture, tvTabEvent, tvTabFood;
@@ -41,9 +45,11 @@ public class RecommendFragment extends Fragment {
     private final List<PlaceItem> originalList = new ArrayList<>();
     private final List<PlaceItem> nearbyList   = new ArrayList<>();
 
+    // 클릭로그 기반 선호 카테고리 (동률 포함 가능)
+    private List<String> preferredTypeIds = new ArrayList<>();
+
     private double currentLat = 37.5665;
     private double currentLon = 126.9780;
-    private boolean locationFailed = false;
     private String selectedTypeId = "";
     private boolean isSortedByPopularity = false;
     private boolean isLoadingMore = false;
@@ -71,21 +77,21 @@ public class RecommendFragment extends Fragment {
     }
 
     private void initViews(View v) {
-        layoutContent = v.findViewById(R.id.layoutContent);
-        layoutLoading = v.findViewById(R.id.layoutLoading);
-        layoutError   = v.findViewById(R.id.layoutError);
-        layoutEmpty   = v.findViewById(R.id.layoutEmpty);
-        rvFeatured    = v.findViewById(R.id.rvFeatured);
-        rvNearby      = v.findViewById(R.id.rvNearby);
-        tvNearbyCount = v.findViewById(R.id.tvNearbyCount);
-        tvSortBtn     = v.findViewById(R.id.tvSortBtn);
-        tvTabAll      = v.findViewById(R.id.tvTabAll);
-        tvTabTourist  = v.findViewById(R.id.tvTabTourist);
-        tvTabCulture  = v.findViewById(R.id.tvTabCulture);
-        tvTabEvent    = v.findViewById(R.id.tvTabEvent);
-        tvTabFood     = v.findViewById(R.id.tvTabFood);
-        v.findViewById(R.id.btnRetry)
-                .setOnClickListener(x -> getLocationAndLoad());
+        layoutContent        = v.findViewById(R.id.layoutContent);
+        layoutLoading        = v.findViewById(R.id.layoutLoading);
+        layoutError          = v.findViewById(R.id.layoutError);
+        layoutEmpty          = v.findViewById(R.id.layoutEmpty);
+        layoutFeaturedSection = v.findViewById(R.id.layoutFeaturedSection);
+        rvFeatured           = v.findViewById(R.id.rvFeatured);
+        rvNearby             = v.findViewById(R.id.rvNearby);
+        tvNearbyCount        = v.findViewById(R.id.tvNearbyCount);
+        tvSortBtn            = v.findViewById(R.id.tvSortBtn);
+        tvTabAll             = v.findViewById(R.id.tvTabAll);
+        tvTabTourist         = v.findViewById(R.id.tvTabTourist);
+        tvTabCulture         = v.findViewById(R.id.tvTabCulture);
+        tvTabEvent           = v.findViewById(R.id.tvTabEvent);
+        tvTabFood            = v.findViewById(R.id.tvTabFood);
+        v.findViewById(R.id.btnRetry).setOnClickListener(x -> getLocationAndLoad());
     }
 
     private void setupAdapters() {
@@ -170,11 +176,17 @@ public class RecommendFragment extends Fragment {
         hasMorePages = true;
         originalList.clear();
         nearbyList.clear();
+        featuredList.clear();
+        featuredAdapter.updateItems(featuredList);
+
+        // 전체 탭이면 취향 추천 섹션 표시, 다른 탭이면 숨김
+        layoutFeaturedSection.setVisibility(
+                typeId.isEmpty() ? View.VISIBLE : View.GONE);
+
         loadPlaces();
     }
 
     private void getLocationAndLoad() {
-        locationFailed = false;
         fusedLocationClient = LocationServices
                 .getFusedLocationProviderClient(requireActivity());
 
@@ -201,7 +213,6 @@ public class RecommendFragment extends Fragment {
                         currentLat = loc.getLatitude();
                         currentLon = loc.getLongitude();
                     } else {
-                        // loc null → fallback + 팝업
                         showLocationFallbackDialog();
                     }
                     loadPlaces();
@@ -234,11 +245,99 @@ public class RecommendFragment extends Fragment {
                         .show());
     }
 
+    // 선호 카테고리 로드 후 장소 조회 (재로딩마다 preference 갱신)
     private void loadPlaces() {
         currentPage = 1;
         hasMorePages = true;
         showLoading();
-        fetchPage(currentPage, true);
+
+        if (selectedTypeId.isEmpty()) {
+            ApiClient.getApiService().getPreference()
+                    .enqueue(new Callback<PreferenceResponse>() {
+                        @Override
+                        public void onResponse(@NonNull Call<PreferenceResponse> call,
+                                               @NonNull Response<PreferenceResponse> resp) {
+                            if (!isAdded()) return;
+                            if (resp.isSuccessful() && resp.body() != null
+                                    && resp.body().data != null
+                                    && resp.body().data.preferredCategories != null) {
+                                preferredTypeIds = resp.body().data.preferredCategories;
+                            } else {
+                                preferredTypeIds = new ArrayList<>();
+                            }
+                            // 선호 카테고리 기반 featured 전용 호출 후 일반 목록 호출
+                            fetchFeatured();
+                            fetchPage(currentPage, true);
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<PreferenceResponse> call,
+                                              @NonNull Throwable t) {
+                            preferredTypeIds = new ArrayList<>();
+                            fetchFeatured();
+                            fetchPage(currentPage, true);
+                        }
+                    });
+        } else {
+            fetchPage(currentPage, true);
+        }
+    }
+    // featured 전용 호출: 선호 카테고리 1위로 2km 내 전체 조회
+    private void fetchFeatured() {
+        // 클릭로그 없으면 카테고리 지정 없이 전체 조회
+        String featuredTypeId = preferredTypeIds.isEmpty() ? "" : preferredTypeIds.get(0);
+
+        TourApiClient.getTourService().getNearby(
+                        TourApiClient.TOUR_API_KEY,
+                        currentLon, currentLat,
+                        FEATURED_RADIUS,  // 1000m
+                        "Plog", "AND", "json",
+                        100, 1, featuredTypeId)
+                .enqueue(new Callback<TourResponse>() {
+                    @Override
+                    public void onResponse(@NonNull Call<TourResponse> call,
+                                           @NonNull Response<TourResponse> resp) {
+                        if (!isAdded()) return;
+                        if (!resp.isSuccessful() || resp.body() == null) return;
+
+                        TourResponse.Body body = resp.body().response.body;
+                        if (body.items == null || body.items.isJsonNull()) return;
+
+                        List<TourItem> rawItems = null;
+                        try {
+                            if (body.items.isJsonObject()
+                                    && body.items.getAsJsonObject().has("item")) {
+                                com.google.gson.JsonElement itemEl =
+                                        body.items.getAsJsonObject().get("item");
+                                com.google.gson.Gson gson = new com.google.gson.Gson();
+                                if (itemEl.isJsonArray()) {
+                                    rawItems = gson.fromJson(itemEl,
+                                            new com.google.gson.reflect.TypeToken<List<TourItem>>(){}.getType());
+                                } else if (itemEl.isJsonObject()) {
+                                    rawItems = new ArrayList<>();
+                                    rawItems.add(gson.fromJson(itemEl, TourItem.class));
+                                }
+                            }
+                        } catch (Exception e) {
+                            rawItems = null;
+                        }
+
+                        if (rawItems == null || rawItems.isEmpty()) return;
+
+                        List<PlaceItem> items = parseItems(rawItems);
+                        requireActivity().runOnUiThread(() -> {
+                            // 응답 왔을 때 여전히 전체 탭인지 확인
+                            if (!selectedTypeId.isEmpty()) return;
+                            featuredList.clear();
+                            featuredList.addAll(items);
+                            featuredAdapter.updateItems(featuredList);
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<TourResponse> call,
+                                          @NonNull Throwable t) {}
+                });
     }
 
     private void loadMorePlaces() {
@@ -252,7 +351,7 @@ public class RecommendFragment extends Fragment {
         TourApiClient.getTourService().getNearby(
                         TourApiClient.TOUR_API_KEY,
                         currentLon, currentLat,
-                        2000, "Plog", "AND", "json",
+                        NEARBY_RADIUS, "Plog", "AND", "json",
                         PAGE_SIZE, page, selectedTypeId)
                 .enqueue(new Callback<TourResponse>() {
                     @Override
@@ -267,11 +366,10 @@ public class RecommendFragment extends Fragment {
                             if (isFirst && (body.totalCount == 0
                                     || body.items == null
                                     || body.items.isJsonNull())) {
-                                showEmpty();
+                                RecommendFragment.this.showEmpty();
                                 return;
                             }
 
-                            // items가 빈 객체로 올 수 있어서 JsonElement로 직접 파싱
                             List<TourItem> rawItems = null;
                             try {
                                 if (body.items != null
@@ -282,10 +380,8 @@ public class RecommendFragment extends Fragment {
                                     com.google.gson.Gson gson = new com.google.gson.Gson();
                                     if (itemEl.isJsonArray()) {
                                         rawItems = gson.fromJson(itemEl,
-                                                new com.google.gson.reflect.TypeToken<
-                                                        List<TourItem>>(){}.getType());
+                                                new com.google.gson.reflect.TypeToken<List<TourItem>>(){}.getType());
                                     } else if (itemEl.isJsonObject()) {
-                                        // 결과가 1개일 때 배열 대신 객체로 오는 경우
                                         rawItems = new ArrayList<>();
                                         rawItems.add(gson.fromJson(itemEl, TourItem.class));
                                     }
@@ -296,7 +392,7 @@ public class RecommendFragment extends Fragment {
 
                             if (rawItems == null || rawItems.isEmpty()) {
                                 hasMorePages = false;
-                                if (isFirst) showEmpty();
+                                if (isFirst) RecommendFragment.this.showEmpty();
                                 return;
                             }
 
@@ -308,23 +404,17 @@ public class RecommendFragment extends Fragment {
                             if (isFirst) {
                                 originalList.clear();
                                 nearbyList.clear();
-                                featuredList.clear();
                             }
                             originalList.addAll(newItems);
 
                             requireActivity().runOnUiThread(() -> {
-                                if (isFirst) {
-                                    featuredList.addAll(originalList.subList(
-                                            0, Math.min(3, originalList.size())));
-                                    featuredAdapter.updateItems(featuredList);
-                                }
                                 nearbyList.addAll(newItems);
                                 recommendAdapter.updateItems(nearbyList);
                                 tvNearbyCount.setText(nearbyList.size() + "곳");
                                 showContent();
                             });
                         } else {
-                            if (isFirst) showError();
+                            if (isFirst) RecommendFragment.this.showError();
                         }
                     }
 
@@ -332,9 +422,21 @@ public class RecommendFragment extends Fragment {
                     public void onFailure(@NonNull Call<TourResponse> call,
                                           @NonNull Throwable t) {
                         isLoadingMore = false;
-                        if (isAdded() && isFirst) showError();
+                        if (isAdded() && isFirst) RecommendFragment.this.showError();
                     }
                 });
+    }
+
+
+    // 두 좌표 간 거리 계산 (미터)
+    private double distanceMeters(double lat1, double lon1, double lat2, double lon2) {
+        double R = 6371000;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     private void fetchCongestionAndSort() {
@@ -373,7 +475,7 @@ public class RecommendFragment extends Fragment {
             return;
         }
 
-        int[] completed = {0};
+        int[] completed   = {0};
         int[] successCount = {0};
         int total = areaMap.size();
 
@@ -433,7 +535,6 @@ public class RecommendFragment extends Fragment {
                     }
                     return;
                 }
-
                 List<PlaceItem> sorted = new ArrayList<>(originalList);
                 Collections.sort(sorted,
                         (a, b) -> b.getCongestionScore() - a.getCongestionScore());
@@ -450,48 +551,27 @@ public class RecommendFragment extends Fragment {
 
     private String matchAreaFromAddress(String address, String title) {
         if (address == null && title == null) return null;
-        String text = (address != null ? address : "")
-                + (title != null ? title : "");
-        if (text.contains("강남") || text.contains("삼성") || text.contains("코엑스"))
-            return "강남 MICE 관광특구";
-        if (text.contains("동대문") || text.contains("DDP"))
-            return "동대문 관광특구";
-        if (text.contains("명동") || text.contains("충무로"))
-            return "명동 관광특구";
-        if (text.contains("홍대") || text.contains("홍익") || text.contains("합정"))
-            return "홍대 관광특구";
-        if (text.contains("이태원") || text.contains("한남"))
-            return "이태원 관광특구";
-        if (text.contains("종로") || text.contains("청계"))
-            return "종로·청계 관광특구";
-        if (text.contains("잠실") || text.contains("송파"))
-            return "잠실 관광특구";
-        if (text.contains("인사동") || text.contains("익선"))
-            return "인사동·익선동";
-        if (text.contains("북촌") || text.contains("삼청"))
-            return "북촌한옥마을";
-        if (text.contains("경복궁") || text.contains("광화문"))
-            return "경복궁";
-        if (text.contains("창덕궁") || text.contains("종묘"))
-            return "창덕궁·종묘";
-        if (text.contains("남산"))
-            return "남산공원";
-        if (text.contains("서울숲") || text.contains("성수"))
-            return "서울숲";
-        if (text.contains("여의도"))
-            return "여의도";
-        if (text.contains("영등포") || text.contains("타임스퀘어"))
-            return "영등포·타임스퀘어";
-        if (text.contains("신촌") || text.contains("이대") || text.contains("이화여대"))
-            return "신촌·이대";
-        if (text.contains("왕십리") || text.contains("뚝섬"))
-            return "왕십리·성수·뚝섬";
-        if (text.contains("노원") || text.contains("불암산"))
-            return "노원·불암산";
-        if (text.contains("수유") || text.contains("도봉"))
-            return "수유리·도봉산";
-        if (text.contains("어린이대공원") || text.contains("광진"))
-            return "어린이대공원";
+        String text = (address != null ? address : "") + (title != null ? title : "");
+        if (text.contains("강남") || text.contains("삼성") || text.contains("코엑스")) return "강남 MICE 관광특구";
+        if (text.contains("동대문") || text.contains("DDP"))                           return "동대문 관광특구";
+        if (text.contains("명동") || text.contains("충무로"))                          return "명동 관광특구";
+        if (text.contains("홍대") || text.contains("홍익") || text.contains("합정"))   return "홍대 관광특구";
+        if (text.contains("이태원") || text.contains("한남"))                         return "이태원 관광특구";
+        if (text.contains("종로") || text.contains("청계"))                           return "종로·청계 관광특구";
+        if (text.contains("잠실") || text.contains("송파"))                           return "잠실 관광특구";
+        if (text.contains("인사동") || text.contains("익선"))                         return "인사동·익선동";
+        if (text.contains("북촌") || text.contains("삼청"))                           return "북촌한옥마을";
+        if (text.contains("경복궁") || text.contains("광화문"))                       return "경복궁";
+        if (text.contains("창덕궁") || text.contains("종묘"))                         return "창덕궁·종묘";
+        if (text.contains("남산"))                                                    return "남산공원";
+        if (text.contains("서울숲") || text.contains("성수"))                         return "서울숲";
+        if (text.contains("여의도"))                                                  return "여의도";
+        if (text.contains("영등포") || text.contains("타임스퀘어"))                   return "영등포·타임스퀘어";
+        if (text.contains("신촌") || text.contains("이대") || text.contains("이화여대")) return "신촌·이대";
+        if (text.contains("왕십리") || text.contains("뚝섬"))                         return "왕십리·성수·뚝섬";
+        if (text.contains("노원") || text.contains("불암산"))                         return "노원·불암산";
+        if (text.contains("수유") || text.contains("도봉"))                           return "수유리·도봉산";
+        if (text.contains("어린이대공원") || text.contains("광진"))                   return "어린이대공원";
         return null;
     }
 
@@ -529,7 +609,18 @@ public class RecommendFragment extends Fragment {
         return result;
     }
 
+    // 클릭 시 로그 저장 후 상세 화면 이동
     private void navigateToDetail(PlaceItem item) {
+        ApiClient.getApiService().saveClickLog(
+                        new ClickLogRequest(
+                                item.getContentId(),
+                                item.getContentTypeId(),
+                                item.getCategory()))
+                .enqueue(new Callback<Void>() {
+                    @Override public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> resp) {}
+                    @Override public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {}
+                });
+
         Bundle b = new Bundle();
         b.putString("contentId",     item.getContentId());
         b.putString("contentTypeId", item.getContentTypeId());
@@ -580,7 +671,6 @@ public class RecommendFragment extends Fragment {
             case "매우붐빔": return 3;
             case "붐빔":     return 2;
             case "보통":     return 1;
-            case "여유":     return 0;
             default:         return 0;
         }
     }
@@ -588,10 +678,10 @@ public class RecommendFragment extends Fragment {
     private String getCategoryName(String typeId) {
         if (typeId == null) return "기타";
         switch (typeId) {
-            case "12": return "관광지";  case "14": return "문화시설";
+            case "12": return "관광지";   case "14": return "문화시설";
             case "15": return "행사일정"; case "25": return "여행코스";
-            case "28": return "레포츠";  case "32": return "숙박";
-            case "38": return "쇼핑";    case "39": return "음식점";
+            case "28": return "레포츠";   case "32": return "숙박";
+            case "38": return "쇼핑";     case "39": return "음식점";
             default:   return "기타";
         }
     }
