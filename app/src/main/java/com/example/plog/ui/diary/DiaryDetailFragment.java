@@ -27,30 +27,45 @@ import com.bumptech.glide.Glide;
 import com.example.plog.R;
 import com.example.plog.data.DiaryEmojiDecoration;
 import com.example.plog.data.DiaryEntry;
-import com.example.plog.data.DiaryInteractionRepository;
 import com.example.plog.data.DiaryLineComment;
-import com.example.plog.data.DiaryRepository;
 import com.example.plog.databinding.FragmentDiaryDetailBinding;
+import com.example.plog.model.ApiResponse;
+import com.example.plog.model.DiaryEmojiDecorationRequest;
+import com.example.plog.model.DiaryEmojiDecorationResponse;
+import com.example.plog.model.DiaryLineCommentRequest;
+import com.example.plog.model.DiaryLineCommentResponse;
+import com.example.plog.model.DiaryLineCommentUpdateRequest;
+import com.example.plog.model.DiarySimpleResponse;
+import com.example.plog.network.ApiClient;
 
 import java.io.InputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class DiaryDetailFragment extends Fragment {
-    private static final String[] EMOJI_PALETTE = {"😊", "⭐", "❤️", "🌿", "✨", "👍"};
-    private static final String CURRENT_USER_NAME = "나";
+    private static final String[] EMOJI_PALETTE = {
+            "\uD83D\uDE0A", "\u2B50", "\u2764\uFE0F", "\uD83C\uDF89", "\uD83C\uDF08", "\uD83D\uDC4D"
+    };
 
     private FragmentDiaryDetailBinding binding;
-    private DiaryRepository diaryRepository;
-    private DiaryInteractionRepository interactionRepository;
+    private long diaryId = -1L;
     private String diaryDate;
     private DiaryEntry diaryEntry;
     private boolean interactionsEnabled;
     private String editingCommentId;
     private String pendingDeleteCommentId;
+    private final Map<Integer, List<DiaryLineComment>> commentsByLine = new HashMap<>();
+    private final List<DiaryEmojiDecoration> decorations = new ArrayList<>();
 
     @Nullable
     @Override
@@ -64,21 +79,54 @@ public class DiaryDetailFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        diaryRepository = new DiaryRepository(requireContext());
-        interactionRepository = new DiaryInteractionRepository(requireContext());
-        diaryDate = todayKey();
+        diaryId = getArguments() == null ? -1L : getArguments().getLong("diaryId", -1L);
 
         loadDiary();
         setupListeners();
     }
 
     private void loadDiary() {
-        diaryEntry = diaryRepository.getDiary(diaryDate);
-        if (diaryEntry == null) {
-            Toast.makeText(requireContext(), "작성된 일기가 없습니다.", Toast.LENGTH_SHORT).show();
+        if (diaryId <= 0) {
+            Toast.makeText(requireContext(), "조회할 일기 정보가 없습니다.", Toast.LENGTH_SHORT).show();
             Navigation.findNavController(binding.getRoot()).navigate(R.id.action_diaryDetailFragment_to_diaryEditFragment);
             return;
         }
+
+        ApiClient.getApiService().getDiary(diaryId)
+                .enqueue(new Callback<ApiResponse<DiarySimpleResponse>>() {
+                    @Override
+                    public void onResponse(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
+                                           @NonNull Response<ApiResponse<DiarySimpleResponse>> response) {
+                        if (!response.isSuccessful()
+                                || response.body() == null
+                                || response.body().data == null) {
+                            Toast.makeText(requireContext(), "일기를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                            Navigation.findNavController(binding.getRoot()).navigateUp();
+                            return;
+                        }
+                        bindDiary(response.body().data);
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
+                                          @NonNull Throwable t) {
+                        Toast.makeText(requireContext(), "일기 조회 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        Navigation.findNavController(binding.getRoot()).navigateUp();
+                    }
+                });
+    }
+
+    private void bindDiary(DiarySimpleResponse response) {
+        diaryDate = response.date;
+        diaryEntry = new DiaryEntry();
+        diaryEntry.setDate(response.date);
+        diaryEntry.setTitle(response.title);
+        diaryEntry.setBody(response.body);
+        diaryEntry.setLocation(response.location);
+        diaryEntry.setWeather(response.weather);
+        diaryEntry.setSecret(response.secret);
+        diaryEntry.setBookmarked(response.bookmarked);
+        diaryEntry.setRepresentativePhotoIndex(response.representativePhotoIndex);
 
         interactionsEnabled = !diaryEntry.isSecret();
         binding.tvDate.setText(formatDisplayDate(diaryEntry.getDate()));
@@ -89,28 +137,107 @@ public class DiaryDetailFragment extends Fragment {
         binding.btnEmoji.setVisibility(interactionsEnabled ? View.VISIBLE : View.GONE);
 
         renderRepresentativePhoto();
-        renderLines();
         renderEmojiPalette();
-        binding.diaryCanvas.post(() -> {
-            syncEmojiLayerHeight();
-            renderDecorations();
-        });
+        loadComments();
+        loadDecorations();
     }
-
     private void setupListeners() {
         binding.btnBack.setOnClickListener(v -> Navigation.findNavController(v).navigateUp());
-        binding.btnEdit.setOnClickListener(v ->
-                Navigation.findNavController(v).navigate(R.id.action_diaryDetailFragment_to_diaryEditFragment));
+        binding.btnEdit.setOnClickListener(v -> {
+            Bundle args = new Bundle();
+            args.putLong("diaryId", diaryId);
+            Navigation.findNavController(v).navigate(R.id.action_diaryDetailFragment_to_diaryEditFragment, args);
+        });
         binding.btnEmoji.setOnClickListener(v -> {
             boolean show = binding.emojiPalette.getVisibility() != View.VISIBLE;
             binding.emojiPalette.setVisibility(show ? View.VISIBLE : View.GONE);
-            binding.btnEmoji.setText(show ? "×" : "+");
+            binding.btnEmoji.setText(show ? "x" : "+");
         });
         binding.deleteSheetScrim.setOnClickListener(v -> hideDeleteSheet());
         binding.deleteSheet.setOnClickListener(v -> {
         });
         binding.btnCancelDelete.setOnClickListener(v -> hideDeleteSheet());
         binding.btnConfirmDelete.setOnClickListener(v -> deletePendingComment());
+    }
+
+    private void loadComments() {
+        ApiClient.getApiService().getDiaryComments(diaryId, null)
+                .enqueue(new Callback<ApiResponse<List<DiaryLineCommentResponse>>>() {
+                    @Override
+                    public void onResponse(@NonNull Call<ApiResponse<List<DiaryLineCommentResponse>>> call,
+                                           @NonNull Response<ApiResponse<List<DiaryLineCommentResponse>>> response) {
+                        commentsByLine.clear();
+                        if (response.isSuccessful() && response.body() != null && response.body().data != null) {
+                            for (DiaryLineCommentResponse item : response.body().data) {
+                                DiaryLineComment comment = toComment(item);
+                                commentsByLine
+                                        .computeIfAbsent(comment.getLineIndex(), key -> new ArrayList<>())
+                                        .add(comment);
+                            }
+                        }
+                        renderLines();
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<ApiResponse<List<DiaryLineCommentResponse>>> call,
+                                          @NonNull Throwable t) {
+                        commentsByLine.clear();
+                        renderLines();
+                        Toast.makeText(requireContext(), "댓글을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private void loadDecorations() {
+        ApiClient.getApiService().getDiaryDecorations(diaryId)
+                .enqueue(new Callback<ApiResponse<List<DiaryEmojiDecorationResponse>>>() {
+                    @Override
+                    public void onResponse(@NonNull Call<ApiResponse<List<DiaryEmojiDecorationResponse>>> call,
+                                           @NonNull Response<ApiResponse<List<DiaryEmojiDecorationResponse>>> response) {
+                        decorations.clear();
+                        if (response.isSuccessful() && response.body() != null && response.body().data != null) {
+                            for (DiaryEmojiDecorationResponse item : response.body().data) {
+                                decorations.add(toDecoration(item));
+                            }
+                        }
+                        binding.diaryCanvas.post(() -> {
+                            syncEmojiLayerHeight();
+                            renderDecorations();
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<ApiResponse<List<DiaryEmojiDecorationResponse>>> call,
+                                          @NonNull Throwable t) {
+                        decorations.clear();
+                        renderDecorations();
+                        Toast.makeText(requireContext(), "이모지를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private DiaryLineComment toComment(DiaryLineCommentResponse item) {
+        DiaryLineComment comment = new DiaryLineComment();
+        comment.setId(String.valueOf(item.commentId));
+        comment.setDiaryDate(diaryDate);
+        comment.setLineIndex(item.lineIndex);
+        comment.setAuthorName(blankToDefault(item.authorName, "나"));
+        comment.setContent(item.content);
+        comment.setCreatedAt(0L);
+        return comment;
+    }
+
+    private DiaryEmojiDecoration toDecoration(DiaryEmojiDecorationResponse item) {
+        DiaryEmojiDecoration decoration = new DiaryEmojiDecoration();
+        decoration.setId(String.valueOf(item.decorationId));
+        decoration.setDiaryDate(diaryDate);
+        decoration.setAuthorName(blankToDefault(item.authorName, "나"));
+        decoration.setEmoji(item.emoji);
+        decoration.setXRatio((float) item.xRatio);
+        decoration.setYRatio((float) item.yRatio);
+        decoration.setScale((float) item.scale);
+        decoration.setCreatedAt(0L);
+        return decoration;
     }
 
     private void renderRepresentativePhoto() {
@@ -179,7 +306,10 @@ public class DiaryDetailFragment extends Fragment {
     }
 
     private void addInlineComments(LinearLayout row, int lineIndex) {
-        List<DiaryLineComment> comments = interactionRepository.getComments(diaryDate, lineIndex);
+        List<DiaryLineComment> comments = commentsByLine.get(lineIndex);
+        if (comments == null) {
+            comments = new ArrayList<>();
+        }
         if (!comments.isEmpty()) {
             TextView label = new TextView(requireContext());
             label.setText("댓글 " + comments.size());
@@ -218,14 +348,12 @@ public class DiaryDetailFragment extends Fragment {
             actionRow.setOrientation(LinearLayout.HORIZONTAL);
             actionRow.setPadding(0, dp(2), 0, 0);
 
-            if (CURRENT_USER_NAME.equals(comment.getAuthorName())) {
-                TextView edit = createCommentAction("수정");
-                edit.setOnClickListener(v -> {
-                    editingCommentId = comment.getId();
-                    renderLines();
-                });
-                actionRow.addView(edit);
-            }
+            TextView edit = createCommentAction("수정");
+            edit.setOnClickListener(v -> {
+                editingCommentId = comment.getId();
+                renderLines();
+            });
+            actionRow.addView(edit);
 
             TextView delete = createCommentAction("삭제");
             delete.setOnClickListener(v -> confirmDeleteComment(comment.getId()));
@@ -267,8 +395,23 @@ public class DiaryDetailFragment extends Fragment {
                 Toast.makeText(requireContext(), "댓글 내용을 입력해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
-            interactionRepository.addComment(diaryDate, lineIndex, content);
-            renderLines();
+            DiaryLineCommentRequest request = new DiaryLineCommentRequest();
+            request.lineIndex = lineIndex;
+            request.content = content;
+            ApiClient.getApiService().createDiaryComment(diaryId, request)
+                    .enqueue(new Callback<ApiResponse<DiaryLineCommentResponse>>() {
+                        @Override
+                        public void onResponse(@NonNull Call<ApiResponse<DiaryLineCommentResponse>> call,
+                                               @NonNull Response<ApiResponse<DiaryLineCommentResponse>> response) {
+                            loadComments();
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<ApiResponse<DiaryLineCommentResponse>> call,
+                                              @NonNull Throwable t) {
+                            Toast.makeText(requireContext(), "댓글 등록에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                        }
+                    });
         });
         LinearLayout.LayoutParams submitParams = new LinearLayout.LayoutParams(dp(44), dp(28));
         submitParams.setMarginStart(dp(5));
@@ -299,9 +442,24 @@ public class DiaryDetailFragment extends Fragment {
                 Toast.makeText(requireContext(), "댓글 내용을 입력해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
-            interactionRepository.updateComment(diaryDate, comment.getId(), content);
-            editingCommentId = null;
-            renderLines();
+            long commentId = Long.parseLong(comment.getId());
+            DiaryLineCommentUpdateRequest request = new DiaryLineCommentUpdateRequest();
+            request.content = content;
+            ApiClient.getApiService().updateDiaryComment(diaryId, commentId, request)
+                    .enqueue(new Callback<ApiResponse<DiaryLineCommentResponse>>() {
+                        @Override
+                        public void onResponse(@NonNull Call<ApiResponse<DiaryLineCommentResponse>> call,
+                                               @NonNull Response<ApiResponse<DiaryLineCommentResponse>> response) {
+                            editingCommentId = null;
+                            loadComments();
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<ApiResponse<DiaryLineCommentResponse>> call,
+                                              @NonNull Throwable t) {
+                            Toast.makeText(requireContext(), "댓글 수정에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                        }
+                    });
         });
         LinearLayout.LayoutParams saveParams = new LinearLayout.LayoutParams(dp(44), dp(28));
         saveParams.setMarginStart(dp(5));
@@ -367,14 +525,24 @@ public class DiaryDetailFragment extends Fragment {
         }
 
         String commentId = pendingDeleteCommentId;
-        interactionRepository.deleteComment(diaryDate, commentId);
-        if (commentId.equals(editingCommentId)) {
-            editingCommentId = null;
-        }
-        pendingDeleteCommentId = null;
-        binding.deleteSheetScrim.setVisibility(View.GONE);
-        renderLines();
-        Toast.makeText(requireContext(), "댓글이 삭제되었습니다.", Toast.LENGTH_SHORT).show();
+        ApiClient.getApiService().deleteDiaryComment(diaryId, Long.parseLong(commentId))
+                .enqueue(new Callback<Void>() {
+                    @Override
+                    public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
+                        if (commentId.equals(editingCommentId)) {
+                            editingCommentId = null;
+                        }
+                        pendingDeleteCommentId = null;
+                        binding.deleteSheetScrim.setVisibility(View.GONE);
+                        loadComments();
+                        Toast.makeText(requireContext(), "댓글이 삭제되었습니다.", Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {
+                        Toast.makeText(requireContext(), "댓글 삭제에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     private void renderEmojiPalette() {
@@ -390,18 +558,42 @@ public class DiaryDetailFragment extends Fragment {
     }
 
     private void addEmojiDecoration(String emoji) {
-        DiaryEmojiDecoration decoration = interactionRepository.addDecoration(diaryDate, emoji);
         binding.emojiPalette.setVisibility(View.GONE);
         binding.btnEmoji.setText("+");
-        binding.diaryCanvas.post(() -> {
-            syncEmojiLayerHeight();
-            addDecorationView(decoration);
-        });
+        DiaryEmojiDecorationRequest request = new DiaryEmojiDecorationRequest();
+        request.emoji = emoji;
+        request.xRatio = 0.45;
+        request.yRatio = 0.25;
+        request.scale = 1.0;
+        request.rotation = 0.0;
+        ApiClient.getApiService().createDiaryDecoration(diaryId, request)
+                .enqueue(new Callback<ApiResponse<DiaryEmojiDecorationResponse>>() {
+                    @Override
+                    public void onResponse(@NonNull Call<ApiResponse<DiaryEmojiDecorationResponse>> call,
+                                           @NonNull Response<ApiResponse<DiaryEmojiDecorationResponse>> response) {
+                        if (response.isSuccessful() && response.body() != null && response.body().data != null) {
+                            DiaryEmojiDecoration decoration = toDecoration(response.body().data);
+                            decorations.add(decoration);
+                            binding.diaryCanvas.post(() -> {
+                                syncEmojiLayerHeight();
+                                addDecorationView(decoration);
+                            });
+                        } else {
+                            Toast.makeText(requireContext(), "이모지 추가에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<ApiResponse<DiaryEmojiDecorationResponse>> call,
+                                          @NonNull Throwable t) {
+                        Toast.makeText(requireContext(), "이모지 추가에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     private void renderDecorations() {
         binding.emojiLayer.removeAllViews();
-        for (DiaryEmojiDecoration decoration : interactionRepository.getDecorations(diaryDate)) {
+        for (DiaryEmojiDecoration decoration : decorations) {
             addDecorationView(decoration);
         }
     }
@@ -507,9 +699,20 @@ public class DiaryDetailFragment extends Fragment {
 
     private void deleteEmojiDecoration(View view) {
         DiaryEmojiDecoration target = (DiaryEmojiDecoration) view.getTag();
-        interactionRepository.deleteDecoration(diaryDate, target.getId());
-        binding.emojiLayer.removeView(view);
-        Toast.makeText(requireContext(), "이모지가 삭제되었습니다.", Toast.LENGTH_SHORT).show();
+        ApiClient.getApiService().deleteDiaryDecoration(diaryId, Long.parseLong(target.getId()))
+                .enqueue(new Callback<Void>() {
+                    @Override
+                    public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
+                        decorations.remove(target);
+                        binding.emojiLayer.removeView(view);
+                        Toast.makeText(requireContext(), "이모지가 삭제되었습니다.", Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {
+                        Toast.makeText(requireContext(), "이모지 삭제에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     private void saveDecorationPosition(View view) {
@@ -519,11 +722,28 @@ public class DiaryDetailFragment extends Fragment {
         int maxTop = Math.max(1, binding.emojiLayer.getHeight() - view.getHeight());
         decoration.setXRatio(params.leftMargin / (float) maxLeft);
         decoration.setYRatio(params.topMargin / (float) maxTop);
-        interactionRepository.saveDecoration(decoration);
-    }
+        DiaryEmojiDecorationRequest request = new DiaryEmojiDecorationRequest();
+        request.emoji = decoration.getEmoji();
+        request.xRatio = decoration.getXRatio();
+        request.yRatio = decoration.getYRatio();
+        request.scale = decoration.getScale();
+        request.rotation = 0.0;
+        ApiClient.getApiService().updateDiaryDecoration(diaryId, Long.parseLong(decoration.getId()), request)
+                .enqueue(new Callback<ApiResponse<DiaryEmojiDecorationResponse>>() {
+                    @Override
+                    public void onResponse(@NonNull Call<ApiResponse<DiaryEmojiDecorationResponse>> call,
+                                           @NonNull Response<ApiResponse<DiaryEmojiDecorationResponse>> response) {
+                        if (!response.isSuccessful()) {
+                            Toast.makeText(requireContext(), "이모지 위치 저장에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
 
-    private String todayKey() {
-        return new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
+                    @Override
+                    public void onFailure(@NonNull Call<ApiResponse<DiaryEmojiDecorationResponse>> call,
+                                          @NonNull Throwable t) {
+                        Toast.makeText(requireContext(), "이모지 위치 저장에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     private String formatDisplayDate(String dateKey) {
