@@ -143,7 +143,7 @@ public class AnalysisRepository {
         if (categories.isEmpty()) return;
         try {
             ApiClient.getApiService()
-                    .updatePreferences(new PreferenceUpdateRequest(categories))
+                   .updatePreferences(new PreferenceUpdateRequest(categories))
                     .execute();
             Log.d("AnalysisRepository", "선호도 서버 동기화 완료: " + categories);
         } catch (Exception e) {

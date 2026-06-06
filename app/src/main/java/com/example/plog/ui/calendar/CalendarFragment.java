@@ -31,12 +31,15 @@ public class CalendarFragment extends Fragment {
     private TextView tvMonthTitle;
     private GridLayout calendarGrid;
     private Calendar currentCalendar = Calendar.getInstance();
+
     private int selectedDay = -1;
     private int selectedMonth = -1;
     private int selectedYear = -1;
+
     private int dpToPx(int dp) {
         return (int) (dp * getResources().getDisplayMetrics().density);
     }
+
     private LinearLayout recentDiaryContainer;
 
     public CalendarFragment() {
