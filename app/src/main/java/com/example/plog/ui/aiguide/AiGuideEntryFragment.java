@@ -81,6 +81,20 @@ public class AiGuideEntryFragment extends Fragment {
 
         binding.btnPick.setOnClickListener(v -> picker.launch(new String[]{"image/*"}));
         binding.btnStart.setOnClickListener(v -> startAiGuide());
+
+        Bundle args = getArguments();
+        if (args != null) {
+            ArrayList<String> uriStrings = args.getStringArrayList("photoUris");
+            if (uriStrings != null && !uriStrings.isEmpty()) {
+                selectedUris.clear();
+                for (String s : uriStrings) {
+                    selectedUris.add(Uri.parse(s));
+                }
+                adapter.setItems(selectedUris);
+                binding.tvPickedSummary.setText("선택된 사진 " + selectedUris.size() + "장");
+                binding.btnStart.setEnabled(true);
+            }
+        }
     }
 
     private void startAiGuide() {
