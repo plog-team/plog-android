@@ -49,6 +49,7 @@ public class HomeFragment extends Fragment {
 
         binding.cardEmotionReport.setOnClickListener(v ->
                 Navigation.findNavController(v).navigate(R.id.action_home_to_emotion_report));
+
     }
 
     @Override
