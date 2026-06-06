@@ -1,65 +1,55 @@
 package com.example.plog.network;
 
 import com.example.plog.api.model.BookmarkRequest;
-import com.example.plog.model.AnswerRequest;
-import com.example.plog.model.ApiResponse;
-import com.example.plog.model.CreateSessionRequest;
-import com.example.plog.model.CreateSessionResponse;
-import com.example.plog.model.DraftResponse;
-import com.example.plog.model.FeedbackRequest;
-import com.example.plog.model.GuideQuestionDto;
-import com.example.plog.model.PhotoUploadBatchResponse;
-import com.example.plog.model.SendChatRequest;
-import com.example.plog.model.SendChatResponse;
-import com.example.plog.model.SessionDetailResponse;
-import okhttp3.MultipartBody;
-import retrofit2.Call;
-import retrofit2.http.*;
+import com.example.plog.network.auth.EmailRequest;
+import com.example.plog.network.auth.LoginRequest;
+import com.example.plog.network.auth.LoginResponse;
+import com.example.plog.network.auth.RegisterRequest;
+import com.example.plog.network.auth.VerifyRequest;
+import com.example.plog.api.model.ClickLogRequest;
+import com.example.plog.api.model.PreferenceResponse;
+
 import java.util.Map;
+import retrofit2.Call;
+import retrofit2.http.Body;
+import retrofit2.http.DELETE;
+import retrofit2.http.GET;
+import retrofit2.http.Header;
+import retrofit2.http.POST;
+import retrofit2.http.Path;
 
 public interface ApiService {
 
-    @POST("/api/bookmarks")
+    // 북마크
+    @POST("/api/recommend/bookmarks")
     Call<Void> addBookmark(@Body BookmarkRequest req);
 
-    @DELETE("/api/bookmarks/{contentId}")
+    @DELETE("/api/recommend/bookmarks/{contentId}")
     Call<Void> removeBookmark(@Path("contentId") String contentId);
 
-    @GET("/api/bookmarks/{contentId}/status")
+    @GET("/api/recommend/bookmarks/{contentId}/status")
     Call<Map<String, Boolean>> isBookmarked(@Path("contentId") String contentId);
 
-    @Multipart
-    @POST("api/photos")
-    Call<ApiResponse<PhotoUploadBatchResponse>> uploadPhoto(@Part MultipartBody.Part file);
+    // 로그인, 회원가입
+    @POST("api/auth/login")
+    Call<LoginResponse> login(@Body LoginRequest request);
 
-    @POST("api/ai-guide/sessions")
-    Call<ApiResponse<CreateSessionResponse>> createAiSession(@Body CreateSessionRequest request);
+    @POST("api/auth/register")
+    Call<Void> register(@Body RegisterRequest request);
 
-    @GET("api/ai-guide/sessions/{sessionId}")
-    Call<ApiResponse<SessionDetailResponse>> getAiSession(@Path("sessionId") long sessionId);
+    // 이메일 인증
+    @POST("api/auth/email/send")
+    Call<Void> sendEmailCode(@Body EmailRequest request);
 
-    @POST("api/ai-guide/sessions/{sessionId}/questions/{questionId}/answer")
-    Call<ApiResponse<GuideQuestionDto>> answerQuestion(
-        @Path("sessionId") long sessionId,
-        @Path("questionId") long questionId,
-        @Body AnswerRequest request
-    );
+    @POST("api/auth/email/verify")
+    Call<Void> verifyEmailCode(@Body VerifyRequest request);
 
-    @POST("api/ai-guide/sessions/{sessionId}/chat")
-    Call<ApiResponse<SendChatResponse>> sendChat(
-        @Path("sessionId") long sessionId,
-        @Body SendChatRequest request
-    );
+    // 로그아웃
+    @POST("/api/auth/logout")
+    Call<Void> logout(@Header("Authorization") String token);
+    @POST("api/recommend/clicklog")
+    Call<Void> saveClickLog(@Body ClickLogRequest req);
 
-    @POST("api/ai-guide/sessions/{sessionId}/draft")
-    Call<ApiResponse<DraftResponse>> generateDraft(@Path("sessionId") long sessionId);
-
-    @POST("api/ai-guide/sessions/{sessionId}/confirm")
-    Call<ApiResponse<SessionDetailResponse>> confirmSession(@Path("sessionId") long sessionId);
-
-    @POST("api/ai-guide/sessions/{sessionId}/feedback")
-    Call<Void> submitFeedback(
-        @Path("sessionId") long sessionId,
-        @Body FeedbackRequest request
-    );
+    @GET("api/recommend/preference")
+    Call<PreferenceResponse> getPreference();
 }

@@ -7,6 +7,7 @@ import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.NavigationUI;
 import com.example.plog.databinding.ActivityMainBinding;
+import com.example.plog.network.ApiClient;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -16,6 +17,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ApiClient.init(this);
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 

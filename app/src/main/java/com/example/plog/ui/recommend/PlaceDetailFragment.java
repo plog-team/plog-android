@@ -16,6 +16,10 @@ import com.example.plog.api.model.TourDetailResponse;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import android.content.Context;
+import android.content.SharedPreferences;
+import com.example.plog.api.model.BookmarkRequest;
+import com.example.plog.network.ApiClient;
 
 public class PlaceDetailFragment extends Fragment {
 
@@ -86,10 +90,11 @@ public class PlaceDetailFragment extends Fragment {
         // 북마크
         view.findViewById(R.id.btnBookmark)
                 .setOnClickListener(v -> {
-                    com.example.plog.api.model.BookmarkRequest req =
-                            new com.example.plog.api.model.BookmarkRequest(
-                                    contentId, title, address, imageUrl, category, contentTypeId);
-                    com.example.plog.network.ApiClient.getApiService()
+                    // 기존 로그인 체크 제거하고 바로 API 호출
+                    BookmarkRequest req = new BookmarkRequest(
+                            contentId, title, address,
+                            imageUrl, category, contentTypeId);
+                    ApiClient.getApiService()
                             .addBookmark(req)
                             .enqueue(new Callback<Void>() {
                                 @Override
@@ -100,6 +105,10 @@ public class PlaceDetailFragment extends Fragment {
                                         if (resp.isSuccessful()) {
                                             Toast.makeText(requireContext(),
                                                     title + " 북마크 추가됨",
+                                                    Toast.LENGTH_SHORT).show();
+                                        } else if (resp.code() == 400) {
+                                            Toast.makeText(requireContext(),
+                                                    "이미 북마크 추가된 항목입니다",
                                                     Toast.LENGTH_SHORT).show();
                                         } else {
                                             Toast.makeText(requireContext(),
@@ -114,7 +123,7 @@ public class PlaceDetailFragment extends Fragment {
                                     if (!isAdded()) return;
                                     requireActivity().runOnUiThread(() ->
                                             Toast.makeText(requireContext(),
-                                                    "서버 연결 실패",
+                                                    "서버 연결 실패: " + t.getMessage(),
                                                     Toast.LENGTH_SHORT).show());
                                 }
                             });
