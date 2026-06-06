@@ -48,6 +48,7 @@ public class MatchedFragment extends Fragment {
     private boolean isMine = true;
     private int currentDay = 1;
     private String partnerName = "사용자";
+    private Long partnerUserId = null;
     private Long roomId = null;
     private Long sessionId = null;
     private List<ExchangeDiaryResponse> diaryList = null;
@@ -117,7 +118,6 @@ public class MatchedFragment extends Fragment {
     }
 
     private void loadSession() {
-        // 세션 시작/조회
         ExchangeSessionApi sessionApi = RetrofitClient.getClient().create(ExchangeSessionApi.class);
         sessionApi.startSession(roomId).enqueue(new Callback<ExchangeSessionResponse>() {
             @Override
@@ -134,7 +134,6 @@ public class MatchedFragment extends Fragment {
             }
         });
 
-        // 상대방 닉네임 조회
         ExchangeRoomApi roomApi = RetrofitClient.getClient().create(ExchangeRoomApi.class);
         roomApi.getRoom(roomId).enqueue(new Callback<ExchangeRoomResponse>() {
             @Override
@@ -142,7 +141,7 @@ public class MatchedFragment extends Fragment {
                 if (!isAdded()) return;
                 if (response.isSuccessful() && response.body() != null) {
                     Long matchId = response.body().getMatchId();
-                    loadPartnerName(matchId);
+                    loadPartnerInfo(matchId);
                 }
             }
             @Override
@@ -152,7 +151,7 @@ public class MatchedFragment extends Fragment {
         });
     }
 
-    private void loadPartnerName(Long matchId) {
+    private void loadPartnerInfo(Long matchId) {
         ExchangeMatchApi matchApi = RetrofitClient.getClient().create(ExchangeMatchApi.class);
         matchApi.getMatch(matchId).enqueue(new Callback<ExchangeMatchResponse>() {
             @Override
@@ -162,16 +161,18 @@ public class MatchedFragment extends Fragment {
                     String nickname = response.body().getRequesterNickname();
                     if (nickname != null && !nickname.isEmpty()) {
                         partnerName = nickname;
-                        // 현재 상대방 탭이면 바로 업데이트
                         if (!isMine && tvUserName != null) {
                             tvUserName.setText(partnerName);
                         }
+                    }
+                    if (response.body().getPartnerUserId() != null) {
+                        partnerUserId = response.body().getPartnerUserId();
                     }
                 }
             }
             @Override
             public void onFailure(Call<ExchangeMatchResponse> call, Throwable t) {
-                android.util.Log.e("MatchedFragment", "파트너 닉네임 조회 실패: " + t.getMessage());
+                android.util.Log.e("MatchedFragment", "파트너 정보 조회 실패: " + t.getMessage());
             }
         });
     }
@@ -197,7 +198,6 @@ public class MatchedFragment extends Fragment {
 
     private void displayDiary() {
         if (diaryList == null) return;
-
         ExchangeDiaryResponse found = null;
         for (ExchangeDiaryResponse d : diaryList) {
             boolean isMyDiary = d.getUserId() == 1L;
@@ -239,16 +239,21 @@ public class MatchedFragment extends Fragment {
         if (isMine) {
             params.startToStart = ConstraintLayout.LayoutParams.PARENT_ID;
             params.endToEnd = ConstraintLayout.LayoutParams.UNSET;
+            params.startToEnd = ConstraintLayout.LayoutParams.UNSET;
+            params.endToStart = ConstraintLayout.LayoutParams.UNSET;
             tvUserName.setVisibility(View.GONE);
             btnEdit.setVisibility(diary != null && isTabToday ? View.VISIBLE : View.GONE);
         } else {
             params.startToStart = ConstraintLayout.LayoutParams.UNSET;
             params.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID;
+            params.startToEnd = ConstraintLayout.LayoutParams.UNSET;
+            params.endToStart = ConstraintLayout.LayoutParams.UNSET;
             tvUserName.setVisibility(View.VISIBLE);
             tvUserName.setText(partnerName);
             btnEdit.setVisibility(View.GONE);
         }
         cvProfile.setLayoutParams(params);
+        cvProfile.requestLayout();
     }
 
     private int getCurrentDayNumber() {
@@ -276,8 +281,7 @@ public class MatchedFragment extends Fragment {
     public void onResume() {
         super.onResume();
         startSessionValidation();
-        if (sessionId != null) loadDiaries();
-        else if (roomId != null) loadSession();
+        loadDiaries();
     }
 
     @Override
@@ -371,17 +375,17 @@ public class MatchedFragment extends Fragment {
     }
 
     private void blockUser() {
+        Long targetId = partnerUserId != null ? partnerUserId : 0L;
         ReportBlockApi api = RetrofitClient.getClient().create(ReportBlockApi.class);
-        api.block(new BlockRequest(1L, 2L)).enqueue(new retrofit2.Callback<Void>() {
+        api.block(new BlockRequest(1L, targetId)).enqueue(new retrofit2.Callback<Void>() {
             @Override
             public void onResponse(retrofit2.Call<Void> call, retrofit2.Response<Void> response) {
-                requireActivity().getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE)
-                        .edit().remove("start_time").apply();
-                NavHostFragment.findNavController(MatchedFragment.this).navigate(R.id.notMatchedFragment);
+                closeRoomAndExit();
             }
             @Override
             public void onFailure(retrofit2.Call<Void> call, Throwable t) {
                 android.util.Log.e("Block", "차단 실패: " + t.getMessage());
+                closeRoomAndExit();
             }
         });
     }
@@ -402,18 +406,44 @@ public class MatchedFragment extends Fragment {
     }
 
     private void showExitCompleteDialog(String reason) {
+        Long targetId = partnerUserId != null ? partnerUserId : 0L;
         ReportBlockApi api = RetrofitClient.getClient().create(ReportBlockApi.class);
-        api.report(new ReportRequest(1L, 2L, reason)).enqueue(new retrofit2.Callback<Void>() {
+        api.report(new ReportRequest(1L, targetId, reason)).enqueue(new retrofit2.Callback<Void>() {
             @Override
             public void onResponse(retrofit2.Call<Void> call, retrofit2.Response<Void> response) {
-                requireActivity().getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE)
-                        .edit().remove("start_time").apply();
-                NavHostFragment.findNavController(MatchedFragment.this).navigate(R.id.notMatchedFragment);
+                closeRoomAndExit();
             }
             @Override
             public void onFailure(retrofit2.Call<Void> call, Throwable t) {
                 android.util.Log.e("Report", "신고 실패: " + t.getMessage());
+                closeRoomAndExit();
             }
         });
+    }
+
+    private void closeRoomAndExit() {
+        if (roomId == null) {
+            exitToNotMatched();
+            return;
+        }
+        ExchangeRoomApi roomApi = RetrofitClient.getClient().create(ExchangeRoomApi.class);
+        roomApi.closeRoom(roomId).enqueue(new retrofit2.Callback<ExchangeRoomResponse>() {
+            @Override
+            public void onResponse(retrofit2.Call<ExchangeRoomResponse> call, retrofit2.Response<ExchangeRoomResponse> response) {
+                exitToNotMatched();
+            }
+            @Override
+            public void onFailure(retrofit2.Call<ExchangeRoomResponse> call, Throwable t) {
+                android.util.Log.e("Room", "교환방 종료 실패: " + t.getMessage());
+                exitToNotMatched();
+            }
+        });
+    }
+
+    private void exitToNotMatched() {
+        if (!isAdded()) return;
+        requireActivity().getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE)
+                .edit().remove("start_time").apply();
+        NavHostFragment.findNavController(MatchedFragment.this).navigate(R.id.notMatchedFragment);
     }
 }

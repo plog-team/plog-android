@@ -8,10 +8,12 @@ public class ExchangeMatchResponse {
     private String createdAt;
     private String requesterNickname;
     private List<String> topCategories;
+    private Long partnerUserId;
 
     public Long getId() { return id; }
     public String getStatus() { return status; }
     public String getCreatedAt() { return createdAt; }
     public String getRequesterNickname() { return requesterNickname; }
     public List<String> getTopCategories() { return topCategories; }
+    public Long getPartnerUserId() { return partnerUserId; }
 }

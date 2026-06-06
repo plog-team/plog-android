@@ -93,14 +93,17 @@ public class MatchingFragment extends Fragment {
                     NavHostFragment.findNavController(MatchingFragment.this)
                             .navigate(R.id.matchConfirmFragment, bundle);
                 } else {
-                    loadRecommendedUsers();
+                    // 추천 유저 없으면 그냥 notMatchedFragment로
+                    NavHostFragment.findNavController(MatchingFragment.this)
+                            .navigate(R.id.notMatchedFragment);
                 }
             }
             @Override
             public void onFailure(Call<List<MatchRecommendResponse>> call, Throwable t) {
                 if (isAdded()) {
                     Log.e("Matching", "사용자 검색 실패: " + t.getMessage());
-                    loadRecommendedUsers();
+                    NavHostFragment.findNavController(MatchingFragment.this)
+                            .navigate(R.id.notMatchedFragment);
                 }
             }
         });

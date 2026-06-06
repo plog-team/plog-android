@@ -18,8 +18,10 @@ import androidx.navigation.fragment.NavHostFragment;
 import com.example.plog.R;
 import com.example.plog.network.RetrofitClient;
 import com.example.plog.network.api.ExchangeMatchApi;
+import com.example.plog.network.api.ExchangeRoomApi;
 import com.example.plog.network.dto.ExchangeMatchRequest;
 import com.example.plog.network.dto.ExchangeMatchResponse;
+import com.example.plog.network.dto.ExchangeRoomResponse;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 
@@ -39,7 +41,6 @@ public class MatchConfirmFragment extends Fragment {
     private List<MatchRecommendResponse> recommendList = new ArrayList<>();
     private int currentPartnerIndex = 0;
 
-    // UI 참조 (cancelMatch에서 사용)
     private TextView tvMessage;
     private TextView tvSimilarity;
     private LinearLayout layoutButtons;
@@ -68,7 +69,6 @@ public class MatchConfirmFragment extends Fragment {
         if (getArguments() != null) {
             long matchId = getArguments().getLong("matchId", -1L);
             if (matchId != -1L) {
-                // 이미 신청한 매칭 - 수락 대기 화면
                 pendingMatchId = matchId;
                 showWaitingUI();
 
@@ -99,7 +99,6 @@ public class MatchConfirmFragment extends Fragment {
                 return;
             }
 
-            // 새로운 추천 유저 화면
             recommendList = (ArrayList<MatchRecommendResponse>) getArguments().getSerializable("recommendList");
             if (recommendList != null && !recommendList.isEmpty()) {
                 updatePartnerUI(tvUserNickname, chipTag1, chipTag2, chipTag3);
@@ -170,10 +169,8 @@ public class MatchConfirmFragment extends Fragment {
                     if (!isAdded()) return;
                     pendingMatchId = null;
                     if (recommendList != null && !recommendList.isEmpty()) {
-                        // 추천 유저 있으면 그 화면으로 돌아가기
                         showMatchUI();
                     } else {
-                        // 추천 유저 없으면 새로 추천 받기
                         NavHostFragment.findNavController(MatchConfirmFragment.this)
                                 .navigate(R.id.matchingFragment);
                     }
@@ -204,10 +201,26 @@ public class MatchConfirmFragment extends Fragment {
                             String status = response.body().getStatus();
                             if ("MATCHED".equals(status)) {
                                 stopPolling();
-                                Bundle bundle = new Bundle();
-                                bundle.putString("partnerName", tvUserNickname.getText().toString());
-                                NavHostFragment.findNavController(MatchConfirmFragment.this)
-                                        .navigate(R.id.matchedFragment, bundle);
+                                // 활성 교환방 조회해서 roomId 가져오기
+                                ExchangeRoomApi roomApi = RetrofitClient.getClient().create(ExchangeRoomApi.class);
+                                roomApi.getActiveRoom(1L).enqueue(new Callback<ExchangeRoomResponse>() {
+                                    @Override
+                                    public void onResponse(Call<ExchangeRoomResponse> call, Response<ExchangeRoomResponse> response) {
+                                        if (!isAdded()) return;
+                                        Bundle bundle = new Bundle();
+                                        if (response.isSuccessful() && response.body() != null) {
+                                            bundle.putLong("roomId", response.body().getId());
+                                        }
+                                        NavHostFragment.findNavController(MatchConfirmFragment.this)
+                                                .navigate(R.id.matchedFragment, bundle);
+                                    }
+                                    @Override
+                                    public void onFailure(Call<ExchangeRoomResponse> call, Throwable t) {
+                                        if (!isAdded()) return;
+                                        NavHostFragment.findNavController(MatchConfirmFragment.this)
+                                                .navigate(R.id.matchedFragment, new Bundle());
+                                    }
+                                });
                             } else if ("REJECTED".equals(status)) {
                                 stopPolling();
                                 Toast.makeText(requireContext(), "매칭이 거절됐어요.", Toast.LENGTH_SHORT).show();
