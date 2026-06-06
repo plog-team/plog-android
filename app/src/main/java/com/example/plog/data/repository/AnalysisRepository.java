@@ -19,7 +19,6 @@ import com.example.plog.model.MonthlyReport;
 import com.example.plog.model.MonthlyReport.ActivityRadius;
 import com.example.plog.model.MonthlyReport.LabelItem;
 import com.example.plog.model.MonthlyReport.PlaceItem;
-import com.example.plog.model.PreferenceUpdateRequest;
 import com.example.plog.network.ApiClient;
 
 import java.util.ArrayList;
@@ -141,14 +140,6 @@ public class AnalysisRepository {
 
     private void syncPreferencesToServer(@NonNull List<String> categories) {
         if (categories.isEmpty()) return;
-        try {
-            ApiClient.getApiService()
-                    .updatePreferences(new PreferenceUpdateRequest(categories))
-                    .execute();
-            Log.d("AnalysisRepository", "선호도 서버 동기화 완료: " + categories);
-        } catch (Exception e) {
-            Log.w("AnalysisRepository", "선호도 서버 동기화 실패 (무시): " + e.getMessage());
-        }
     }
 
     private static boolean isSameMonth(long ts1, long ts2) {
