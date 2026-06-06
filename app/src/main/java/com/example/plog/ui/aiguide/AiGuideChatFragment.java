@@ -1,6 +1,7 @@
 package com.example.plog.ui.aiguide;
 
 import android.os.Bundle;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -64,8 +65,14 @@ public class AiGuideChatFragment extends Fragment {
         }
 
         adapter = new ChatMessageAdapter();
-        binding.rvChat.setLayoutManager(new LinearLayoutManager(getContext()));
+        LinearLayoutManager lm = new LinearLayoutManager(getContext());
+        lm.setStackFromEnd(true);
+        binding.rvChat.setLayoutManager(lm);
         binding.rvChat.setAdapter(adapter);
+        binding.rvChat.addOnLayoutChangeListener((v, left, top, right, bottom,
+                                                  oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (bottom != oldBottom) scrollToBottom();
+        });
 
         String firstMsg = getArguments() != null ? getArguments().getString(ARG_FIRST_MSG) : null;
         if (firstMsg != null && !firstMsg.isEmpty()) {
@@ -74,6 +81,19 @@ public class AiGuideChatFragment extends Fragment {
 
         binding.btnSend.setOnClickListener(v -> sendMessage());
         binding.btnDraft.setOnClickListener(v -> generateDraft());
+        binding.etInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN
+                    && keyCode == KeyEvent.KEYCODE_ENTER) {
+                if (event.isCtrlPressed()) {
+                    int pos = binding.etInput.getSelectionStart();
+                    binding.etInput.getText().insert(pos, "\n");
+                } else {
+                    sendMessage();
+                }
+                return true;
+            }
+            return false;
+        });
     }
 
     private void sendMessage() {
@@ -100,10 +120,6 @@ public class AiGuideChatFragment extends Fragment {
                 SendChatResponse data = resp.body().data;
                 adapter.replaceLastAssistant(data.assistantMessage);
                 scrollToBottom();
-                if (data.readyForDraft) {
-                    // readyForDraft 이후에도 입력을 열어두어 사용자가 대화를 이어가거나 초안을 선택할 수 있도록 함
-                    binding.btnDraft.setEnabled(true);
-                }
             }
 
             @Override
@@ -124,9 +140,12 @@ public class AiGuideChatFragment extends Fragment {
             @Override
             public void onResponse(@NonNull Call<ApiResponse<DraftResponse>> call, @NonNull Response<ApiResponse<DraftResponse>> resp) {
                 showProgress(false);
+                if (binding != null) binding.btnDraft.setEnabled(true);
                 if (!resp.isSuccessful() || resp.body() == null || resp.body().data == null) {
-                    if (binding != null) binding.btnDraft.setEnabled(true);
-                    Toast.makeText(getContext(), "초안 생성 실패: HTTP " + resp.code(), Toast.LENGTH_LONG).show();
+                    String msg = resp.code() == 400
+                            ? "정보가 부족해서 초안을 작성할 수 없습니다."
+                            : "초안 생성 실패: HTTP " + resp.code();
+                    Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
                     return;
                 }
                 if (getView() != null) {
@@ -145,9 +164,12 @@ public class AiGuideChatFragment extends Fragment {
     }
 
     private void scrollToBottom() {
-        if (binding != null && adapter.size() > 0) {
-            binding.rvChat.smoothScrollToPosition(adapter.size() - 1);
-        }
+        if (binding == null || adapter.size() == 0) return;
+        binding.rvChat.post(() -> {
+            if (binding != null && adapter.size() > 0) {
+                binding.rvChat.scrollToPosition(adapter.size() - 1);
+            }
+        });
     }
 
     private void showProgress(boolean show) {

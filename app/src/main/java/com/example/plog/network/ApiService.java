@@ -2,6 +2,7 @@ package com.example.plog.network;
 
 import com.example.plog.api.model.BookmarkRequest;
 import com.example.plog.model.AnswerRequest;
+import com.example.plog.model.AnswerResponse;
 import com.example.plog.model.ApiResponse;
 import com.example.plog.model.ClarifyRequest;
 import com.example.plog.model.CreateSessionRequest;
@@ -73,7 +74,7 @@ public interface ApiService {
     Call<ApiResponse<SessionDetailResponse>> getAiSession(@Path("sessionId") long sessionId);
 
     @POST("api/ai-guide/sessions/{sessionId}/questions/{questionId}/answer")
-    Call<ApiResponse<GuideQuestionDto>> answerQuestion(
+    Call<ApiResponse<AnswerResponse>> answerQuestion(
         @Path("sessionId") long sessionId,
         @Path("questionId") long questionId,
         @Body AnswerRequest request
