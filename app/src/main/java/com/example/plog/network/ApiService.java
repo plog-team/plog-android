@@ -39,11 +39,11 @@ import retrofit2.http.*;
 
 public interface ApiService {
 
+
     // 선호도
 
     @GET("api/recommend/preference")
     Call<PreferenceResponse> getPreference();
-
 
     // 북마크
 

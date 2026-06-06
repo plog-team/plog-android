@@ -21,8 +21,8 @@ public class UserIdInterceptor implements Interceptor {
     @Override
     public Response intercept(@NonNull Chain chain) throws IOException {
         SharedPreferences prefs = context
-                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE);
-        int userId = prefs.getInt("userId", (int) Constants.TEMP_USER_ID);
+                .getSharedPreferences("diary_session", Context.MODE_PRIVATE);
+        int userId = prefs.getInt("user_id", (int) Constants.TEMP_USER_ID);
         Request request = chain.request().newBuilder()
                 .header(Constants.HEADER_USER_ID, String.valueOf(userId))
                 .build();
