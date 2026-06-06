@@ -181,4 +181,19 @@
         android:name="com.example.plog.ui.exchange.ExchangeDiaryEditFragment"
         android:label="교환일기 작성" />
 
+    <fragment
+        android:id="@+id/matchedFragment"
+        android:name="com.example.plog.ui.exchange.MatchedFragment"
+        android:label="MatchedFragment">
+        <action
+            android:id="@+id/action_matchedFragment_to_diaryEditFragment"
+            app:destination="@id/diaryEditFragment" />
+        <action
+            android:id="@+id/action_matchedFragment_to_exchangeDiaryEditFragment"
+            app:destination="@id/exchangeDiaryEditFragment" />
+        <action
+            android:id="@+id/action_matchedFragment_to_diaryDetailFragment"
+            app:destination="@id/diaryDetailFragment" />
+    </fragment>
+
 </navigation>

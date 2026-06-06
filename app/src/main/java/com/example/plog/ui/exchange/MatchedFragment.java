@@ -1,8 +1,16 @@
 package com.example.plog.ui.exchange;
 
 import com.example.plog.network.RetrofitClient;
+import com.example.plog.network.api.ExchangeDiaryApi;
+import com.example.plog.network.api.ExchangeMatchApi;
+import com.example.plog.network.api.ExchangeRoomApi;
+import com.example.plog.network.api.ExchangeSessionApi;
 import com.example.plog.network.api.ReportBlockApi;
 import com.example.plog.network.dto.BlockRequest;
+import com.example.plog.network.dto.ExchangeDiaryResponse;
+import com.example.plog.network.dto.ExchangeMatchResponse;
+import com.example.plog.network.dto.ExchangeRoomResponse;
+import com.example.plog.network.dto.ExchangeSessionResponse;
 import com.example.plog.network.dto.ReportRequest;
 
 import android.content.Context;
@@ -15,7 +23,6 @@ import android.view.animation.DecelerateInterpolator;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -27,22 +34,24 @@ import androidx.navigation.Navigation;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.example.plog.R;
-import com.example.plog.data.DiaryEntry;
-import com.example.plog.data.DiaryRepository;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.tabs.TabLayout;
 
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Locale;
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class MatchedFragment extends Fragment {
 
     private boolean isMine = true;
     private int currentDay = 1;
     private String partnerName = "사용자";
-    private DiaryRepository repository;
+    private Long roomId = null;
+    private Long sessionId = null;
+    private List<ExchangeDiaryResponse> diaryList = null;
+    private ExchangeDiaryResponse currentDiary = null;
 
     private TextView tvUserName, tvDate, tvWeather, tvLocation, tvTitleDiary, tvBody;
     private CardView cvProfile;
@@ -57,10 +66,13 @@ public class MatchedFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_matched, container, false);
-        repository = new DiaryRepository(requireContext());
 
         Bundle args = getArguments();
-        if (args != null) partnerName = args.getString("partnerName", "사용자");
+        if (args != null) {
+            partnerName = args.getString("partnerName", "사용자");
+            long rid = args.getLong("roomId", -1L);
+            if (rid != -1L) roomId = rid;
+        }
 
         TabLayout typeTab = view.findViewById(R.id.typeTab);
         TabLayout dayTab = view.findViewById(R.id.dayTab);
@@ -82,69 +94,145 @@ public class MatchedFragment extends Fragment {
         btnEdit.setOnClickListener(v -> navigateToEdit());
 
         typeTab.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override public void onTabSelected(TabLayout.Tab tab) { isMine = tab.getPosition() == 0; animateSmoothTransition(() -> loadAndDisplayDiary()); }
-            @Override public void onTabUnselected(TabLayout.Tab tab) {} @Override public void onTabReselected(TabLayout.Tab tab) {}
+            @Override public void onTabSelected(TabLayout.Tab tab) {
+                isMine = tab.getPosition() == 0;
+                animateSmoothTransition(() -> displayDiary());
+            }
+            @Override public void onTabUnselected(TabLayout.Tab tab) {}
+            @Override public void onTabReselected(TabLayout.Tab tab) {}
         });
 
         dayTab.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override public void onTabSelected(TabLayout.Tab tab) { currentDay = tab.getPosition() + 1; animateSmoothTransition(() -> loadAndDisplayDiary()); }
-            @Override public void onTabUnselected(TabLayout.Tab tab) {} @Override public void onTabReselected(TabLayout.Tab tab) {}
+            @Override public void onTabSelected(TabLayout.Tab tab) {
+                currentDay = tab.getPosition() + 1;
+                animateSmoothTransition(() -> displayDiary());
+            }
+            @Override public void onTabUnselected(TabLayout.Tab tab) {}
+            @Override public void onTabReselected(TabLayout.Tab tab) {}
         });
+
+        if (roomId != null) loadSession();
 
         return view;
     }
 
-    private void navigateToEdit() {
-        Bundle bundle = new Bundle();
-        bundle.putLong("sessionId", 1L);
-        bundle.putLong("userId", 1L);
-        bundle.putInt("dayNumber", currentDay);
-        Navigation.findNavController(requireView())
-                .navigate(R.id.action_matchedFragment_to_exchangeDiaryEditFragment, bundle);
+    private void loadSession() {
+        // 세션 시작/조회
+        ExchangeSessionApi sessionApi = RetrofitClient.getClient().create(ExchangeSessionApi.class);
+        sessionApi.startSession(roomId).enqueue(new Callback<ExchangeSessionResponse>() {
+            @Override
+            public void onResponse(Call<ExchangeSessionResponse> call, Response<ExchangeSessionResponse> response) {
+                if (!isAdded()) return;
+                if (response.isSuccessful() && response.body() != null) {
+                    sessionId = response.body().getId();
+                    loadDiaries();
+                }
+            }
+            @Override
+            public void onFailure(Call<ExchangeSessionResponse> call, Throwable t) {
+                android.util.Log.e("MatchedFragment", "세션 조회 실패: " + t.getMessage());
+            }
+        });
+
+        // 상대방 닉네임 조회
+        ExchangeRoomApi roomApi = RetrofitClient.getClient().create(ExchangeRoomApi.class);
+        roomApi.getRoom(roomId).enqueue(new Callback<ExchangeRoomResponse>() {
+            @Override
+            public void onResponse(Call<ExchangeRoomResponse> call, Response<ExchangeRoomResponse> response) {
+                if (!isAdded()) return;
+                if (response.isSuccessful() && response.body() != null) {
+                    Long matchId = response.body().getMatchId();
+                    loadPartnerName(matchId);
+                }
+            }
+            @Override
+            public void onFailure(Call<ExchangeRoomResponse> call, Throwable t) {
+                android.util.Log.e("MatchedFragment", "교환방 조회 실패: " + t.getMessage());
+            }
+        });
     }
 
-    private String getAuthorSpecificDateKey() {
-        String prefix = isMine ? "my_" : "partner_";
-        long startTime = requireActivity().getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE).getLong("start_time", System.currentTimeMillis());
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTimeInMillis(startTime);
-        calendar.add(Calendar.DAY_OF_YEAR, currentDay - 1);
-        return prefix + new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(calendar.getTime());
+    private void loadPartnerName(Long matchId) {
+        ExchangeMatchApi matchApi = RetrofitClient.getClient().create(ExchangeMatchApi.class);
+        matchApi.getMatch(matchId).enqueue(new Callback<ExchangeMatchResponse>() {
+            @Override
+            public void onResponse(Call<ExchangeMatchResponse> call, Response<ExchangeMatchResponse> response) {
+                if (!isAdded()) return;
+                if (response.isSuccessful() && response.body() != null) {
+                    String nickname = response.body().getRequesterNickname();
+                    if (nickname != null && !nickname.isEmpty()) {
+                        partnerName = nickname;
+                        // 현재 상대방 탭이면 바로 업데이트
+                        if (!isMine && tvUserName != null) {
+                            tvUserName.setText(partnerName);
+                        }
+                    }
+                }
+            }
+            @Override
+            public void onFailure(Call<ExchangeMatchResponse> call, Throwable t) {
+                android.util.Log.e("MatchedFragment", "파트너 닉네임 조회 실패: " + t.getMessage());
+            }
+        });
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        startSessionValidation();
-        loadAndDisplayDiary();
+    private void loadDiaries() {
+        if (sessionId == null) return;
+        ExchangeDiaryApi api = RetrofitClient.getClient().create(ExchangeDiaryApi.class);
+        api.getDiaries(sessionId).enqueue(new Callback<List<ExchangeDiaryResponse>>() {
+            @Override
+            public void onResponse(Call<List<ExchangeDiaryResponse>> call, Response<List<ExchangeDiaryResponse>> response) {
+                if (!isAdded()) return;
+                if (response.isSuccessful() && response.body() != null) {
+                    diaryList = response.body();
+                    displayDiary();
+                }
+            }
+            @Override
+            public void onFailure(Call<List<ExchangeDiaryResponse>> call, Throwable t) {
+                android.util.Log.e("MatchedFragment", "일기 목록 로드 실패: " + t.getMessage());
+            }
+        });
     }
 
-    private void loadAndDisplayDiary() {
-        updateDiary(repository.getDiary(getAuthorSpecificDateKey()));
+    private void displayDiary() {
+        if (diaryList == null) return;
+
+        ExchangeDiaryResponse found = null;
+        for (ExchangeDiaryResponse d : diaryList) {
+            boolean isMyDiary = d.getUserId() == 1L;
+            if (isMine == isMyDiary && d.getDayNumber() == currentDay) {
+                found = d;
+                break;
+            }
+        }
+        currentDiary = found;
+        updateUI(found);
     }
 
-    private void updateDiary(@Nullable DiaryEntry diary) {
-        String realTodayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
-        String currentKey = getAuthorSpecificDateKey();
-        boolean isTabToday = realTodayKey.equals(currentKey.substring(isMine ? 3 : 8));
+    private void updateUI(@Nullable ExchangeDiaryResponse diary) {
+        boolean isTabToday = (currentDay == getCurrentDayNumber());
 
         if (diary == null) {
             emptyDiaryLayout.setVisibility(View.VISIBLE);
             diaryContentLayout.setVisibility(View.GONE);
             btnWriteDiary.setVisibility(isMine && isTabToday ? View.VISIBLE : View.GONE);
+            cvDiaryCard.setOnClickListener(null);
         } else {
             emptyDiaryLayout.setVisibility(View.GONE);
             diaryContentLayout.setVisibility(View.VISIBLE);
+            tvDate.setText(diary.getCreatedAt() != null ? diary.getCreatedAt().substring(0, 10) : "");
+            tvWeather.setText("");
+            tvLocation.setText("");
+            tvTitleDiary.setText("DAY " + diary.getDayNumber());
+            tvBody.setText(diary.getContent());
 
-            String rawDate = diary.getDate();
-            String displayDate = rawDate.startsWith("my_") ? rawDate.substring(3)
-                    : rawDate.startsWith("partner_") ? rawDate.substring(8) : rawDate;
-            tvDate.setText(displayDate);
-
-            tvWeather.setText(diary.getWeather());
-            tvLocation.setText(diary.getLocation());
-            tvTitleDiary.setText(diary.getTitle());
-            tvBody.setText(diary.getBody());
+            cvDiaryCard.setOnClickListener(v -> {
+                Bundle bundle = new Bundle();
+                bundle.putLong("diaryId", diary.getId());
+                Navigation.findNavController(requireView())
+                        .navigate(R.id.action_matchedFragment_to_diaryDetailFragment, bundle);
+            });
         }
 
         ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) cvProfile.getLayoutParams();
@@ -163,14 +251,49 @@ public class MatchedFragment extends Fragment {
         cvProfile.setLayoutParams(params);
     }
 
+    private int getCurrentDayNumber() {
+        android.content.SharedPreferences sharedPref = requireActivity()
+                .getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE);
+        long startTime = sharedPref.getLong("start_time", System.currentTimeMillis());
+        long diff = System.currentTimeMillis() - startTime;
+        int day = (int) (diff / (1000 * 60 * 60 * 24)) + 1;
+        return Math.min(day, 7);
+    }
+
+    private void navigateToEdit() {
+        Bundle bundle = new Bundle();
+        bundle.putLong("sessionId", sessionId != null ? sessionId : 1L);
+        bundle.putLong("userId", 1L);
+        bundle.putInt("dayNumber", currentDay);
+        if (currentDiary != null) {
+            bundle.putLong("diaryId", currentDiary.getId());
+        }
+        Navigation.findNavController(requireView())
+                .navigate(R.id.action_matchedFragment_to_exchangeDiaryEditFragment, bundle);
+    }
+
     @Override
-    public void onPause() { super.onPause(); if (sessionTimer != null) sessionTimer.cancel(); }
+    public void onResume() {
+        super.onResume();
+        startSessionValidation();
+        if (sessionId != null) loadDiaries();
+        else if (roomId != null) loadSession();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (sessionTimer != null) sessionTimer.cancel();
+    }
 
     private void startSessionValidation() {
         Context context = requireActivity();
         android.content.SharedPreferences sharedPref = context.getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE);
         long startTime = sharedPref.getLong("start_time", 0L);
-        if (startTime == 0L) { startTime = System.currentTimeMillis(); sharedPref.edit().putLong("start_time", startTime).apply(); }
+        if (startTime == 0L) {
+            startTime = System.currentTimeMillis();
+            sharedPref.edit().putLong("start_time", startTime).apply();
+        }
         long remainingTime = (startTime + SEVEN_DAYS_IN_MS) - System.currentTimeMillis();
         if (remainingTime <= 0) showSessionEndDialog();
         else {
@@ -188,14 +311,29 @@ public class MatchedFragment extends Fragment {
                 .setTitle("교환일기 기간 만료")
                 .setMessage("약속된 7일간의 교환일기 기간이 종료되었습니다.")
                 .setPositiveButton("기간 연장", (dialog, which) -> extendSession())
-                .setNegativeButton("교환 종료", (dialog, which) -> terminateSession()).show();
+                .setNegativeButton("교환 종료", (dialog, which) -> terminateSession())
+                .show();
     }
 
-    private void extendSession() { requireActivity().getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE).edit().putLong("start_time", System.currentTimeMillis()).apply(); startSessionValidation(); }
-    private void terminateSession() { requireActivity().getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE).edit().remove("start_time").apply(); NavHostFragment.findNavController(this).navigate(R.id.notMatchedFragment); }
+    private void extendSession() {
+        requireActivity().getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE)
+                .edit().putLong("start_time", System.currentTimeMillis()).apply();
+        startSessionValidation();
+    }
+
+    private void terminateSession() {
+        requireActivity().getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE)
+                .edit().remove("start_time").apply();
+        NavHostFragment.findNavController(this).navigate(R.id.notMatchedFragment);
+    }
 
     private void animateSmoothTransition(Runnable onContentUpdate) {
-        cvDiaryCard.animate().alpha(0.3f).scaleX(0.98f).scaleY(0.98f).translationY(10f).setDuration(100).withEndAction(() -> { onContentUpdate.run(); cvDiaryCard.animate().alpha(1.0f).scaleX(1.0f).scaleY(1.0f).translationY(0f).setDuration(180).setInterpolator(new DecelerateInterpolator()).start(); }).start();
+        cvDiaryCard.animate().alpha(0.3f).scaleX(0.98f).scaleY(0.98f).translationY(10f)
+                .setDuration(100).withEndAction(() -> {
+                    onContentUpdate.run();
+                    cvDiaryCard.animate().alpha(1.0f).scaleX(1.0f).scaleY(1.0f).translationY(0f)
+                            .setDuration(180).setInterpolator(new DecelerateInterpolator()).start();
+                }).start();
     }
 
     private void showReportPopup(View anchor) {
@@ -206,7 +344,6 @@ public class MatchedFragment extends Fragment {
             popupWindow.dismiss();
             showReportDialog();
         });
-
         popupView.findViewById(R.id.btnBlock).setOnClickListener(v -> {
             popupWindow.dismiss();
             showBlockDialog();
@@ -238,7 +375,6 @@ public class MatchedFragment extends Fragment {
         api.block(new BlockRequest(1L, 2L)).enqueue(new retrofit2.Callback<Void>() {
             @Override
             public void onResponse(retrofit2.Call<Void> call, retrofit2.Response<Void> response) {
-                android.util.Log.d("Block", "차단 완료");
                 requireActivity().getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE)
                         .edit().remove("start_time").apply();
                 NavHostFragment.findNavController(MatchedFragment.this).navigate(R.id.notMatchedFragment);
@@ -250,15 +386,26 @@ public class MatchedFragment extends Fragment {
         });
     }
 
-    private void showReasonDialog() { String[] reasons = {"부적절한 내용", "욕설/비방", "스팸"}; new AlertDialog.Builder(requireContext()).setItems(reasons, (dialog, which) -> showFinalConfirmDialog(reasons[which])).show(); }
-    private void showFinalConfirmDialog(String reason) { new AlertDialog.Builder(requireContext()).setTitle("신고하기").setMessage("사유: " + reason).setPositiveButton("계속", (dialog, which) -> showExitCompleteDialog(reason)).show(); }
+    private void showReasonDialog() {
+        String[] reasons = {"부적절한 내용", "욕설/비방", "스팸"};
+        new AlertDialog.Builder(requireContext())
+                .setItems(reasons, (dialog, which) -> showFinalConfirmDialog(reasons[which]))
+                .show();
+    }
+
+    private void showFinalConfirmDialog(String reason) {
+        new AlertDialog.Builder(requireContext())
+                .setTitle("신고하기")
+                .setMessage("사유: " + reason)
+                .setPositiveButton("계속", (dialog, which) -> showExitCompleteDialog(reason))
+                .show();
+    }
 
     private void showExitCompleteDialog(String reason) {
         ReportBlockApi api = RetrofitClient.getClient().create(ReportBlockApi.class);
         api.report(new ReportRequest(1L, 2L, reason)).enqueue(new retrofit2.Callback<Void>() {
             @Override
             public void onResponse(retrofit2.Call<Void> call, retrofit2.Response<Void> response) {
-                android.util.Log.d("Report", "신고 완료");
                 requireActivity().getSharedPreferences("ExchangeSessionPref", Context.MODE_PRIVATE)
                         .edit().remove("start_time").apply();
                 NavHostFragment.findNavController(MatchedFragment.this).navigate(R.id.notMatchedFragment);

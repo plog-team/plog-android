@@ -16,17 +16,15 @@ import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
 
 import com.example.plog.R;
-import com.example.plog.data.DiaryEntry;
-import com.example.plog.data.DiaryRepository;
 import com.example.plog.databinding.FragmentDiaryEditBinding;
 import com.example.plog.network.RetrofitClient;
 import com.example.plog.network.api.ExchangeDiaryApi;
 import com.example.plog.network.dto.ExchangeDiaryRequest;
 import com.example.plog.network.dto.ExchangeDiaryResponse;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -38,6 +36,7 @@ public class ExchangeDiaryEditFragment extends Fragment {
     private Long sessionId;
     private Long userId;
     private int dayNumber;
+    private Long diaryId;
 
     public ExchangeDiaryEditFragment() {}
 
@@ -58,12 +57,42 @@ public class ExchangeDiaryEditFragment extends Fragment {
             sessionId = getArguments().getLong("sessionId", 1L);
             userId = getArguments().getLong("userId", 1L);
             dayNumber = getArguments().getInt("dayNumber", 1);
+            long did = getArguments().getLong("diaryId", -1L);
+            if (did != -1L) diaryId = did;
         }
 
-        binding.tvMode.setText("교환일기 작성");
+        if (diaryId != null) {
+            binding.tvMode.setText("교환일기 수정");
+            loadExistingDiary();
+        } else {
+            binding.tvMode.setText("교환일기 작성");
+        }
+
         binding.btnClose.setOnClickListener(v ->
                 Navigation.findNavController(v).navigateUp());
         binding.btnSave.setOnClickListener(v -> showSavePopup());
+    }
+
+    private void loadExistingDiary() {
+        ExchangeDiaryApi api = RetrofitClient.getClient().create(ExchangeDiaryApi.class);
+        api.getDiaries(sessionId).enqueue(new Callback<List<ExchangeDiaryResponse>>() {
+            @Override
+            public void onResponse(Call<List<ExchangeDiaryResponse>> call, Response<List<ExchangeDiaryResponse>> response) {
+                if (!isAdded()) return;
+                if (response.isSuccessful() && response.body() != null) {
+                    for (ExchangeDiaryResponse d : response.body()) {
+                        if (d.getId().equals(diaryId)) {
+                            binding.etBody.setText(d.getContent());
+                            break;
+                        }
+                    }
+                }
+            }
+            @Override
+            public void onFailure(Call<List<ExchangeDiaryResponse>> call, Throwable t) {
+                android.util.Log.e("ExchangeDiaryEdit", "기존 일기 로드 실패: " + t.getMessage());
+            }
+        });
     }
 
     private void showSavePopup() {
@@ -94,57 +123,68 @@ public class ExchangeDiaryEditFragment extends Fragment {
 
         btnDismiss.setOnClickListener(v -> popupWindow.dismiss());
         btnUpload.setOnClickListener(v -> {
-            if (saveDiary()) {
-                popupWindow.dismiss();
-                Navigation.findNavController(binding.getRoot()).popBackStack();
-            }
+            popupWindow.dismiss();
+            saveDiary();
         });
 
         popupWindow.showAtLocation(binding.getRoot(), Gravity.TOP | Gravity.END, dp(20), dp(72));
     }
 
-    private boolean saveDiary() {
-        String title = binding.etTitle.getText().toString().trim();
+    private void saveDiary() {
         String body = binding.etBody.getText().toString().trim();
-
-        if (title.isEmpty()) {
-            binding.etTitle.requestFocus();
-            Toast.makeText(requireContext(), "제목을 입력해주세요.", Toast.LENGTH_SHORT).show();
-            return false;
-        }
 
         if (body.isEmpty()) {
             binding.etBody.requestFocus();
             Toast.makeText(requireContext(), "본문을 1자 이상 입력해주세요.", Toast.LENGTH_SHORT).show();
-            return false;
+            return;
         }
 
-        // 로컬 저장 (key: "my_yyyy-MM-dd")
-        String dateKey = "my_" + new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
-        DiaryEntry entry = new DiaryEntry();
-        entry.setDate(dateKey);
-        entry.setTitle(title);
-        entry.setBody(body);
-        entry.setWeather("");
-        entry.setLocation("");
-        new DiaryRepository(requireContext()).saveDiary(entry);
-
-        // 백엔드 저장
         ExchangeDiaryApi api = RetrofitClient.getClient().create(ExchangeDiaryApi.class);
-        ExchangeDiaryRequest request = new ExchangeDiaryRequest(sessionId, userId, body, dayNumber);
-        api.createDiary(request).enqueue(new Callback<ExchangeDiaryResponse>() {
-            @Override
-            public void onResponse(Call<ExchangeDiaryResponse> call, Response<ExchangeDiaryResponse> response) {
-                if (response.isSuccessful()) android.util.Log.d("ExchangeDiary", "저장 완료!");
-            }
-            @Override
-            public void onFailure(Call<ExchangeDiaryResponse> call, Throwable t) {
-                android.util.Log.e("ExchangeDiary", "저장 실패: " + t.getMessage());
-            }
-        });
 
-        Toast.makeText(requireContext(), "교환일기가 저장되었습니다.", Toast.LENGTH_SHORT).show();
-        return true;
+        if (diaryId != null) {
+            // 수정
+            Map<String, String> requestBody = new HashMap<>();
+            requestBody.put("content", body);
+            api.updateDiary(diaryId, requestBody).enqueue(new Callback<ExchangeDiaryResponse>() {
+                @Override
+                public void onResponse(Call<ExchangeDiaryResponse> call, Response<ExchangeDiaryResponse> response) {
+                    if (!isAdded()) return;
+                    if (response.isSuccessful()) {
+                        Toast.makeText(requireContext(), "교환일기가 수정되었습니다.", Toast.LENGTH_SHORT).show();
+                        Navigation.findNavController(binding.getRoot()).popBackStack();
+                    } else {
+                        Toast.makeText(requireContext(), "수정에 실패했어요.", Toast.LENGTH_SHORT).show();
+                    }
+                }
+                @Override
+                public void onFailure(Call<ExchangeDiaryResponse> call, Throwable t) {
+                    if (!isAdded()) return;
+                    Toast.makeText(requireContext(), "서버 연결에 실패했어요.", Toast.LENGTH_SHORT).show();
+                    android.util.Log.e("ExchangeDiary", "수정 실패: " + t.getMessage());
+                }
+            });
+        } else {
+            // 새로 작성
+            ExchangeDiaryRequest request = new ExchangeDiaryRequest(sessionId, userId, body, dayNumber);
+            api.createDiary(request).enqueue(new Callback<ExchangeDiaryResponse>() {
+                @Override
+                public void onResponse(Call<ExchangeDiaryResponse> call, Response<ExchangeDiaryResponse> response) {
+                    if (!isAdded()) return;
+                    if (response.isSuccessful()) {
+                        Toast.makeText(requireContext(), "교환일기가 저장되었습니다.", Toast.LENGTH_SHORT).show();
+                        Navigation.findNavController(binding.getRoot()).popBackStack();
+                    } else {
+                        Toast.makeText(requireContext(), "저장에 실패했어요.", Toast.LENGTH_SHORT).show();
+                    }
+                }
+                @Override
+                public void onFailure(Call<ExchangeDiaryResponse> call, Throwable t) {
+                    if (!isAdded()) return;
+                    Toast.makeText(requireContext(), "서버 연결에 실패했어요.", Toast.LENGTH_SHORT).show();
+                    android.util.Log.e("ExchangeDiary", "저장 실패: " + t.getMessage());
+                }
+            });
+        }
     }
 
     private int dp(int value) {
