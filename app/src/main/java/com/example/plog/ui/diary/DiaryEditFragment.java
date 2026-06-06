@@ -234,8 +234,14 @@ public class DiaryEditFragment extends Fragment {
     private void openAiGuide(View view) {
         binding.aiMenu.setVisibility(View.GONE);
         binding.btnAi.setText("+");
+        Bundle bundle = new Bundle();
+        ArrayList<String> uriStrings = new ArrayList<>();
+        for (Uri uri : selectedPhotos) {
+            uriStrings.add(uri.toString());
+        }
+        bundle.putStringArrayList("photoUris", uriStrings);
         Navigation.findNavController(view)
-                .navigate(R.id.action_diaryEditFragment_to_aiGuideEntryFragment);
+                .navigate(R.id.action_diaryEditFragment_to_aiGuideEntryFragment, bundle);
     }
 
     private void setupAutoInputEditablePlaceholders() {

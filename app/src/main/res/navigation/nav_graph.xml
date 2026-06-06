@@ -100,8 +100,16 @@
         android:id="@+id/aiGuideEntryFragment"
         android:name="com.example.plog.ui.aiguide.AiGuideEntryFragment"
         android:label="AI 가이드">
-        <action android:id="@+id/action_entry_to_session" app:destination="@id/aiGuideSessionFragment" />
-        <action android:id="@+id/action_entry_to_chat"    app:destination="@id/aiGuideChatFragment" />
+        <action android:id="@+id/action_entry_to_session"
+            app:destination="@id/aiGuideSessionFragment"
+            app:popUpTo="@id/aiGuideEntryFragment"
+            app:popUpToInclusive="false"
+            app:launchSingleTop="true" />
+        <action android:id="@+id/action_entry_to_chat"
+            app:destination="@id/aiGuideChatFragment"
+            app:popUpTo="@id/aiGuideEntryFragment"
+            app:popUpToInclusive="false"
+            app:launchSingleTop="true" />
     </fragment>
 
     <fragment

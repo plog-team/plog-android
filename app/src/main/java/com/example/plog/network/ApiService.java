@@ -4,6 +4,7 @@ import com.example.plog.api.model.BookmarkRequest;
 import com.example.plog.api.model.ClickLogRequest;
 import com.example.plog.api.model.PreferenceResponse;
 import com.example.plog.model.AnswerRequest;
+import com.example.plog.model.AnswerResponse;
 import com.example.plog.model.ApiResponse;
 import com.example.plog.model.ClarifyRequest;
 import com.example.plog.model.CreateSessionRequest;
@@ -97,6 +98,25 @@ public interface ApiService {
 
     @GET("api/ai-guide/sessions/{sessionId}")
     Call<ApiResponse<SessionDetailResponse>> getAiSession(@Path("sessionId") long sessionId);
+
+    @POST("api/ai-guide/sessions/{sessionId}/questions/{questionId}/answer")
+    Call<ApiResponse<AnswerResponse>> answerQuestion(
+        @Path("sessionId") long sessionId,
+        @Path("questionId") long questionId,
+        @Body AnswerRequest request
+    );
+
+    @POST("api/ai-guide/sessions/{sessionId}/chat")
+    Call<ApiResponse<SendChatResponse>> sendChat(
+        @Path("sessionId") long sessionId,
+        @Body SendChatRequest request
+    );
+
+    @POST("api/ai-guide/sessions/{sessionId}/draft")
+    Call<ApiResponse<DraftResponse>> generateDraft(@Path("sessionId") long sessionId);
+
+    @POST("api/ai-guide/sessions/{sessionId}/confirm")
+    Call<ApiResponse<SessionDetailResponse>> confirmSession(@Path("sessionId") long sessionId);
 
     @POST("api/ai-guide/sessions/{sessionId}/feedback")
     Call<Void> submitFeedback(
