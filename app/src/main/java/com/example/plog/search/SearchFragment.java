@@ -58,6 +58,15 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import android.widget.TextView;
+import android.app.AlertDialog;
+
+import com.google.android.material.datepicker.MaterialDatePicker;
+
+import androidx.core.util.Pair;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 // 검색 화면 Fragment
 public class SearchFragment extends Fragment {
 
@@ -74,6 +83,16 @@ public class SearchFragment extends Fragment {
     private String currentSort = "latest";
     private ImageButton btnSort;
 
+    private TextView btnDate;
+    private TextView btnEmotion;
+    private View filterChipScroll;
+    private TextView chipDate;
+    private TextView chipEmotion;
+
+    private String selectedStartDate = "";
+    private String selectedEndDate = "";
+    private String selectedEmotion = "";
+
     // Step 1. 화면 생성 및 초기 설정
     @Nullable
     @Override
@@ -87,6 +106,7 @@ public class SearchFragment extends Fragment {
         initViews(view);
         initRecyclerView();
         initSearchEvents();
+        initFilterEvents();
 
         loadDiariesFromServer();
 
@@ -99,6 +119,12 @@ public class SearchFragment extends Fragment {
         etSearch = view.findViewById(R.id.et_search);
         btnSearch = view.findViewById(R.id.btnSearch);
         tvSortLatest = view.findViewById(R.id.tvSortLatest);
+
+        btnDate = view.findViewById(R.id.btnDate);
+        btnEmotion = view.findViewById(R.id.btnEmotion);
+        filterChipScroll = view.findViewById(R.id.filterChipScroll);
+        chipDate = view.findViewById(R.id.chipDate);
+        chipEmotion = view.findViewById(R.id.chipEmotion);
     }
 
     // Step 3. RecyclerView 초기화
@@ -168,6 +194,29 @@ public class SearchFragment extends Fragment {
             public void afterTextChanged(Editable s) {
                 // 입력 후 별도 처리 없음
             }
+        });
+    }
+
+    // 날짜/감정 필터 버튼 이벤트 설정
+    private void initFilterEvents() {
+        btnDate.setOnClickListener(v -> showDateRangePicker());
+        btnEmotion.setOnClickListener(v -> showEmotionPicker());
+
+        // 날짜 필터 칩 클릭 시 날짜 필터 해제
+        chipDate.setOnClickListener(v -> {
+            selectedStartDate = "";
+            selectedEndDate = "";
+            chipDate.setVisibility(View.GONE);
+            updateFilterChipArea();
+            searchByKeyword();
+        });
+
+        // 감정 필터 칩 클릭 시 감정 필터 해제
+        chipEmotion.setOnClickListener(v -> {
+            selectedEmotion = "";
+            chipEmotion.setVisibility(View.GONE);
+            updateFilterChipArea();
+            searchByKeyword();
         });
     }
 
@@ -242,7 +291,18 @@ public class SearchFragment extends Fragment {
                 String encodedKeyword = URLEncoder.encode(keyword, "UTF-8");
                 urlBuilder.append("&keyword=").append(encodedKeyword);
             }
+            if (!selectedStartDate.isEmpty() && !selectedEndDate.isEmpty()) {
+                urlBuilder.append("&startDate=")
+                        .append(URLEncoder.encode(selectedStartDate, "UTF-8"));
 
+                urlBuilder.append("&endDate=")
+                        .append(URLEncoder.encode(selectedEndDate, "UTF-8"));
+            }
+
+            if (!selectedEmotion.isEmpty()) {
+                urlBuilder.append("&emotion=")
+                        .append(URLEncoder.encode(selectedEmotion, "UTF-8"));
+            }
             return urlBuilder.toString();
 
         } catch (Exception e) {
@@ -290,5 +350,86 @@ public class SearchFragment extends Fragment {
         } catch (Exception e) {
             Log.e(TAG, "일기 목록 JSON 파싱 실패", e);
         }
+    }
+
+    // 날짜 범위 선택 캘린더 표시
+    private void showDateRangePicker() {
+        MaterialDatePicker<Pair<Long, Long>> picker =
+                MaterialDatePicker.Builder.dateRangePicker()
+                        .setTitleText("날짜 범위 선택")
+                        .build();
+
+        picker.addOnPositiveButtonClickListener(selection -> {
+            if (selection == null || selection.first == null || selection.second == null) {
+                return;
+            }
+
+            selectedStartDate = formatServerDate(selection.first);
+            selectedEndDate = formatServerDate(selection.second);
+
+            String displayStartDate = formatDisplayDate(selection.first);
+            String displayEndDate = formatDisplayDate(selection.second);
+
+            chipDate.setText("날짜: " + displayStartDate + " ~ " + displayEndDate + "  ✕");
+            chipDate.setVisibility(View.VISIBLE);
+
+            updateFilterChipArea();
+            searchByKeyword();
+        });
+
+        picker.show(getParentFragmentManager(), "DATE_RANGE_PICKER");
+    }
+
+    // 감정 선택 다이얼로그 표시
+    private void showEmotionPicker() {
+        String[] emotions = {
+                "기쁨",
+                "슬픔",
+                "신남",
+                "화남",
+                "평온",
+                "설렘",
+                "불안",
+                "피곤"
+        };
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("감정 선택")
+                .setItems(emotions, (dialog, which) -> {
+                    selectedEmotion = emotions[which];
+
+                    chipEmotion.setText("감정: " + selectedEmotion + "  ✕");
+                    chipEmotion.setVisibility(View.VISIBLE);
+
+                    updateFilterChipArea();
+                    searchByKeyword();
+
+                    dialog.dismiss();
+                })
+                .show();
+    }
+
+    // 선택된 필터 칩 영역 표시 여부 갱신
+    private void updateFilterChipArea() {
+        boolean hasDateFilter = chipDate.getVisibility() == View.VISIBLE;
+        boolean hasEmotionFilter = chipEmotion.getVisibility() == View.VISIBLE;
+
+        if (hasDateFilter || hasEmotionFilter) {
+            filterChipScroll.setVisibility(View.VISIBLE);
+        } else {
+            filterChipScroll.setVisibility(View.GONE);
+        }
+    }
+
+    // 서버 전송용 날짜 형식: yyyy-MM-dd
+    private String formatServerDate(long timeMillis) {
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA)
+                .format(new Date(timeMillis));
+    }
+
+    // 화면 표시용 날짜 형식: yy/MM/dd
+    private String formatDisplayDate(long timeMillis) {
+        return new SimpleDateFormat("yy/MM/dd", Locale.KOREA)
+                .format(new Date(timeMillis));
     }
 }
