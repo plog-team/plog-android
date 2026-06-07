@@ -90,6 +90,15 @@ public class PhotoRepository {
             Log.w("PhotoRepository", "원본 URI 실패 — 일반 URI로 재시도" + e.getMessage());
             exif = exifExtractor.extract(uri, context);
         }
+// dy
+        Log.d("PhotoRepository", "EXIF null? " + (exif == null));
+
+        if (exif != null) {
+            Log.d("PhotoRepository", "EXIF hasLocation? " + exif.hasLocation());
+            Log.d("PhotoRepository",
+                    "EXIF lat=" + exif.latitude +
+                            ", lng=" + exif.longitude);
+        }
 
         // ── Photo 저장 ──────────────────────────────────────────────────────
         PhotoEntity photo = new PhotoEntity();

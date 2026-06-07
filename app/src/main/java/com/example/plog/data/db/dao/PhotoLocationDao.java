@@ -108,6 +108,27 @@ public interface PhotoLocationDao {
             "AND pl.location_name IS NULL")
     List<PhotoLocationEntity> getMissingLocationNames();
 
+    // 알림 기능
+    @Query("SELECT pl.* FROM photo_location pl " +
+            "INNER JOIN photo p ON pl.photo_id = p.id " +
+            "WHERE p.user_id = :userId " +
+            "AND p.is_deleted = 0 " +
+            "AND pl.latitude != 0.0 " +
+            "AND pl.longitude != 0.0")
+    List<PhotoLocationEntity> getAllWithLocationSync(int userId);
+
+    // 알림 기능 - 사진 포함
+    @Query("SELECT pl.id, pl.photo_id AS photoId, pl.taken_at AS takenAt, " +
+            "pl.latitude, pl.longitude, pl.location_name AS locationName, " +
+            "pl.address, p.image_url AS imageUrl " +
+            "FROM photo_location pl " +
+            "INNER JOIN photo p ON pl.photo_id = p.id " +
+            "WHERE p.user_id = :userId " +
+            "AND p.is_deleted = 0 " +
+            "AND pl.latitude != 0.0 " +
+            "AND pl.longitude != 0.0")
+    List<PhotoLocationWithImage> getAllWithLocationAndImageSync(int userId);
+
     // ── 결과 클래스 ───────────────────────────────────────────────────────
     class LocationCluster {
         public double clusterLat;

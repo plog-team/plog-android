@@ -9,10 +9,15 @@ import androidx.navigation.ui.NavigationUI;
 import com.example.plog.databinding.ActivityMainBinding;
 import com.example.plog.network.ApiClient;
 
+// 테스트
+import com.example.plog.notification.GeofenceManager;
+import com.example.plog.notification.DiaryReminderScheduler;
+
 public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
     private NavController navController;
+    private GeofenceManager geofenceManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -22,6 +27,17 @@ public class MainActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         setupNavigation();
+
+
+        // 일기 작성 알림 즉시 테스트 - 알림 되는지 바로 보고 싶으면 아래 코드
+        // DiaryReminderScheduler.testDiaryReminderWorkerNow(this);
+
+        // 22시에 실행됨
+        DiaryReminderScheduler.scheduleDailyDiaryReminder(this);
+
+        // 재방문 위치 알림용 권한 요청 + Foreground Service 시작
+        geofenceManager = new GeofenceManager(this);
+        geofenceManager.requestLocationPermission();
     }
 
     private void setupNavigation() {
@@ -53,4 +69,19 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
+    // // 위치 권한 승인 결과에 따라 Foreground Service 시작 처리
+    @Override
+    public void onRequestPermissionsResult(
+            int requestCode,
+            String[] permissions,
+            int[] grantResults
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (geofenceManager != null) {
+            geofenceManager.handlePermissionResult(requestCode, grantResults);
+        }
+    }
+
 }

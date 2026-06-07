@@ -19,7 +19,7 @@ import androidx.fragment.app.Fragment;
 
 import android.widget.FrameLayout;
 import java.util.Calendar;
-
+import java.util.List;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 import android.widget.LinearLayout;
@@ -187,7 +187,13 @@ public class CalendarFragment extends Fragment {
     private void generateRecentDiaries() {
         recentDiaryContainer.removeAllViews();
 
-        for (int i = 3; i >= 1; i--) {
+        List<DiaryEntry> diaries = diaryRepository.getAllDiaries();
+
+        int count = Math.min(3, diaries.size());
+
+        for (int i = 0; i < count; i++) {
+            DiaryEntry diary = diaries.get(i);
+
             View diaryView = LayoutInflater.from(getContext())
                     .inflate(R.layout.item_recent_diary, recentDiaryContainer, false);
 
@@ -196,15 +202,29 @@ public class CalendarFragment extends Fragment {
             TextView tvRecentDate = diaryView.findViewById(R.id.tvRecentDate);
             TextView tvRecentContent = diaryView.findViewById(R.id.tvRecentContent);
 
-            // TODO: 서버/DB 연결 후 DiaryRepository에서 최근 일기 3개를 가져와 표시하기
-            // 현재는 화면 테스트용 더미 데이터
-            imgRecentDiary.setImageResource(R.drawable.test_photo);
-            tvRecentTitle.setText("제목: 테스트 일기 " + i);
-            tvRecentDate.setText("26/06/" + (10 + i));
-            tvRecentContent.setText("내용내용내용 안보이는 부분은 말줄임표로 표시됩니다.");
+            if (diary.getPhotoUris() != null && !diary.getPhotoUris().isEmpty()) {
+                imgRecentDiary.setImageURI(Uri.parse(diary.getPhotoUris().get(0)));
+            } else {
+                imgRecentDiary.setImageResource(R.drawable.test_photo);
+            }
+
+            tvRecentTitle.setText(diary.getTitle());
+            tvRecentDate.setText(formatDateForRecent(diary.getDate()));
+            tvRecentContent.setText(diary.getBody());
 
             recentDiaryContainer.addView(diaryView);
         }
+    }
+
+    private String formatDateForRecent(String date) {
+        if (date == null || date.length() != 10) {
+            return "";
+        }
+
+        // yyyy-MM-dd → yy/MM/dd
+        return date.substring(2, 4) + "/" +
+                date.substring(5, 7) + "/" +
+                date.substring(8, 10);
     }
 
 }
