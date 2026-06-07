@@ -1,5 +1,6 @@
 package com.example.plog.ui.home;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -63,20 +64,24 @@ public class HomeFragment extends Fragment {
         binding.cardExchangeBanner.setOnClickListener(v -> checkActiveRoom());
     }
 
+    private long getMyUserId() {
+        return requireActivity()
+                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
+                .getInt("userId", 1);
+    }
+
     private void checkActiveRoom() {
         ExchangeRoomApi api = RetrofitClient.getClient().create(ExchangeRoomApi.class);
-        api.getActiveRoom(1L).enqueue(new Callback<ExchangeRoomResponse>() {
+        api.getActiveRoom(getMyUserId()).enqueue(new Callback<ExchangeRoomResponse>() {
             @Override
             public void onResponse(Call<ExchangeRoomResponse> call, Response<ExchangeRoomResponse> response) {
                 if (!isAdded()) return;
                 if (response.isSuccessful() && response.body() != null) {
-                    // 활성 교환방 있으면 matchedFragment로
                     Bundle bundle = new Bundle();
                     bundle.putLong("roomId", response.body().getId());
                     NavHostFragment.findNavController(HomeFragment.this)
                             .navigate(R.id.matchedFragment, bundle);
                 } else {
-                    // 없으면 PENDING 매칭 확인
                     checkPendingMatch();
                 }
             }
@@ -89,18 +94,16 @@ public class HomeFragment extends Fragment {
 
     private void checkPendingMatch() {
         ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
-        api.getMyActiveMatch(1L).enqueue(new Callback<ExchangeMatchResponse>() {
+        api.getMyActiveMatch(getMyUserId()).enqueue(new Callback<ExchangeMatchResponse>() {
             @Override
             public void onResponse(Call<ExchangeMatchResponse> call, Response<ExchangeMatchResponse> response) {
                 if (!isAdded()) return;
                 if (response.isSuccessful() && response.body() != null) {
-                    // PENDING 매칭 있으면 matchConfirmFragment로
                     Bundle bundle = new Bundle();
                     bundle.putLong("matchId", response.body().getId());
                     NavHostFragment.findNavController(HomeFragment.this)
                             .navigate(R.id.matchConfirmFragment, bundle);
                 } else {
-                    // 아무것도 없으면 notMatchedFragment로
                     NavHostFragment.findNavController(HomeFragment.this)
                             .navigate(R.id.notMatchedFragment);
                 }

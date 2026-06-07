@@ -74,6 +74,12 @@ public class MatchedFragment extends Fragment {
 
     public MatchedFragment() {}
 
+    private long getMyUserId() {
+        return requireActivity()
+                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
+                .getInt("userId", 1);
+    }
+
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_matched, container, false);
@@ -217,7 +223,7 @@ public class MatchedFragment extends Fragment {
 
     private void loadPartnerInfo(Long matchId) {
         ExchangeMatchApi matchApi = RetrofitClient.getClient().create(ExchangeMatchApi.class);
-        matchApi.getMatch(matchId).enqueue(new Callback<ExchangeMatchResponse>() {
+        matchApi.getMatch(matchId, getMyUserId()).enqueue(new Callback<ExchangeMatchResponse>() {
             @Override
             public void onResponse(Call<ExchangeMatchResponse> call, Response<ExchangeMatchResponse> response) {
                 if (!isAdded()) return;
@@ -262,7 +268,7 @@ public class MatchedFragment extends Fragment {
         if (diaryList == null) return;
         ExchangeDiaryResponse found = null;
         for (ExchangeDiaryResponse d : diaryList) {
-            boolean isMyDiary = d.getUserId() == 1L;
+            boolean isMyDiary = d.getUserId() == getMyUserId();
             if (isMine == isMyDiary && d.getDayNumber() == currentDay) {
                 found = d;
                 break;
@@ -341,7 +347,7 @@ public class MatchedFragment extends Fragment {
         Bundle bundle = new Bundle();
         bundle.putBoolean("isExchange", true);
         bundle.putLong("sessionId", sessionId != null ? sessionId : 1L);
-        bundle.putLong("userId", 1L);
+        bundle.putLong("userId", getMyUserId());
         bundle.putInt("dayNumber", currentDay);
         if (currentDiary != null) {
             bundle.putLong("diaryId", currentDiary.getId());
@@ -397,7 +403,7 @@ public class MatchedFragment extends Fragment {
     private void extendSession() {
         if (sessionId == null) return;
         ExchangeSessionApi api = RetrofitClient.getClient().create(ExchangeSessionApi.class);
-        api.agreeExtend(sessionId, 1L).enqueue(new Callback<ExchangeSessionResponse>() {
+        api.agreeExtend(sessionId, getMyUserId()).enqueue(new Callback<ExchangeSessionResponse>() {
             @Override
             public void onResponse(Call<ExchangeSessionResponse> call, Response<ExchangeSessionResponse> response) {
                 if (!isAdded()) return;
@@ -532,7 +538,7 @@ public class MatchedFragment extends Fragment {
     private void blockUser() {
         Long targetId = partnerUserId != null ? partnerUserId : 0L;
         ReportBlockApi api = RetrofitClient.getClient().create(ReportBlockApi.class);
-        api.block(new BlockRequest(1L, targetId)).enqueue(new retrofit2.Callback<Void>() {
+        api.block(new BlockRequest(getMyUserId(), targetId)).enqueue(new retrofit2.Callback<Void>() {
             @Override
             public void onResponse(retrofit2.Call<Void> call, retrofit2.Response<Void> response) {
                 if (!isAdded()) return;
@@ -565,7 +571,7 @@ public class MatchedFragment extends Fragment {
     private void showExitCompleteDialog(String reason) {
         Long targetId = partnerUserId != null ? partnerUserId : 0L;
         ReportBlockApi api = RetrofitClient.getClient().create(ReportBlockApi.class);
-        api.report(new ReportRequest(1L, targetId, reason)).enqueue(new retrofit2.Callback<Void>() {
+        api.report(new ReportRequest(getMyUserId(), targetId, reason)).enqueue(new retrofit2.Callback<Void>() {
             @Override
             public void onResponse(retrofit2.Call<Void> call, retrofit2.Response<Void> response) {
                 closeRoomAndExit();

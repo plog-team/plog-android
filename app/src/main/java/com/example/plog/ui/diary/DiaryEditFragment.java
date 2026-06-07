@@ -526,7 +526,7 @@ public class DiaryEditFragment extends Fragment {
                 });
             } else {
                 // 새로 작성
-                ExchangeDiaryRequest request = new ExchangeDiaryRequest(sessionId, 1L, body, dayNumber);
+                ExchangeDiaryRequest request = new ExchangeDiaryRequest(sessionId, userId, body, dayNumber);
                 api.createDiary(request).enqueue(new Callback<ExchangeDiaryResponse>() {
                     @Override
                     public void onResponse(Call<ExchangeDiaryResponse> call, Response<ExchangeDiaryResponse> response) {

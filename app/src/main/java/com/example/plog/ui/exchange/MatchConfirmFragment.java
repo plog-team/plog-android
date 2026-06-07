@@ -2,6 +2,7 @@ package com.example.plog.ui.exchange;
 
 import com.example.plog.network.dto.MatchRecommendResponse;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -50,6 +51,12 @@ public class MatchConfirmFragment extends Fragment {
         super(R.layout.fragment_match_confirm);
     }
 
+    private long getMyUserId() {
+        return requireActivity()
+                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
+                .getInt("userId", 1);
+    }
+
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -73,7 +80,7 @@ public class MatchConfirmFragment extends Fragment {
                 showWaitingUI();
 
                 ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
-                api.getMatch(matchId).enqueue(new Callback<ExchangeMatchResponse>() {
+                api.getMatch(matchId, getMyUserId()).enqueue(new Callback<ExchangeMatchResponse>() {
                     @Override
                     public void onResponse(Call<ExchangeMatchResponse> call, Response<ExchangeMatchResponse> response) {
                         if (!isAdded()) return;
@@ -113,7 +120,7 @@ public class MatchConfirmFragment extends Fragment {
             showWaitingUI();
 
             ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
-            api.createMatch(new ExchangeMatchRequest(1L, targetUserId))
+            api.createMatch(new ExchangeMatchRequest(getMyUserId(), targetUserId))
                     .enqueue(new Callback<ExchangeMatchResponse>() {
                         @Override
                         public void onResponse(Call<ExchangeMatchResponse> call, Response<ExchangeMatchResponse> response) {
@@ -193,7 +200,7 @@ public class MatchConfirmFragment extends Fragment {
             @Override
             public void run() {
                 if (pendingMatchId == null || !isAdded()) return;
-                api.getMatch(pendingMatchId).enqueue(new Callback<ExchangeMatchResponse>() {
+                api.getMatch(pendingMatchId, getMyUserId()).enqueue(new Callback<ExchangeMatchResponse>() {
                     @Override
                     public void onResponse(Call<ExchangeMatchResponse> call, Response<ExchangeMatchResponse> response) {
                         if (!isAdded()) return;
@@ -201,9 +208,8 @@ public class MatchConfirmFragment extends Fragment {
                             String status = response.body().getStatus();
                             if ("MATCHED".equals(status)) {
                                 stopPolling();
-                                // 활성 교환방 조회해서 roomId 가져오기
                                 ExchangeRoomApi roomApi = RetrofitClient.getClient().create(ExchangeRoomApi.class);
-                                roomApi.getActiveRoom(1L).enqueue(new Callback<ExchangeRoomResponse>() {
+                                roomApi.getActiveRoom(getMyUserId()).enqueue(new Callback<ExchangeRoomResponse>() {
                                     @Override
                                     public void onResponse(Call<ExchangeRoomResponse> call, Response<ExchangeRoomResponse> response) {
                                         if (!isAdded()) return;

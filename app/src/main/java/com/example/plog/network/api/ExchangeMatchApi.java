@@ -19,13 +19,13 @@ public interface ExchangeMatchApi {
     Call<ExchangeMatchResponse> createMatch(@Body ExchangeMatchRequest request);
 
     @GET("api/exchange/matches/{matchId}")
-    Call<ExchangeMatchResponse> getMatch(@Path("matchId") Long matchId);
+    Call<ExchangeMatchResponse> getMatch(@Path("matchId") Long matchId, @Query("userId") Long userId);
 
     @POST("api/exchange/matches/{matchId}/accept")
     Call<ExchangeRoomResponse> acceptMatch(@Path("matchId") Long matchId);
 
     @GET("api/exchange/matches/pending")
-    Call<List<ExchangeMatchResponse>> getPendingMatches();
+    Call<List<ExchangeMatchResponse>> getPendingMatches(@Query("userId") Long userId);
 
     @POST("api/exchange/matches/{matchId}/reject")
     Call<Void> rejectMatch(@Path("matchId") Long matchId);

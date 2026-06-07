@@ -1,5 +1,6 @@
 package com.example.plog.ui.exchange;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -32,6 +33,12 @@ public class NotificationFragment extends DialogFragment {
 
     public NotificationFragment() {}
 
+    private long getMyUserId() {
+        return requireActivity()
+                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
+                .getInt("userId", 1);
+    }
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,7 +64,7 @@ public class NotificationFragment extends DialogFragment {
 
     private void loadNotifications() {
         NotificationApi api = RetrofitClient.getClient().create(NotificationApi.class);
-        api.getNotifications(1L).enqueue(new Callback<List<NotificationResponse>>() {
+        api.getNotifications(getMyUserId()).enqueue(new Callback<List<NotificationResponse>>() {
             @Override
             public void onResponse(Call<List<NotificationResponse>> call, Response<List<NotificationResponse>> response) {
                 if (response.isSuccessful() && response.body() != null) {

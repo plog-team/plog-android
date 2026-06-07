@@ -1,5 +1,6 @@
 package com.example.plog.ui.exchange;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -36,6 +37,12 @@ public class NotMatchedFragment extends Fragment {
 
     public NotMatchedFragment() {}
 
+    private long getMyUserId() {
+        return requireActivity()
+                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
+                .getInt("userId", 1);
+    }
+
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_not_matched, container, false);
@@ -64,7 +71,7 @@ public class NotMatchedFragment extends Fragment {
 
     private void loadPendingMatches() {
         ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
-        api.getPendingMatches().enqueue(new Callback<List<ExchangeMatchResponse>>() {
+        api.getPendingMatches(getMyUserId()).enqueue(new Callback<List<ExchangeMatchResponse>>() {
             @Override
             public void onResponse(Call<List<ExchangeMatchResponse>> call, Response<List<ExchangeMatchResponse>> response) {
                 if (!isAdded()) return;
