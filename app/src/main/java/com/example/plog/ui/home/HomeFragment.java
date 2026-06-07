@@ -1,5 +1,6 @@
 package com.example.plog.ui.home;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -10,12 +11,18 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
+import androidx.navigation.fragment.NavHostFragment;
 
 import com.example.plog.R;
 import com.example.plog.databinding.FragmentHomeBinding;
 import com.example.plog.model.ApiResponse;
 import com.example.plog.model.DiarySimpleResponse;
 import com.example.plog.network.ApiClient;
+import com.example.plog.network.RetrofitClient;
+import com.example.plog.network.api.ExchangeMatchApi;
+import com.example.plog.network.api.ExchangeRoomApi;
+import com.example.plog.network.dto.ExchangeMatchResponse;
+import com.example.plog.network.dto.ExchangeRoomResponse;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -76,11 +83,67 @@ public class HomeFragment extends Fragment {
         binding.cardEmotionReport.setOnClickListener(v ->
                 Navigation.findNavController(v).navigate(R.id.action_home_to_emotion_report));
 
+
+        binding.cardExchangeBanner.setOnClickListener(v -> checkActiveRoom());
+    }
+
+    private long getMyUserId() {
+        return requireActivity()
+                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
+                .getInt("userId", 1);
+    }
+
+    private void checkActiveRoom() {
+        ExchangeRoomApi api = RetrofitClient.getClient().create(ExchangeRoomApi.class);
+        api.getActiveRoom(getMyUserId()).enqueue(new Callback<ExchangeRoomResponse>() {
+            @Override
+            public void onResponse(Call<ExchangeRoomResponse> call, Response<ExchangeRoomResponse> response) {
+                if (!isAdded()) return;
+                if (response.isSuccessful() && response.body() != null) {
+                    Bundle bundle = new Bundle();
+                    bundle.putLong("roomId", response.body().getId());
+                    NavHostFragment.findNavController(HomeFragment.this)
+                            .navigate(R.id.matchedFragment, bundle);
+                } else {
+                    checkPendingMatch();
+                }
+            }
+            @Override
+            public void onFailure(Call<ExchangeRoomResponse> call, Throwable t) {
+                if (isAdded()) checkPendingMatch();
+            }
+        });
+    }
+
+    private void checkPendingMatch() {
+        ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
+        api.getMyActiveMatch(getMyUserId()).enqueue(new Callback<ExchangeMatchResponse>() {
+            @Override
+            public void onResponse(Call<ExchangeMatchResponse> call, Response<ExchangeMatchResponse> response) {
+                if (!isAdded()) return;
+                if (response.isSuccessful() && response.body() != null) {
+                    Bundle bundle = new Bundle();
+                    bundle.putLong("matchId", response.body().getId());
+                    NavHostFragment.findNavController(HomeFragment.this)
+                            .navigate(R.id.matchConfirmFragment, bundle);
+                } else {
+                    NavHostFragment.findNavController(HomeFragment.this)
+                            .navigate(R.id.notMatchedFragment);
+                }
+            }
+            @Override
+            public void onFailure(Call<ExchangeMatchResponse> call, Throwable t) {
+                if (isAdded()) {
+                    NavHostFragment.findNavController(HomeFragment.this)
+                            .navigate(R.id.notMatchedFragment);
+                }
+            }
+        });
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        binding = null; // 메모리 누수 방지
+        binding = null;
     }
 }
