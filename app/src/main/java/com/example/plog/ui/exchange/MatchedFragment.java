@@ -297,6 +297,7 @@ public class MatchedFragment extends Fragment {
 
             cvDiaryCard.setOnClickListener(v -> {
                 Bundle bundle = new Bundle();
+                bundle.putBoolean("isExchange", true);
                 bundle.putLong("diaryId", diary.getId());
                 Navigation.findNavController(requireView())
                         .navigate(R.id.action_matchedFragment_to_diaryDetailFragment, bundle);

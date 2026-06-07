@@ -31,6 +31,9 @@ import com.example.plog.data.DiaryInteractionRepository;
 import com.example.plog.data.DiaryLineComment;
 import com.example.plog.data.DiaryRepository;
 import com.example.plog.databinding.FragmentDiaryDetailBinding;
+import com.example.plog.network.RetrofitClient;
+import com.example.plog.network.api.ExchangeDiaryApi;
+import com.example.plog.network.dto.ExchangeDiaryResponse;
 
 import java.io.InputStream;
 import java.text.ParseException;
@@ -38,6 +41,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class DiaryDetailFragment extends Fragment {
     private static final String[] EMOJI_PALETTE = {"😊", "⭐", "❤️", "🌿", "✨", "👍"};
@@ -51,6 +58,11 @@ public class DiaryDetailFragment extends Fragment {
     private boolean interactionsEnabled;
     private String editingCommentId;
     private String pendingDeleteCommentId;
+
+    // 교환일기 모드
+    private boolean isExchange = false;
+    private Long exchangeDiaryId = null;
+    private String exchangeContent = null;
 
     @Nullable
     @Override
@@ -68,8 +80,63 @@ public class DiaryDetailFragment extends Fragment {
         interactionRepository = new DiaryInteractionRepository(requireContext());
         diaryDate = todayKey();
 
-        loadDiary();
+        if (getArguments() != null) {
+            isExchange = getArguments().getBoolean("isExchange", false);
+            long did = getArguments().getLong("diaryId", -1L);
+            if (did != -1L) exchangeDiaryId = did;
+        }
+
+        if (isExchange && exchangeDiaryId != null) {
+            loadExchangeDiary();
+        } else {
+            loadDiary();
+        }
         setupListeners();
+    }
+
+    private void loadExchangeDiary() {
+        ExchangeDiaryApi api = RetrofitClient.getClient().create(ExchangeDiaryApi.class);
+        api.getDiary(exchangeDiaryId).enqueue(new Callback<ExchangeDiaryResponse>() {
+            @Override
+            public void onResponse(Call<ExchangeDiaryResponse> call, Response<ExchangeDiaryResponse> response) {
+                if (!isAdded()) return;
+                if (response.isSuccessful() && response.body() != null) {
+                    ExchangeDiaryResponse diary = response.body();
+                    exchangeContent = diary.getContent();
+                    interactionsEnabled = true;
+
+                    binding.tvDate.setText(diary.getCreatedAt() != null ? diary.getCreatedAt().substring(0, 10) : "");
+                    binding.tvWeather.setText("");
+                    binding.tvLocation.setText("");
+                    binding.tvTitle.setText("DAY " + diary.getDayNumber());
+                    binding.tvSecretNotice.setVisibility(View.GONE);
+                    binding.btnEmoji.setVisibility(View.VISIBLE);
+                    binding.btnEdit.setVisibility(View.GONE);
+
+                    renderExchangeLines();
+                    renderEmojiPalette();
+                    binding.diaryCanvas.post(() -> {
+                        syncEmojiLayerHeight();
+                        renderDecorations();
+                    });
+                }
+            }
+            @Override
+            public void onFailure(Call<ExchangeDiaryResponse> call, Throwable t) {
+                if (!isAdded()) return;
+                Toast.makeText(requireContext(), "일기를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void renderExchangeLines() {
+        binding.lineContainer.removeAllViews();
+        if (exchangeContent == null) return;
+        String[] lines = exchangeContent.split("\\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            binding.lineContainer.addView(createLineView(lines[i], i));
+        }
+        binding.lineContainer.post(this::syncEmojiLayerHeight);
     }
 
     private void loadDiary() {
@@ -99,16 +166,17 @@ public class DiaryDetailFragment extends Fragment {
 
     private void setupListeners() {
         binding.btnBack.setOnClickListener(v -> Navigation.findNavController(v).navigateUp());
-        binding.btnEdit.setOnClickListener(v ->
-                Navigation.findNavController(v).navigate(R.id.action_diaryDetailFragment_to_diaryEditFragment));
+        if (!isExchange) {
+            binding.btnEdit.setOnClickListener(v ->
+                    Navigation.findNavController(v).navigate(R.id.action_diaryDetailFragment_to_diaryEditFragment));
+        }
         binding.btnEmoji.setOnClickListener(v -> {
             boolean show = binding.emojiPalette.getVisibility() != View.VISIBLE;
             binding.emojiPalette.setVisibility(show ? View.VISIBLE : View.GONE);
             binding.btnEmoji.setText(show ? "×" : "+");
         });
         binding.deleteSheetScrim.setOnClickListener(v -> hideDeleteSheet());
-        binding.deleteSheet.setOnClickListener(v -> {
-        });
+        binding.deleteSheet.setOnClickListener(v -> {});
         binding.btnCancelDelete.setOnClickListener(v -> hideDeleteSheet());
         binding.btnConfirmDelete.setOnClickListener(v -> deletePendingComment());
     }
@@ -179,7 +247,8 @@ public class DiaryDetailFragment extends Fragment {
     }
 
     private void addInlineComments(LinearLayout row, int lineIndex) {
-        List<DiaryLineComment> comments = interactionRepository.getComments(diaryDate, lineIndex);
+        String key = isExchange ? "exchange_" + exchangeDiaryId : diaryDate;
+        List<DiaryLineComment> comments = interactionRepository.getComments(key, lineIndex);
         if (!comments.isEmpty()) {
             TextView label = new TextView(requireContext());
             label.setText("댓글 " + comments.size());
@@ -222,7 +291,8 @@ public class DiaryDetailFragment extends Fragment {
                 TextView edit = createCommentAction("수정");
                 edit.setOnClickListener(v -> {
                     editingCommentId = comment.getId();
-                    renderLines();
+                    if (isExchange) renderExchangeLines();
+                    else renderLines();
                 });
                 actionRow.addView(edit);
             }
@@ -242,6 +312,7 @@ public class DiaryDetailFragment extends Fragment {
     }
 
     private View createInlineCommentInput(int lineIndex) {
+        String key = isExchange ? "exchange_" + exchangeDiaryId : diaryDate;
         LinearLayout inputRow = new LinearLayout(requireContext());
         inputRow.setGravity(Gravity.CENTER_VERTICAL);
         inputRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -267,8 +338,9 @@ public class DiaryDetailFragment extends Fragment {
                 Toast.makeText(requireContext(), "댓글 내용을 입력해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
-            interactionRepository.addComment(diaryDate, lineIndex, content);
-            renderLines();
+            interactionRepository.addComment(key, lineIndex, content);
+            if (isExchange) renderExchangeLines();
+            else renderLines();
         });
         LinearLayout.LayoutParams submitParams = new LinearLayout.LayoutParams(dp(44), dp(28));
         submitParams.setMarginStart(dp(5));
@@ -278,6 +350,7 @@ public class DiaryDetailFragment extends Fragment {
     }
 
     private View createInlineCommentEditor(DiaryLineComment comment) {
+        String key = isExchange ? "exchange_" + exchangeDiaryId : diaryDate;
         LinearLayout editor = new LinearLayout(requireContext());
         editor.setGravity(Gravity.CENTER_VERTICAL);
         editor.setOrientation(LinearLayout.HORIZONTAL);
@@ -299,9 +372,10 @@ public class DiaryDetailFragment extends Fragment {
                 Toast.makeText(requireContext(), "댓글 내용을 입력해주세요.", Toast.LENGTH_SHORT).show();
                 return;
             }
-            interactionRepository.updateComment(diaryDate, comment.getId(), content);
+            interactionRepository.updateComment(key, comment.getId(), content);
             editingCommentId = null;
-            renderLines();
+            if (isExchange) renderExchangeLines();
+            else renderLines();
         });
         LinearLayout.LayoutParams saveParams = new LinearLayout.LayoutParams(dp(44), dp(28));
         saveParams.setMarginStart(dp(5));
@@ -310,7 +384,8 @@ public class DiaryDetailFragment extends Fragment {
         TextView cancel = createCompactButton("취소", false);
         cancel.setOnClickListener(v -> {
             editingCommentId = null;
-            renderLines();
+            if (isExchange) renderExchangeLines();
+            else renderLines();
         });
         LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(dp(44), dp(28));
         cancelParams.setMarginStart(dp(5));
@@ -365,15 +440,16 @@ public class DiaryDetailFragment extends Fragment {
             hideDeleteSheet();
             return;
         }
-
+        String key = isExchange ? "exchange_" + exchangeDiaryId : diaryDate;
         String commentId = pendingDeleteCommentId;
-        interactionRepository.deleteComment(diaryDate, commentId);
+        interactionRepository.deleteComment(key, commentId);
         if (commentId.equals(editingCommentId)) {
             editingCommentId = null;
         }
         pendingDeleteCommentId = null;
         binding.deleteSheetScrim.setVisibility(View.GONE);
-        renderLines();
+        if (isExchange) renderExchangeLines();
+        else renderLines();
         Toast.makeText(requireContext(), "댓글이 삭제되었습니다.", Toast.LENGTH_SHORT).show();
     }
 
@@ -390,7 +466,8 @@ public class DiaryDetailFragment extends Fragment {
     }
 
     private void addEmojiDecoration(String emoji) {
-        DiaryEmojiDecoration decoration = interactionRepository.addDecoration(diaryDate, emoji);
+        String key = isExchange ? "exchange_" + exchangeDiaryId : diaryDate;
+        DiaryEmojiDecoration decoration = interactionRepository.addDecoration(key, emoji);
         binding.emojiPalette.setVisibility(View.GONE);
         binding.btnEmoji.setText("+");
         binding.diaryCanvas.post(() -> {
@@ -400,8 +477,9 @@ public class DiaryDetailFragment extends Fragment {
     }
 
     private void renderDecorations() {
+        String key = isExchange ? "exchange_" + exchangeDiaryId : diaryDate;
         binding.emojiLayer.removeAllViews();
-        for (DiaryEmojiDecoration decoration : interactionRepository.getDecorations(diaryDate)) {
+        for (DiaryEmojiDecoration decoration : interactionRepository.getDecorations(key)) {
             addDecorationView(decoration);
         }
     }
@@ -506,8 +584,9 @@ public class DiaryDetailFragment extends Fragment {
     }
 
     private void deleteEmojiDecoration(View view) {
+        String key = isExchange ? "exchange_" + exchangeDiaryId : diaryDate;
         DiaryEmojiDecoration target = (DiaryEmojiDecoration) view.getTag();
-        interactionRepository.deleteDecoration(diaryDate, target.getId());
+        interactionRepository.deleteDecoration(key, target.getId());
         binding.emojiLayer.removeView(view);
         Toast.makeText(requireContext(), "이모지가 삭제되었습니다.", Toast.LENGTH_SHORT).show();
     }

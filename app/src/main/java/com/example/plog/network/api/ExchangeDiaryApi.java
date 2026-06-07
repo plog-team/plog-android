@@ -23,4 +23,7 @@ public interface ExchangeDiaryApi {
 
     @GET("api/exchange/diaries/session/{sessionId}")
     Call<List<ExchangeDiaryResponse>> getDiaries(@Path("sessionId") Long sessionId);
+
+    @GET("api/exchange/diaries/{diaryId}")
+    Call<ExchangeDiaryResponse> getDiary(@Path("diaryId") Long diaryId);
 }
