@@ -223,4 +223,10 @@ public interface ApiService {
     Call<Void> submitEmotionReportFeedback(
             @Path("threadId") String threadId,
             @Body ReportFeedbackRequest request);
+
+    // 홈 화면 - 최신 일기 조회
+    @GET("/api/diaries")
+    Call<ApiResponse<List<DiarySimpleResponse>>> getDiaries(
+            @Query("limit") int limit
+    );
 }

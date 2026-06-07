@@ -27,6 +27,9 @@ import com.example.plog.network.dto.ExchangeRoomResponse;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.List;
+
+import android.util.Log;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -82,7 +85,6 @@ public class HomeFragment extends Fragment {
 
         binding.cardEmotionReport.setOnClickListener(v ->
                 Navigation.findNavController(v).navigate(R.id.action_home_to_emotion_report));
-
 
         binding.cardExchangeBanner.setOnClickListener(v -> checkActiveRoom());
     }

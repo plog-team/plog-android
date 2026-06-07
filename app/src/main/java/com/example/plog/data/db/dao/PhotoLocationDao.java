@@ -129,6 +129,10 @@ public interface PhotoLocationDao {
             "AND pl.longitude != 0.0")
     List<PhotoLocationWithImage> getAllWithLocationAndImageSync(int userId);
 
+    // 같은 photo_id이면 위치 1개라고 보기
+    @Query("DELETE FROM photo_location WHERE photo_id = :photoId")
+    void deleteByPhotoId(int photoId);
+
     // ── 결과 클래스 ───────────────────────────────────────────────────────
     class LocationCluster {
         public double clusterLat;

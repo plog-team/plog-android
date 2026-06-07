@@ -214,7 +214,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 달력 섬네일 + 최신 일기 -->
+        <!-- 달력 섬네일 -->
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/homeCalendarContainer"
             android:name="com.example.plog.ui.calendar.CalendarFragment"

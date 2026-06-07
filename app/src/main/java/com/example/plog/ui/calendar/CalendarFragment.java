@@ -25,6 +25,16 @@ import java.util.Locale;
 import android.widget.LinearLayout;
 import android.widget.ImageView;
 
+import android.util.Log;
+
+import com.example.plog.model.ApiResponse;
+import com.example.plog.model.DiarySimpleResponse;
+import com.example.plog.network.ApiClient;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class CalendarFragment extends Fragment {
 
     private DiaryRepository diaryRepository;
@@ -78,7 +88,7 @@ public class CalendarFragment extends Fragment {
         });
 
         generateCalendarDays();
-        generateRecentDiaries();
+        loadRecentDiariesFromServer();
 
         return view;
     }
@@ -214,6 +224,60 @@ public class CalendarFragment extends Fragment {
 
             recentDiaryContainer.addView(diaryView);
         }
+    }
+
+    private void loadRecentDiariesFromServer() {
+        recentDiaryContainer.removeAllViews();
+
+        ApiClient.getApiService().getDiaries(3)
+                .enqueue(new Callback<ApiResponse<List<DiarySimpleResponse>>>() {
+                    @Override
+                    public void onResponse(
+                            @NonNull Call<ApiResponse<List<DiarySimpleResponse>>> call,
+                            @NonNull Response<ApiResponse<List<DiarySimpleResponse>>> response
+                    ) {
+                        if (!isAdded()) return;
+
+                        if (response.isSuccessful()
+                                && response.body() != null
+                                && response.body().data != null) {
+
+                            recentDiaryContainer.removeAllViews();
+
+                            List<DiarySimpleResponse> diaries = response.body().data;
+
+                            int count = Math.min(3, diaries.size());
+
+                            for (int i = 0; i < count; i++) {
+                                DiarySimpleResponse diary = diaries.get(i);
+
+                                View diaryView = LayoutInflater.from(requireContext())
+                                        .inflate(R.layout.item_recent_diary, recentDiaryContainer, false);
+
+                                ImageView imgRecentDiary = diaryView.findViewById(R.id.imgRecentDiary);
+                                TextView tvRecentTitle = diaryView.findViewById(R.id.tvRecentTitle);
+                                TextView tvRecentDate = diaryView.findViewById(R.id.tvRecentDate);
+                                TextView tvRecentContent = diaryView.findViewById(R.id.tvRecentContent);
+
+                                imgRecentDiary.setImageResource(R.drawable.test_photo);
+
+                                tvRecentTitle.setText(diary.title);
+                                tvRecentDate.setText(formatDateForRecent(diary.date));
+                                tvRecentContent.setText(diary.body);
+
+                                recentDiaryContainer.addView(diaryView);
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(
+                            @NonNull Call<ApiResponse<List<DiarySimpleResponse>>> call,
+                            @NonNull Throwable t
+                    ) {
+                        Log.e("CALENDAR", "최근 일기 불러오기 실패", t);
+                    }
+                });
     }
 
     private String formatDateForRecent(String date) {

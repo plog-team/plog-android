@@ -10,9 +10,12 @@ import com.example.plog.databinding.ActivityMainBinding;
 import com.example.plog.network.ApiClient;
 import com.example.plog.ui.exchange.NotificationFragment;
 
-// 테스트
+// 알림
+import com.example.plog.util.SessionManager;
+import com.example.plog.util.Constants;
 import com.example.plog.notification.GeofenceManager;
 import com.example.plog.notification.DiaryReminderScheduler;
+import com.example.plog.notification.sync.PhotoLocationSyncManager;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -35,6 +38,20 @@ public class MainActivity extends AppCompatActivity {
 
         // 22시에 실행됨
         DiaryReminderScheduler.scheduleDailyDiaryReminder(this);
+
+        // userId: 1인 상태
+        PhotoLocationSyncManager.sync(this, 1);
+
+        /* 이후 변화 필요하다면 이렇게
+        int rawUserId = new SessionManager(this).getUserId();
+
+        long userId =
+                rawUserId == -1
+                        ? Constants.DEV_USER_ID
+                        : rawUserId;
+
+        PhotoLocationSyncManager.sync(this, userId);
+         */
 
         // 재방문 위치 알림용 권한 요청 + Foreground Service 시작
         geofenceManager = new GeofenceManager(this);
