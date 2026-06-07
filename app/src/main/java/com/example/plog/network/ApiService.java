@@ -37,6 +37,12 @@ import java.util.Map;
 import okhttp3.MultipartBody;
 import retrofit2.Call;
 import retrofit2.http.*;
+import com.example.plog.api.model.PlaceItemDto;
+import com.example.plog.api.model.PlaceDetailDto;
+import com.example.plog.api.model.CongestionDto;
+import com.example.plog.model.PreferenceUpdateRequest;
+
+
 
 public interface ApiService {
 
@@ -45,6 +51,8 @@ public interface ApiService {
 
     @GET("api/recommend/preference")
     Call<PreferenceResponse> getPreference();
+    @PUT("api/recommend/preference")
+    Call<Void> updatePreferences(@Body PreferenceUpdateRequest req);
 
     // 북마크
 
@@ -120,8 +128,8 @@ public interface ApiService {
 
     @POST("api/ai-guide/sessions/{sessionId}/feedback")
     Call<Void> submitFeedback(
-        @Path("sessionId") long sessionId,
-        @Body FeedbackRequest request
+            @Path("sessionId") long sessionId,
+            @Body FeedbackRequest request
     );
 
     // 일기
@@ -223,4 +231,23 @@ public interface ApiService {
     Call<Void> submitEmotionReportFeedback(
             @Path("threadId") String threadId,
             @Body ReportFeedbackRequest request);
+
+    // Tour API (백엔드 경유)
+    @GET("api/tour/nearby")
+    Call<ApiResponse<List<PlaceItemDto>>> getNearby(
+            @Query("mapX") double mapX,
+            @Query("mapY") double mapY,
+            @Query("radius") int radius,
+            @Query("numOfRows") int numOfRows,
+            @Query("pageNo") int pageNo,
+            @Query("contentTypeId") String contentTypeId);
+
+    @GET("api/tour/detail")
+    Call<ApiResponse<PlaceDetailDto>> getDetail(
+            @Query("contentId") String contentId,
+            @Query("contentTypeId") String contentTypeId);
+
+    @GET("api/tour/congestion/{placeName}")
+    Call<CongestionDto> getCongestion(@Path("placeName") String placeName);
+
 }
