@@ -179,6 +179,19 @@
         android:textColor="@color/white"
         android:textSize="32sp" />
 
+    <ImageButton
+        android:id="@+id/btnHome"
+        android:layout_width="54dp"
+        android:layout_height="54dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="72dp"
+        android:background="@drawable/bg_purple_circle"
+        android:contentDescription="홈"
+        android:elevation="8dp"
+        android:padding="15dp"
+        android:src="@drawable/ic_home"
+        android:tint="@color/white" />
+
     <FrameLayout
         android:id="@+id/deleteSheetScrim"
         android:layout_width="match_parent"

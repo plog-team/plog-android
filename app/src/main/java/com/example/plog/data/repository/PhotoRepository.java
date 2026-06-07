@@ -10,6 +10,7 @@ import android.provider.MediaStore;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 import androidx.lifecycle.LiveData;
 
@@ -22,13 +23,13 @@ import com.example.plog.model.ApiResponse;
 import com.example.plog.model.PhotoUploadBatchResponse;
 import com.example.plog.network.ApiClient;
 import com.example.plog.util.ExifExtractor;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import okio.BufferedSink;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
@@ -174,19 +175,12 @@ public class PhotoRepository {
     /** 갤러리 URI → 서버 업로드. 실패해도 로컬 저장에 영향 없음. */
     @WorkerThread
     private void uploadToServer(@NonNull Uri uri, @NonNull Context context) {
-        try (InputStream is = context.getContentResolver().openInputStream(uri)) {
-            if (is == null) return;
-
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            byte[] buf = new byte[8192];
-            int n;
-            while ((n = is.read(buf)) > 0) baos.write(buf, 0, n);
-
+        try {
             String mime = context.getContentResolver().getType(uri);
             if (mime == null) mime = "image/jpeg";
             String filename = "photo_" + System.currentTimeMillis() + ".jpg";
 
-            RequestBody body = RequestBody.create(baos.toByteArray(), MediaType.parse(mime));
+            RequestBody body = new ContentUriRequestBody(context, uri, MediaType.parse(mime));
             MultipartBody.Part part = MultipartBody.Part.createFormData("file", filename, body);
 
             Response<ApiResponse<PhotoUploadBatchResponse>> response =
@@ -204,6 +198,38 @@ public class PhotoRepository {
             }
         } catch (Exception e) {
             Log.w("PhotoRepository", "서버 업로드 실패 (무시): " + e.getMessage());
+        }
+    }
+
+    private static class ContentUriRequestBody extends RequestBody {
+        private final Context context;
+        private final Uri uri;
+        private final MediaType mediaType;
+
+        ContentUriRequestBody(@NonNull Context context, @NonNull Uri uri, @Nullable MediaType mediaType) {
+            this.context = context.getApplicationContext();
+            this.uri = uri;
+            this.mediaType = mediaType;
+        }
+
+        @Nullable
+        @Override
+        public MediaType contentType() {
+            return mediaType;
+        }
+
+        @Override
+        public void writeTo(@NonNull BufferedSink sink) throws IOException {
+            try (InputStream inputStream = context.getContentResolver().openInputStream(uri)) {
+                if (inputStream == null) {
+                    throw new IOException("Cannot open image stream: " + uri);
+                }
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = inputStream.read(buffer)) != -1) {
+                    sink.write(buffer, 0, read);
+                }
+            }
         }
     }
 

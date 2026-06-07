@@ -5,8 +5,6 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Build;
@@ -36,6 +34,8 @@ import androidx.navigation.Navigation;
 import com.example.plog.ui.photo.PhotoViewModel;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.model.LazyHeaders;
 import com.example.plog.R;
 import com.example.plog.databinding.FragmentDiaryEditBinding;
 import com.example.plog.model.ApiResponse;
@@ -46,6 +46,7 @@ import com.example.plog.network.RetrofitClient;
 import com.example.plog.network.api.ExchangeDiaryApi;
 import com.example.plog.network.dto.ExchangeDiaryRequest;
 import com.example.plog.network.dto.ExchangeDiaryResponse;
+import com.example.plog.util.Constants;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -181,7 +182,7 @@ public class DiaryEditFragment extends Fragment {
     private void observePhotoSaveResult() {
         photoViewModel.getSavedPhotoResult().observe(getViewLifecycleOwner(), result -> {
             if (result == null) return;
-            photoIdByGalleryUri.put(result.getUri(), result.getPhotoId());
+            photoIdByGalleryUri.remove(result.getUri());
         });
     }
 
@@ -230,7 +231,13 @@ public class DiaryEditFragment extends Fragment {
         previewPhotoIndex = representativePhotoIndex;
         existingPhotoIds.clear();
         if (diary.photoIds != null) existingPhotoIds.addAll(diary.photoIds);
-        binding.tvPhotoCount.setText(existingPhotoIds.size() + "/" + MAX_PHOTO_COUNT + "(사진 개수)");
+        selectedPhotos.clear();
+        activeGalleryUris.clear();
+        photoIdByGalleryUri.clear();
+        for (Long photoId : existingPhotoIds) {
+            selectedPhotos.add(Uri.parse(photoUrl(photoId)));
+        }
+        renderPhotos();
         updateBookmarkUi();
     }
 
@@ -351,7 +358,7 @@ public class DiaryEditFragment extends Fragment {
                 showRepresentativePopup(v, photoIndex);
             });
 
-            Glide.with(this).load(selectedPhotos.get(i)).centerCrop().into(thumbnail);
+            Glide.with(this).load(glidePhotoModel(selectedPhotos.get(i))).centerCrop().into(thumbnail);
             binding.photoStrip.addView(thumbnail);
         }
     }
@@ -362,16 +369,7 @@ public class DiaryEditFragment extends Fragment {
         Uri previewUri = selectedPhotos.get(previewPhotoIndex);
         binding.ivRepresentativePhoto.setImageDrawable(null);
         binding.ivRepresentativePhoto.setBackgroundResource(R.drawable.bg_photo_placeholder);
-
-        try (InputStream inputStream = requireContext().getContentResolver().openInputStream(previewUri)) {
-            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-            if (bitmap != null) {
-                binding.ivRepresentativePhoto.setImageBitmap(bitmap);
-                return;
-            }
-        } catch (Exception ignored) {}
-
-        Glide.with(this).load(previewUri).centerCrop().error(R.drawable.bg_photo_placeholder).into(binding.ivRepresentativePhoto);
+        Glide.with(this).load(glidePhotoModel(previewUri)).centerCrop().error(R.drawable.bg_photo_placeholder).into(binding.ivRepresentativePhoto);
     }
 
     private void showRepresentativePopup(View anchor, int photoIndex) {
@@ -392,8 +390,9 @@ public class DiaryEditFragment extends Fragment {
                 return;
             }
             representativePhotoIndex = photoIndex;
-            String selectedGalleryUri = activeGalleryUris.get(photoIndex);
-            applyAutoInputByGalleryUri(selectedGalleryUri);
+            if (photoIndex < activeGalleryUris.size()) {
+                applyAutoInputByGalleryUri(activeGalleryUris.get(photoIndex));
+            }
             dismissRepresentativePopup();
             renderPhotos();
             Toast.makeText(requireContext(), "대표사진이 변경되었습니다.", Toast.LENGTH_SHORT).show();
@@ -543,8 +542,12 @@ public class DiaryEditFragment extends Fragment {
                 requireActivity().runOnUiThread(() -> {
                     String dateText = context.date != null && !context.date.trim().isEmpty() ? context.date : DATE_EMPTY;
                     String dateKey = normalizeDateKey(context);
-                    if (dateKey != null) selectedDiaryDateKey = dateKey;
-                    binding.tvDate.setText(dateText);
+                    if (editingDiaryId > 0) {
+                        binding.tvDate.setText(selectedDiaryDateKey);
+                    } else {
+                        if (dateKey != null) selectedDiaryDateKey = dateKey;
+                        binding.tvDate.setText(dateText);
+                    }
                     binding.etLocation.setText(context.locationHint != null && !context.locationHint.trim().isEmpty() ? context.locationHint : LOCATION_EMPTY);
                     String weatherText = context.weather != null && !context.weather.trim().isEmpty() ? context.weather : WEATHER_EMPTY;
                     if (context.weather != null && context.temperature != null) weatherText += " / " + context.temperature + "℃";
@@ -687,6 +690,23 @@ public class DiaryEditFragment extends Fragment {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String photoUrl(Long photoId) {
+        String baseUrl = Constants.BASE_URL.endsWith("/")
+                ? Constants.BASE_URL
+                : Constants.BASE_URL + "/";
+        return baseUrl + "api/photos/" + photoId;
+    }
+
+    private Object glidePhotoModel(Uri photoUri) {
+        String uri = photoUri == null ? "" : photoUri.toString();
+        if (uri.startsWith("http://") || uri.startsWith("https://")) {
+            return new GlideUrl(uri, new LazyHeaders.Builder()
+                    .addHeader(Constants.HEADER_USER_ID, String.valueOf(Constants.DEV_USER_ID))
+                    .build());
+        }
+        return photoUri;
     }
 
     private int clampPhotoIndex(int index) {
