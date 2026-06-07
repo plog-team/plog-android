@@ -21,10 +21,15 @@ public class TypingEffect {
      * @param charDelayMs 글자 사이 간격 (15~40ms 추천)
      */
     public static void apply(TextView tv, String text, long charDelayMs) {
+        apply(tv, text, charDelayMs, null);
+    }
+
+    public static void apply(TextView tv, String text, long charDelayMs, Runnable onComplete) {
         if (tv == null) return;
         cancel(tv);
         if (text == null || text.isEmpty()) {
             tv.setText("");
+            if (onComplete != null) HANDLER.post(onComplete);
             return;
         }
         final String t = text;
@@ -42,6 +47,7 @@ public class TypingEffect {
                     HANDLER.postDelayed(this, charDelayMs);
                 } else {
                     ACTIVE.remove(tv);
+                    if (onComplete != null) HANDLER.post(onComplete);
                 }
             }
         };

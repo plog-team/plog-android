@@ -33,6 +33,16 @@ public class QuestionAnswerAdapter extends RecyclerView.Adapter<QuestionAnswerAd
     private final Map<Long, Integer> selectedCardIdx = new HashMap<>();
     private ViewPager2 viewPager;
 
+    public interface OnAnswerSelected {
+        void onSelected(long questionId);
+    }
+
+    private OnAnswerSelected selectListener;
+
+    public void setOnAnswerSelected(OnAnswerSelected l) {
+        this.selectListener = l;
+    }
+
     public void setViewPager(ViewPager2 vp) {
         this.viewPager = vp;
     }
@@ -54,6 +64,15 @@ public class QuestionAnswerAdapter extends RecyclerView.Adapter<QuestionAnswerAd
         return new HashMap<>(answers);
     }
 
+    public void addItem(GuideQuestionDto q) {
+        if (q == null) return;
+        items.add(q);
+        if (q.answer != null && !q.answer.isEmpty()) {
+            answers.put(q.questionId, q.answer);
+        }
+        notifyItemInserted(items.size() - 1);
+    }
+
     @NonNull
     @Override
     public QAH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -64,7 +83,7 @@ public class QuestionAnswerAdapter extends RecyclerView.Adapter<QuestionAnswerAd
     @Override
     public void onBindViewHolder(@NonNull QAH holder, int position) {
         GuideQuestionDto q = items.get(position);
-        holder.bind(q, answers, selectedCardIdx, viewPager, getItemCount());
+        holder.bind(q, answers, selectedCardIdx, viewPager, getItemCount(), selectListener);
     }
 
     @Override
@@ -93,7 +112,7 @@ public class QuestionAnswerAdapter extends RecyclerView.Adapter<QuestionAnswerAd
 
         void bind(GuideQuestionDto q, Map<Long, String> answers,
                   Map<Long, Integer> selectedCardIdx,
-                  ViewPager2 viewPager, int totalCount) {
+                  ViewPager2 viewPager, int totalCount, OnAnswerSelected selectListener) {
             tvQuestion.setText("Q" + q.orderIdx + ". " + q.question);
 
             List<String> suggestions = q.suggestedAnswers;
@@ -114,12 +133,8 @@ public class QuestionAnswerAdapter extends RecyclerView.Adapter<QuestionAnswerAd
                         for (int j = 0; j < 3; j++) {
                             applyCardStyle(cards[j], j == idx);
                         }
-                        // 마지막 페이지가 아니면 다음 페이지로 자동 이동
-                        if (viewPager != null) {
-                            int next = getAdapterPosition() + 1;
-                            if (next >= 0 && next < totalCount) {
-                                viewPager.postDelayed(() -> viewPager.setCurrentItem(next, true), 200L);
-                            }
+                        if (selectListener != null) {
+                            selectListener.onSelected(q.questionId);
                         }
                     });
                 } else {
