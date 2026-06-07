@@ -1,0 +1,29 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#FFFFFF"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/btnReport"
+        android:layout_width="180dp"
+        android:layout_height="wrap_content"
+        android:text="신고하기"
+        android:textColor="#D32F2F"
+        android:padding="10dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EEEEEE"/>
+
+    <TextView
+        android:id="@+id/btnBlock"
+        android:layout_width="180dp"
+        android:layout_height="wrap_content"
+        android:text="차단하기"
+        android:textColor="#D32F2F"
+        android:padding="10dp"/>
+
+</LinearLayout>

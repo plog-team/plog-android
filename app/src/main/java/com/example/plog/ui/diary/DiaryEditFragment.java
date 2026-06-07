@@ -41,6 +41,10 @@ import com.example.plog.model.ApiResponse;
 import com.example.plog.model.DiarySimpleResponse;
 import com.example.plog.model.DiaryUpsertRequest;
 import com.example.plog.network.ApiClient;
+import com.example.plog.network.RetrofitClient;
+import com.example.plog.network.api.ExchangeDiaryApi;
+import com.example.plog.network.dto.ExchangeDiaryRequest;
+import com.example.plog.network.dto.ExchangeDiaryResponse;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -49,9 +53,9 @@ import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.HashMap;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -79,17 +83,21 @@ public class DiaryEditFragment extends Fragment {
     private int representativePhotoIndex;
     private int previewPhotoIndex;
     private PopupWindow representativePopup;
-    private final List<Uri>    selectedPhotos    = new ArrayList<>();
-    /** DB photo.image_url 에 저장된 갤러리 URI 목록 — 사진 교체 시 소프트 삭제 대상 */
+    private final List<Uri> selectedPhotos = new ArrayList<>();
     private final List<String> activeGalleryUris = new ArrayList<>();
     private final List<Long> existingPhotoIds = new ArrayList<>();
+    private final Map<String, Long> photoIdByGalleryUri = new HashMap<>();
+
+    // 교환일기 모드 변수
+    private boolean isExchange = false;
+    private Long sessionId = null;
+    private Long userId = null;
+    private int dayNumber = 1;
+    private Long exchangeDiaryId = null;
 
     private final ActivityResultLauncher<String> requestLocationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted ->
                     openGalleryIntent());
-
-    /** 원본 갤러리 URI와 DB photoId 매핑 */
-    private final Map<String, Long> photoIdByGalleryUri = new HashMap<>();
 
     private final ActivityResultLauncher<Intent> photoPicker =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -104,7 +112,6 @@ public class DiaryEditFragment extends Fragment {
                 }
                 if (uris.isEmpty()) return;
 
-                // 기존에 DB에 저장됐던 사진들 소프트 삭제
                 for (String oldUri : activeGalleryUris) {
                     photoViewModel.removePhotoByUrl(oldUri);
                 }
@@ -116,7 +123,7 @@ public class DiaryEditFragment extends Fragment {
                 for (Uri uri : limited) {
                     persistReadPermission(uri);
                     photoViewModel.processPhoto(uri);
-                    activeGalleryUris.add(uri.toString()); // 갤러리 URI 추적
+                    activeGalleryUris.add(uri.toString());
                     Uri localUri = copyPhotoToLocalStorage(uri);
                     selectedPhotos.add(localUri == null ? uri : localUri);
                 }
@@ -142,28 +149,48 @@ public class DiaryEditFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         photoViewModel = new ViewModelProvider(this).get(PhotoViewModel.class);
-        editingDiaryId = getArguments() == null ? -1L : getArguments().getLong("diaryId", -1L);
         todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
         selectedDiaryDateKey = todayKey;
+
+        if (getArguments() != null) {
+            isExchange = getArguments().getBoolean("isExchange", false);
+            if (isExchange) {
+                sessionId = getArguments().getLong("sessionId", -1L);
+                if (sessionId == -1L) sessionId = null;
+                userId = getArguments().getLong("userId", -1L);
+                if (userId == -1L) userId = null;
+                dayNumber = getArguments().getInt("dayNumber", 1);
+                long did = getArguments().getLong("diaryId", -1L);
+                if (did != -1L) exchangeDiaryId = did;
+            } else {
+                editingDiaryId = getArguments().getLong("diaryId", -1L);
+            }
+        }
+
+        if (isExchange) {
+            binding.tvMode.setText(exchangeDiaryId != null ? "교환일기 수정" : "교환일기 작성");
+        }
 
         setupInitialState();
         setupListeners();
         observePhotoSaveResult();
     }
 
-    /** 사진 저장 완료 시 원본 URI와 photoId를 매핑 */
     private void observePhotoSaveResult() {
         photoViewModel.getSavedPhotoResult().observe(getViewLifecycleOwner(), result -> {
             if (result == null) return;
             photoIdByGalleryUri.put(result.getUri(), result.getPhotoId());
         });
     }
+
     private void setupInitialState() {
         binding.tvDate.setText(formatDisplayDate(new Date()));
-        binding.tvMode.setText(editingDiaryId > 0 ? "일기 수정" : "일기 작성");
+        if (!isExchange) {
+            binding.tvMode.setText(editingDiaryId > 0 ? "일기 수정" : "일기 작성");
+        }
         binding.tvPhotoCount.setText("0/" + MAX_PHOTO_COUNT + "(사진 개수)");
         updateBookmarkUi();
-        if (editingDiaryId > 0) {
+        if (!isExchange && editingDiaryId > 0) {
             loadExistingDiary();
         }
     }
@@ -174,9 +201,7 @@ public class DiaryEditFragment extends Fragment {
                     @Override
                     public void onResponse(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
                                            @NonNull Response<ApiResponse<DiarySimpleResponse>> response) {
-                        if (!response.isSuccessful()
-                                || response.body() == null
-                                || response.body().data == null) {
+                        if (!response.isSuccessful() || response.body() == null || response.body().data == null) {
                             Toast.makeText(requireContext(), "일기를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
                             return;
                         }
@@ -184,8 +209,7 @@ public class DiaryEditFragment extends Fragment {
                     }
 
                     @Override
-                    public void onFailure(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
-                                          @NonNull Throwable t) {
+                    public void onFailure(@NonNull Call<ApiResponse<DiarySimpleResponse>> call, @NonNull Throwable t) {
                         Toast.makeText(requireContext(), "일기 조회 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -203,9 +227,7 @@ public class DiaryEditFragment extends Fragment {
         representativePhotoIndex = diary.representativePhotoIndex;
         previewPhotoIndex = representativePhotoIndex;
         existingPhotoIds.clear();
-        if (diary.photoIds != null) {
-            existingPhotoIds.addAll(diary.photoIds);
-        }
+        if (diary.photoIds != null) existingPhotoIds.addAll(diary.photoIds);
         binding.tvPhotoCount.setText(existingPhotoIds.size() + "/" + MAX_PHOTO_COUNT + "(사진 개수)");
         updateBookmarkUi();
     }
@@ -214,7 +236,7 @@ public class DiaryEditFragment extends Fragment {
         binding.btnClose.setOnClickListener(v -> Navigation.findNavController(v).navigateUp());
         binding.photoPickerArea.setOnClickListener(v -> openPhotoPicker());
         binding.btnSave.setOnClickListener(v -> showSavePopup());
-        setupAutoInputEditablePlaceholders();
+        if (!isExchange) setupAutoInputEditablePlaceholders();
 
         binding.btnBookmark.setOnClickListener(v -> {
             isBookmarked = !isBookmarked;
@@ -234,37 +256,34 @@ public class DiaryEditFragment extends Fragment {
     private void openAiGuide(View view) {
         binding.aiMenu.setVisibility(View.GONE);
         binding.btnAi.setText("+");
+        Bundle bundle = new Bundle();
+        ArrayList<String> uriStrings = new ArrayList<>();
+        for (Uri uri : selectedPhotos) uriStrings.add(uri.toString());
+        bundle.putStringArrayList("photoUris", uriStrings);
         Navigation.findNavController(view)
-                .navigate(R.id.action_diaryEditFragment_to_aiGuideEntryFragment);
+                .navigate(R.id.action_diaryEditFragment_to_aiGuideEntryFragment, bundle);
     }
 
     private void setupAutoInputEditablePlaceholders() {
         binding.etLocation.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) {
-                clearAutoInputPlaceholder(binding.etLocation);
-            }
+            if (hasFocus) clearAutoInputPlaceholder(binding.etLocation);
         });
         binding.etLocation.setOnClickListener(v -> clearAutoInputPlaceholder(binding.etLocation));
         binding.etWeather.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) {
-                clearAutoInputPlaceholder(binding.etWeather);
-            }
+            if (hasFocus) clearAutoInputPlaceholder(binding.etWeather);
         });
         binding.etWeather.setOnClickListener(v -> clearAutoInputPlaceholder(binding.etWeather));
     }
 
     private void clearAutoInputPlaceholder(TextView field) {
         String value = field.getText() == null ? "" : field.getText().toString().trim();
-        if (isAutoInputPlaceholder(value)) {
-            field.setText("");
-        }
+        if (isAutoInputPlaceholder(value)) field.setText("");
     }
 
     private void openPhotoPicker() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
                 && ContextCompat.checkSelfPermission(requireContext(),
-                        Manifest.permission.ACCESS_MEDIA_LOCATION)
-                        != PackageManager.PERMISSION_GRANTED) {
+                Manifest.permission.ACCESS_MEDIA_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestLocationPermissionLauncher.launch(Manifest.permission.ACCESS_MEDIA_LOCATION);
         } else {
             openGalleryIntent();
@@ -276,18 +295,14 @@ public class DiaryEditFragment extends Fragment {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent = new Intent(MediaStore.ACTION_PICK_IMAGES);
             intent.setType("image/*");
-            intent.putExtra(
-                    MediaStore.EXTRA_PICK_IMAGES_MAX,
-                    Math.min(MAX_PHOTO_COUNT, MediaStore.getPickImagesMaxLimit())
-            );
+            intent.putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, Math.min(MAX_PHOTO_COUNT, MediaStore.getPickImagesMaxLimit()));
         } else {
             intent = new Intent(Intent.ACTION_GET_CONTENT);
             intent.setType("image/*");
             intent.addCategory(Intent.CATEGORY_OPENABLE);
         }
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
-                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         photoPicker.launch(intent);
     }
 
@@ -295,8 +310,7 @@ public class DiaryEditFragment extends Fragment {
         try {
             requireContext().getContentResolver()
                     .takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     private void renderPhotos() {
@@ -326,9 +340,7 @@ public class DiaryEditFragment extends Fragment {
             thumbnail.setLayoutParams(params);
             thumbnail.setScaleType(ImageView.ScaleType.CENTER_CROP);
             thumbnail.setPadding(dp(2), dp(2), dp(2), dp(2));
-            if (i == representativePhotoIndex) {
-                thumbnail.setBackgroundResource(R.drawable.bg_thumbnail_selected);
-            }
+            if (i == representativePhotoIndex) thumbnail.setBackgroundResource(R.drawable.bg_thumbnail_selected);
 
             int photoIndex = i;
             thumbnail.setOnClickListener(v -> {
@@ -337,18 +349,13 @@ public class DiaryEditFragment extends Fragment {
                 showRepresentativePopup(v, photoIndex);
             });
 
-            Glide.with(this)
-                    .load(selectedPhotos.get(i))
-                    .centerCrop()
-                    .into(thumbnail);
+            Glide.with(this).load(selectedPhotos.get(i)).centerCrop().into(thumbnail);
             binding.photoStrip.addView(thumbnail);
         }
     }
 
     private void renderPreviewPhoto() {
-        if (selectedPhotos.isEmpty()) {
-            return;
-        }
+        if (selectedPhotos.isEmpty()) return;
 
         Uri previewUri = selectedPhotos.get(previewPhotoIndex);
         binding.ivRepresentativePhoto.setImageDrawable(null);
@@ -360,14 +367,9 @@ public class DiaryEditFragment extends Fragment {
                 binding.ivRepresentativePhoto.setImageBitmap(bitmap);
                 return;
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
 
-        Glide.with(this)
-                .load(previewUri)
-                .centerCrop()
-                .error(R.drawable.bg_photo_placeholder)
-                .into(binding.ivRepresentativePhoto);
+        Glide.with(this).load(previewUri).centerCrop().error(R.drawable.bg_photo_placeholder).into(binding.ivRepresentativePhoto);
     }
 
     private void showRepresentativePopup(View anchor, int photoIndex) {
@@ -387,12 +389,9 @@ public class DiaryEditFragment extends Fragment {
                 dismissRepresentativePopup();
                 return;
             }
-
             representativePhotoIndex = photoIndex;
-
             String selectedGalleryUri = activeGalleryUris.get(photoIndex);
             applyAutoInputByGalleryUri(selectedGalleryUri);
-
             dismissRepresentativePopup();
             renderPhotos();
             Toast.makeText(requireContext(), "대표사진이 변경되었습니다.", Toast.LENGTH_SHORT).show();
@@ -405,45 +404,21 @@ public class DiaryEditFragment extends Fragment {
     }
 
     private void dismissRepresentativePopup() {
-        if (representativePopup != null && representativePopup.isShowing()) {
-            representativePopup.dismiss();
-        }
+        if (representativePopup != null && representativePopup.isShowing()) representativePopup.dismiss();
         representativePopup = null;
-    }
-
-    private void readPhotoMetadata(Uri uri) {
-        try (InputStream inputStream = requireContext().getContentResolver().openInputStream(uri)) {
-            if (inputStream == null) {
-                return;
-            }
-
-            ExifInterface exif = new ExifInterface(inputStream);
-            float[] latLong = new float[2];
-            if (exif.getLatLong(latLong) && isBlank(binding.etLocation.getText().toString())) {
-                binding.etLocation.setText(String.format(Locale.KOREA, "위도 %.5f, 경도 %.5f", latLong[0], latLong[1]));
-            }
-        } catch (Exception ignored) {
-        }
     }
 
     private Uri copyPhotoToLocalStorage(Uri sourceUri) {
         File photoDir = new File(requireContext().getFilesDir(), "diary_photos");
-        if (!photoDir.exists() && !photoDir.mkdirs()) {
-            return null;
-        }
+        if (!photoDir.exists() && !photoDir.mkdirs()) return null;
 
         File target = new File(photoDir, "diary_" + System.currentTimeMillis() + "_" + Math.abs(sourceUri.hashCode()) + ".jpg");
         try (InputStream inputStream = requireContext().getContentResolver().openInputStream(sourceUri);
              OutputStream outputStream = new FileOutputStream(target)) {
-            if (inputStream == null) {
-                return null;
-            }
-
+            if (inputStream == null) return null;
             byte[] buffer = new byte[8192];
             int read;
-            while ((read = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, read);
-            }
+            while ((read = inputStream.read(buffer)) != -1) outputStream.write(buffer, 0, read);
             outputStream.flush();
             return Uri.fromFile(target);
         } catch (Exception ignored) {
@@ -452,14 +427,8 @@ public class DiaryEditFragment extends Fragment {
     }
 
     private void showSavePopup() {
-        View popupView = LayoutInflater.from(requireContext())
-                .inflate(R.layout.popup_diary_save, null, false);
-        PopupWindow popupWindow = new PopupWindow(
-                popupView,
-                dp(190),
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                true
-        );
+        View popupView = LayoutInflater.from(requireContext()).inflate(R.layout.popup_diary_save, null, false);
+        PopupWindow popupWindow = new PopupWindow(popupView, dp(190), ViewGroup.LayoutParams.WRAP_CONTENT, true);
         popupWindow.setOutsideTouchable(true);
         popupWindow.setElevation(dp(8));
 
@@ -471,25 +440,66 @@ public class DiaryEditFragment extends Fragment {
         cbSecret.setChecked(isSecret);
         cbPublic.setChecked(!isSecret);
 
-        cbPublic.setOnCheckedChangeListener((buttonView, checked) -> {
-            if (checked) {
-                cbSecret.setChecked(false);
-            }
-        });
-        cbSecret.setOnCheckedChangeListener((buttonView, checked) -> {
-            if (checked) {
-                cbPublic.setChecked(false);
-            }
-        });
+        cbPublic.setOnCheckedChangeListener((buttonView, checked) -> { if (checked) cbSecret.setChecked(false); });
+        cbSecret.setOnCheckedChangeListener((buttonView, checked) -> { if (checked) cbPublic.setChecked(false); });
         btnDismiss.setOnClickListener(v -> popupWindow.dismiss());
         btnUpload.setOnClickListener(v -> {
             isSecret = cbSecret.isChecked();
-            saveDiary(popupWindow);
+            if (isExchange) {
+                saveExchangeDiary(popupWindow);
+            } else {
+                saveDiary(popupWindow);
+            }
         });
 
         popupWindow.showAtLocation(binding.getRoot(), Gravity.TOP | Gravity.END, dp(20), dp(72));
     }
-    /** 대표사진 URI로 서버 photoId를 조회한 뒤 자동입력 API를 호출 */
+
+    private void saveExchangeDiary(PopupWindow popupWindow) {
+        String body = binding.etBody.getText().toString().trim();
+        if (isBlank(body)) {
+            binding.etBody.requestFocus();
+            Toast.makeText(requireContext(), "본문을 1자 이상 입력해주세요.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        ExchangeDiaryApi api = RetrofitClient.getClient().create(ExchangeDiaryApi.class);
+        if (exchangeDiaryId != null) {
+            Map<String, String> requestBody = new HashMap<>();
+            requestBody.put("content", body);
+            api.updateDiary(exchangeDiaryId, requestBody).enqueue(new Callback<ExchangeDiaryResponse>() {
+                @Override
+                public void onResponse(Call<ExchangeDiaryResponse> call, Response<ExchangeDiaryResponse> response) {
+                    if (!isAdded()) return;
+                    popupWindow.dismiss();
+                    Toast.makeText(requireContext(), "교환일기가 수정되었습니다.", Toast.LENGTH_SHORT).show();
+                    Navigation.findNavController(binding.getRoot()).popBackStack();
+                }
+                @Override
+                public void onFailure(Call<ExchangeDiaryResponse> call, Throwable t) {
+                    if (!isAdded()) return;
+                    Toast.makeText(requireContext(), "수정 실패: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            ExchangeDiaryRequest request = new ExchangeDiaryRequest(sessionId, userId, body, dayNumber);
+            api.createDiary(request).enqueue(new Callback<ExchangeDiaryResponse>() {
+                @Override
+                public void onResponse(Call<ExchangeDiaryResponse> call, Response<ExchangeDiaryResponse> response) {
+                    if (!isAdded()) return;
+                    popupWindow.dismiss();
+                    Toast.makeText(requireContext(), "교환일기가 저장되었습니다.", Toast.LENGTH_SHORT).show();
+                    Navigation.findNavController(binding.getRoot()).popBackStack();
+                }
+                @Override
+                public void onFailure(Call<ExchangeDiaryResponse> call, Throwable t) {
+                    if (!isAdded()) return;
+                    Toast.makeText(requireContext(), "저장 실패: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+
     private void applyAutoInputByGalleryUri(String galleryUri) {
         new Thread(() -> {
             try {
@@ -500,102 +510,56 @@ public class DiaryEditFragment extends Fragment {
                 });
 
                 Long serverPhotoId = null;
-
-                // 서버 업로드 완료될 때까지 최대 10초 대기
                 for (int i = 0; i < 20; i++) {
                     serverPhotoId = photoViewModel.getServerPhotoIdByImageUrl(galleryUri);
-
-                    if (serverPhotoId != null) {
-                        break;
-                    }
-
+                    if (serverPhotoId != null) break;
                     Thread.sleep(500);
                 }
 
                 if (serverPhotoId == null) {
                     requireActivity().runOnUiThread(() -> {
-                            binding.etLocation.setText(LOCATION_FAILED);
-                            binding.etWeather.setText(WEATHER_FAILED);
-                            Toast.makeText(
-                                    requireContext(),
-                                    "사진 분석 중입니다. 잠시 후 대표사진을 다시 선택해주세요.",
-                                    Toast.LENGTH_SHORT
-                            ).show();
+                        binding.etLocation.setText(LOCATION_FAILED);
+                        binding.etWeather.setText(WEATHER_FAILED);
+                        Toast.makeText(requireContext(), "사진 분석 중입니다. 잠시 후 대표사진을 다시 선택해주세요.", Toast.LENGTH_SHORT).show();
                     });
                     return;
                 }
 
                 retrofit2.Response<com.example.plog.model.ApiResponse<com.example.plog.model.PhotoAutoInputContext>> response =
-                        com.example.plog.network.ApiClient.getApiService()
-                                .getPhotoAutoInput(serverPhotoId)
-                                .execute();
+                        com.example.plog.network.ApiClient.getApiService().getPhotoAutoInput(serverPhotoId).execute();
 
-                if (!response.isSuccessful()
-                        || response.body() == null
-                        || response.body().data == null) {
-
+                if (!response.isSuccessful() || response.body() == null || response.body().data == null) {
                     requireActivity().runOnUiThread(() -> {
-                            binding.etLocation.setText(LOCATION_FAILED);
-                            binding.etWeather.setText(WEATHER_FAILED);
-                            Toast.makeText(
-                                    requireContext(),
-                                    "자동입력 정보를 불러오지 못했습니다.",
-                                    Toast.LENGTH_SHORT
-                            ).show();
+                        binding.etLocation.setText(LOCATION_FAILED);
+                        binding.etWeather.setText(WEATHER_FAILED);
+                        Toast.makeText(requireContext(), "자동입력 정보를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
                     });
                     return;
                 }
 
                 com.example.plog.model.PhotoAutoInputContext context = response.body().data;
-
                 requireActivity().runOnUiThread(() -> {
-                    String dateText = context.date != null && !context.date.trim().isEmpty()
-                            ? context.date
-                            : DATE_EMPTY;
+                    String dateText = context.date != null && !context.date.trim().isEmpty() ? context.date : DATE_EMPTY;
                     String dateKey = normalizeDateKey(context);
-                    if (dateKey != null) {
-                        selectedDiaryDateKey = dateKey;
-                    }
+                    if (dateKey != null) selectedDiaryDateKey = dateKey;
                     binding.tvDate.setText(dateText);
-
-                    binding.etLocation.setText(
-                            context.locationHint != null && !context.locationHint.trim().isEmpty()
-                                    ? context.locationHint
-                                    : LOCATION_EMPTY
-                    );
-
-                    String weatherText;
-                    if (context.weather != null && !context.weather.trim().isEmpty()) {
-                        weatherText = context.weather;
-                        if (context.temperature != null) {
-                            weatherText += " / " + context.temperature + "℃";
-                        }
-                    } else {
-                        weatherText = WEATHER_EMPTY;
-                    }
-
+                    binding.etLocation.setText(context.locationHint != null && !context.locationHint.trim().isEmpty() ? context.locationHint : LOCATION_EMPTY);
+                    String weatherText = context.weather != null && !context.weather.trim().isEmpty() ? context.weather : WEATHER_EMPTY;
+                    if (context.weather != null && context.temperature != null) weatherText += " / " + context.temperature + "℃";
                     binding.etWeather.setText(weatherText);
-
-                    Toast.makeText(
-                            requireContext(),
-                            "자동입력 정보가 반영되었습니다.",
-                            Toast.LENGTH_SHORT
-                    ).show();
+                    Toast.makeText(requireContext(), "자동입력 정보가 반영되었습니다.", Toast.LENGTH_SHORT).show();
                 });
 
             } catch (Exception e) {
                 requireActivity().runOnUiThread(() -> {
-                        binding.etLocation.setText(LOCATION_FAILED);
-                        binding.etWeather.setText(WEATHER_FAILED);
-                        Toast.makeText(
-                                requireContext(),
-                                "자동입력 오류: " + e.getMessage(),
-                                Toast.LENGTH_SHORT
-                        ).show();
+                    binding.etLocation.setText(LOCATION_FAILED);
+                    binding.etWeather.setText(WEATHER_FAILED);
+                    Toast.makeText(requireContext(), "자동입력 오류: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
             }
         }).start();
     }
+
     private void saveDiary(PopupWindow popupWindow) {
         String title = binding.etTitle.getText().toString().trim();
         String body = binding.etBody.getText().toString().trim();
@@ -618,12 +582,8 @@ public class DiaryEditFragment extends Fragment {
         } else {
             for (String galleryUri : activeGalleryUris) {
                 Long photoId = photoIdByGalleryUri.get(galleryUri);
-                if (photoId == null) {
-                    photoId = photoViewModel.getServerPhotoIdByImageUrl(galleryUri);
-                }
-                if (photoId != null) {
-                    photoIds.add(photoId);
-                }
+                if (photoId == null) photoId = photoViewModel.getServerPhotoIdByImageUrl(galleryUri);
+                if (photoId != null) photoIds.add(photoId);
             }
         }
 
@@ -647,31 +607,27 @@ public class DiaryEditFragment extends Fragment {
                 ? ApiClient.getApiService().updateDiary(editingDiaryId, request)
                 : ApiClient.getApiService().saveDiary(request);
 
-        diaryCall
-                .enqueue(new Callback<ApiResponse<DiarySimpleResponse>>() {
-                    @Override
-                    public void onResponse(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
-                                           @NonNull Response<ApiResponse<DiarySimpleResponse>> response) {
-                        if (!response.isSuccessful()
-                                || response.body() == null
-                                || response.body().data == null) {
-                            Toast.makeText(requireContext(), "일기 저장에 실패했습니다.", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                        popupWindow.dismiss();
-                        Toast.makeText(requireContext(), "일기가 저장되었습니다.", Toast.LENGTH_SHORT).show();
-                        Bundle args = new Bundle();
-                        args.putLong("diaryId", response.body().data.diaryId);
-                        Navigation.findNavController(binding.getRoot())
-                                .navigate(R.id.action_diaryEditFragment_to_diaryDetailFragment, args);
-                    }
+        diaryCall.enqueue(new Callback<ApiResponse<DiarySimpleResponse>>() {
+            @Override
+            public void onResponse(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
+                                   @NonNull Response<ApiResponse<DiarySimpleResponse>> response) {
+                if (!response.isSuccessful() || response.body() == null || response.body().data == null) {
+                    Toast.makeText(requireContext(), "일기 저장에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                popupWindow.dismiss();
+                Toast.makeText(requireContext(), "일기가 저장되었습니다.", Toast.LENGTH_SHORT).show();
+                Bundle args = new Bundle();
+                args.putLong("diaryId", response.body().data.diaryId);
+                Navigation.findNavController(binding.getRoot())
+                        .navigate(R.id.action_diaryEditFragment_to_diaryDetailFragment, args);
+            }
 
-                    @Override
-                    public void onFailure(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
-                                          @NonNull Throwable t) {
-                        Toast.makeText(requireContext(), "일기 저장 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                });
+            @Override
+            public void onFailure(@NonNull Call<ApiResponse<DiarySimpleResponse>> call, @NonNull Throwable t) {
+                Toast.makeText(requireContext(), "일기 저장 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void updateBookmarkUi() {
@@ -684,17 +640,11 @@ public class DiaryEditFragment extends Fragment {
     }
 
     private String normalizeDateKey(com.example.plog.model.PhotoAutoInputContext context) {
-        if (context == null) {
-            return null;
-        }
-        if (context.date != null && context.date.matches("\\d{4}-\\d{2}-\\d{2}")) {
-            return context.date;
-        }
+        if (context == null) return null;
+        if (context.date != null && context.date.matches("\\d{4}-\\d{2}-\\d{2}")) return context.date;
         if (context.capturedAt != null && context.capturedAt.length() >= 10) {
             String capturedDate = context.capturedAt.substring(0, 10);
-            if (capturedDate.matches("\\d{4}-\\d{2}-\\d{2}")) {
-                return capturedDate;
-            }
+            if (capturedDate.matches("\\d{4}-\\d{2}-\\d{2}")) return capturedDate;
         }
         return null;
     }
@@ -705,12 +655,9 @@ public class DiaryEditFragment extends Fragment {
     }
 
     private boolean isAutoInputPlaceholder(String value) {
-        return LOCATION_LOADING.equals(value)
-                || WEATHER_LOADING.equals(value)
-                || LOCATION_EMPTY.equals(value)
-                || WEATHER_EMPTY.equals(value)
-                || LOCATION_FAILED.equals(value)
-                || WEATHER_FAILED.equals(value);
+        return LOCATION_LOADING.equals(value) || WEATHER_LOADING.equals(value)
+                || LOCATION_EMPTY.equals(value) || WEATHER_EMPTY.equals(value)
+                || LOCATION_FAILED.equals(value) || WEATHER_FAILED.equals(value);
     }
 
     private boolean isBlank(String value) {
@@ -718,9 +665,7 @@ public class DiaryEditFragment extends Fragment {
     }
 
     private int clampPhotoIndex(int index) {
-        if (selectedPhotos.isEmpty()) {
-            return 0;
-        }
+        if (selectedPhotos.isEmpty()) return 0;
         return Math.max(0, Math.min(index, selectedPhotos.size() - 1));
     }
 

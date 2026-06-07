@@ -74,9 +74,15 @@ public class SearchDiaryAdapter extends RecyclerView.Adapter<SearchDiaryAdapter.
         );
 
         // 감정 표시
-        holder.tvEmotion.setText(
-                diary.getEmotion()
-        );
+        String emotion = diary.getEmotion();
+
+        android.util.Log.d("SearchDiaryAdapter", "emotion = [" + emotion + "]");
+
+        if (emotion == null || emotion.trim().isEmpty() || "null".equalsIgnoreCase(emotion)) {
+            holder.tvEmotion.setText("");
+        } else {
+            holder.tvEmotion.setText("😊 " + emotion);
+        }
 
         // 제목 표시
         holder.tvTitle.setText(
@@ -107,6 +113,21 @@ public class SearchDiaryAdapter extends RecyclerView.Adapter<SearchDiaryAdapter.
                     .error(R.drawable.bg_photo_placeholder)
                     .centerCrop()
                     .into(holder.ivDiaryPhoto);
+
+//            GlideUrl glideUrl = new GlideUrl(
+//                    fullImageUrl,
+//                    new LazyHeaders.Builder()
+//                            .addHeader("X-User-Id", String.valueOf(Constants.DEV_USER_ID))
+//                            .build()
+//            );
+//
+//            Glide.with(holder.itemView.getContext())
+//                    .load(glideUrl)
+//                    .placeholder(R.drawable.bg_photo_placeholder)
+//                    .error(R.drawable.bg_photo_placeholder)
+//                    .centerCrop()
+//                    .into(holder.ivDiaryPhoto);
+
         } else {
             holder.ivDiaryPhoto.setImageResource(R.drawable.bg_photo_placeholder);
         }

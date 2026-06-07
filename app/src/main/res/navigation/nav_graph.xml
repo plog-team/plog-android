@@ -96,8 +96,16 @@
         android:id="@+id/aiGuideEntryFragment"
         android:name="com.example.plog.ui.aiguide.AiGuideEntryFragment"
         android:label="AI 가이드">
-        <action android:id="@+id/action_entry_to_session" app:destination="@id/aiGuideSessionFragment" />
-        <action android:id="@+id/action_entry_to_chat"    app:destination="@id/aiGuideChatFragment" />
+        <action android:id="@+id/action_entry_to_session"
+            app:destination="@id/aiGuideSessionFragment"
+            app:popUpTo="@id/aiGuideEntryFragment"
+            app:popUpToInclusive="false"
+            app:launchSingleTop="true" />
+        <action android:id="@+id/action_entry_to_chat"
+            app:destination="@id/aiGuideChatFragment"
+            app:popUpTo="@id/aiGuideEntryFragment"
+            app:popUpToInclusive="false"
+            app:launchSingleTop="true" />
     </fragment>
 
     <fragment
@@ -136,7 +144,6 @@
         android:name="com.example.plog.ui.report.EmotionReportFragment"
         android:label="주간 감정 분석 리포트" />
 
-    <!-- photo-metadata-analyzer -->
     <fragment
         android:id="@+id/photoPickerFragment"
         android:name="com.example.plog.ui.photo.PhotoPickerFragment"
@@ -155,5 +162,40 @@
         android:id="@+id/analysisFragment"
         android:name="com.example.plog.ui.analysis.AnalysisFragment"
         android:label="월간 리포트" />
+
+    <fragment
+        android:id="@+id/notMatchedFragment"
+        android:name="com.example.plog.ui.exchange.NotMatchedFragment"
+        android:label="notMatchedFragment" />
+
+    <fragment
+        android:id="@+id/matchingFragment"
+        android:name="com.example.plog.ui.exchange.MatchingFragment"
+        android:label="matchingFragment" />
+
+    <fragment
+        android:id="@+id/matchConfirmFragment"
+        android:name="com.example.plog.ui.exchange.MatchConfirmFragment"
+        android:label="matchedConfirmFragment" />
+
+    <fragment
+        android:id="@+id/matchedFragment"
+        android:name="com.example.plog.ui.exchange.MatchedFragment"
+        android:label="MatchedFragment">
+        <action
+            android:id="@+id/action_matchedFragment_to_diaryEditFragment"
+            app:destination="@id/diaryEditFragment" />
+        <action
+            android:id="@+id/action_matchedFragment_to_exchangeDiaryEditFragment"
+            app:destination="@id/exchangeDiaryEditFragment" />
+        <action
+            android:id="@+id/action_matchedFragment_to_diaryDetailFragment"
+            app:destination="@id/diaryDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/exchangeDiaryEditFragment"
+        android:name="com.example.plog.ui.exchange.ExchangeDiaryEditFragment"
+        android:label="교환일기 작성" />
 
 </navigation>
