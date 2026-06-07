@@ -243,10 +243,11 @@ public interface ApiService {
             @Query("contentTypeId") String contentTypeId);
 
     @GET("api/tour/detail")
-    Call<PlaceDetailDto> getDetail(
+    Call<ApiResponse<PlaceDetailDto>> getDetail(
             @Query("contentId") String contentId,
             @Query("contentTypeId") String contentTypeId);
 
     @GET("api/tour/congestion/{placeName}")
     Call<CongestionDto> getCongestion(@Path("placeName") String placeName);
+
 }

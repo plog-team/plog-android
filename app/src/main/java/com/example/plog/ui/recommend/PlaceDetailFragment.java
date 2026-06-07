@@ -17,6 +17,7 @@ import com.example.plog.network.ApiClient;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import com.example.plog.model.ApiResponse;
 
 public class PlaceDetailFragment extends Fragment {
 
@@ -121,15 +122,15 @@ public class PlaceDetailFragment extends Fragment {
         if (!contentId.isEmpty()) {
             pbLoading.setVisibility(View.VISIBLE);
             ApiClient.getApiService().getDetail(contentId, contentTypeId)
-                    .enqueue(new Callback<PlaceDetailDto>() {
+                    .enqueue(new Callback<ApiResponse<PlaceDetailDto>>() {
                         @Override
-                        public void onResponse(@NonNull Call<PlaceDetailDto> call,
-                                               @NonNull Response<PlaceDetailDto> resp) {
+                        public void onResponse(@NonNull Call<ApiResponse<PlaceDetailDto>> call,
+                                               @NonNull Response<ApiResponse<PlaceDetailDto>> resp) {
                             if (!isAdded()) return;
                             pbLoading.setVisibility(View.GONE);
-                            if (!resp.isSuccessful() || resp.body() == null) return;
+                            if (!resp.isSuccessful() || resp.body() == null || resp.body().data == null) return;
 
-                            PlaceDetailDto d = resp.body();
+                            PlaceDetailDto d = resp.body().data;
                             requireActivity().runOnUiThread(() -> {
                                 setOrHide(tvTel, "📞 ", d.tel);
                                 if (d.overview != null && !d.overview.isEmpty()) {
@@ -155,7 +156,7 @@ public class PlaceDetailFragment extends Fragment {
                         }
 
                         @Override
-                        public void onFailure(@NonNull Call<PlaceDetailDto> call,
+                        public void onFailure(@NonNull Call<ApiResponse<PlaceDetailDto>> call,
                                               @NonNull Throwable t) {
                             if (isAdded()) pbLoading.setVisibility(View.GONE);
                         }
