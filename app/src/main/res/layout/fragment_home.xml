@@ -142,17 +142,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-
-        <!-- 달력 섬네일 + 최신 일기 -->
-        <androidx.fragment.app.FragmentContainerView
-            android:id="@+id/homeCalendarContainer"
-            android:name="com.example.plog.ui.calendar.CalendarFragment"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
-            android:layout_marginBottom="12dp"
-            tools:layout="@layout/fragment_calendar" />
-
+        <!-- 교환일기 배너 -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardExchangeBanner"
             android:layout_width="match_parent"
@@ -161,6 +151,7 @@
             app:cardElevation="0dp"
             app:cardBackgroundColor="@android:color/transparent"
             android:layout_marginBottom="12dp"
+            android:layout_marginHorizontal="16dp"
             android:foreground="?attr/selectableItemBackground">
 
             <LinearLayout
@@ -223,6 +214,15 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
+        <!-- 달력 섬네일 + 최신 일기 -->
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/homeCalendarContainer"
+            android:name="com.example.plog.ui.calendar.CalendarFragment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="16dp"
+            tools:layout="@layout/fragment_calendar" />
 
     </LinearLayout>
 
