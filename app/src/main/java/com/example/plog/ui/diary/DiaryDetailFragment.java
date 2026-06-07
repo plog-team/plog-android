@@ -226,7 +226,11 @@ public class DiaryDetailFragment extends Fragment {
         TextView edit = createCommentAction("수정");
         edit.setOnClickListener(v -> {
             editingCommentId = comment.getId();
-            renderExchangeLines();
+            if (key == null) {
+                renderLines();
+            } else {
+                renderExchangeLines();
+            }
         });
         actionRow.addView(edit);
 
@@ -632,8 +636,15 @@ public class DiaryDetailFragment extends Fragment {
                         @Override
                         public void onResponse(@NonNull Call<ApiResponse<DiaryLineCommentResponse>> call,
                                                @NonNull Response<ApiResponse<DiaryLineCommentResponse>> response) {
-                            editingCommentId = null;
-                            loadComments();
+                            if (response.isSuccessful() && response.body() != null
+                                    && response.body().data != null) {
+                                editingCommentId = null;
+                                loadComments();
+                                return;
+                            }
+                            Toast.makeText(requireContext(),
+                                    "댓글 수정에 실패했습니다. (" + response.code() + ")",
+                                    Toast.LENGTH_SHORT).show();
                         }
                         @Override
                         public void onFailure(@NonNull Call<ApiResponse<DiaryLineCommentResponse>> call, @NonNull Throwable t) {

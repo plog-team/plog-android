@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -63,6 +64,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class DiaryEditFragment extends Fragment {
+    private static final String TAG = "DiaryEditFragment";
     private static final int MAX_PHOTO_COUNT = 10;
     private static final String DATE_LOADING = "날짜 불러오는 중...";
     private static final String LOCATION_LOADING = "위치 불러오는 중...";
@@ -612,7 +614,9 @@ public class DiaryEditFragment extends Fragment {
             public void onResponse(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
                                    @NonNull Response<ApiResponse<DiarySimpleResponse>> response) {
                 if (!response.isSuccessful() || response.body() == null || response.body().data == null) {
-                    Toast.makeText(requireContext(), "일기 저장에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    String message = diarySaveErrorMessage(response);
+                    Log.e(TAG, "Diary save failed: HTTP " + response.code() + ", " + message);
+                    Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show();
                     return;
                 }
                 popupWindow.dismiss();
@@ -625,9 +629,30 @@ public class DiaryEditFragment extends Fragment {
 
             @Override
             public void onFailure(@NonNull Call<ApiResponse<DiarySimpleResponse>> call, @NonNull Throwable t) {
+                Log.e(TAG, "Diary save request failed", t);
                 Toast.makeText(requireContext(), "일기 저장 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private String diarySaveErrorMessage(Response<?> response) {
+        String serverMessage = null;
+        try {
+            if (response.errorBody() != null) {
+                serverMessage = response.errorBody().string();
+            } else if (response.body() instanceof ApiResponse<?>) {
+                serverMessage = ((ApiResponse<?>) response.body()).error;
+            }
+        } catch (Exception ignored) {
+        }
+
+        if (response.code() == 401 || response.code() == 403 || response.code() == 404) {
+            return "현재 로그인한 계정으로 수정할 수 없는 일기입니다. (" + response.code() + ")";
+        }
+        if (!isBlank(serverMessage)) {
+            return "일기 저장에 실패했습니다. (" + response.code() + ")\n" + serverMessage;
+        }
+        return "일기 저장에 실패했습니다. (" + response.code() + ")";
     }
 
     private void updateBookmarkUi() {
