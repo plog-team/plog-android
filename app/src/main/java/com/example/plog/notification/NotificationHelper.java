@@ -29,6 +29,11 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+import android.graphics.BitmapFactory;
+import com.example.plog.util.Constants;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
 public class NotificationHelper {
 
     private static final String REVISIT_CHANNEL_ID = "diary_revisit_channel";
@@ -58,6 +63,12 @@ public class NotificationHelper {
 
         Intent openIntent = new Intent(context, MainActivity.class);
         openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+
+        /*
+        if (location != null && location.diaryId > 0) {
+            openIntent.putExtra("openDiaryId", location.diaryId);
+        }
+        */
 
         PendingIntent openPendingIntent = PendingIntent.getActivity(
                 context,
@@ -98,6 +109,8 @@ public class NotificationHelper {
         String dateKey = new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA)
                 .format(new Date(takenAt));
 
+        openIntent.putExtra("openDiaryDate", dateKey);
+
         DiaryEntry diary = new DiaryRepository(context).getDiary(dateKey);
 
         String title = diary != null && diary.getTitle() != null && !diary.getTitle().isEmpty()
@@ -112,12 +125,38 @@ public class NotificationHelper {
                 .format(new Date(takenAt));
 
         Bitmap diaryImage = null;
+
+        String imageUrl = null;
+
+        if (location != null && location.serverPhotoId != null) {
+            String baseUrl = Constants.BASE_URL.endsWith("/")
+                    ? Constants.BASE_URL
+                    : Constants.BASE_URL + "/";
+
+            imageUrl = baseUrl + "api/photos/" + location.serverPhotoId;
+        } else if (location != null) {
+            imageUrl = location.imageUrl;
+        }
+
         try {
-            if (location.imageUrl != null) {
-                diaryImage = MediaStore.Images.Media.getBitmap(
-                        context.getContentResolver(),
-                        Uri.parse(location.imageUrl)
-                );
+            if (imageUrl != null && !imageUrl.isEmpty()) {
+                if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+                    URL url = new URL(imageUrl);
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    connection.setRequestProperty(
+                            Constants.HEADER_USER_ID,
+                            String.valueOf(Constants.DEV_USER_ID)
+                    );
+                    connection.connect();
+
+                    diaryImage = BitmapFactory.decodeStream(connection.getInputStream());
+                    connection.disconnect();
+                } else {
+                    diaryImage = MediaStore.Images.Media.getBitmap(
+                            context.getContentResolver(),
+                            Uri.parse(imageUrl)
+                    );
+                }
             }
         } catch (Exception e) {
             Log.w("NotificationHelper", "알림 이미지 로드 실패: " + e.getMessage());
@@ -164,6 +203,8 @@ public class NotificationHelper {
 
         Intent openIntent = new Intent(context, MainActivity.class);
         openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+
+        openIntent.putExtra("openWriteDiary", true);
 
         PendingIntent openPendingIntent = PendingIntent.getActivity(
                 context,

@@ -123,7 +123,7 @@ public interface PhotoLocationDao {
     // 알림 기능 - 사진 포함
     @Query("SELECT pl.id, pl.photo_id AS photoId, pl.taken_at AS takenAt, " +
             "pl.latitude, pl.longitude, pl.location_name AS locationName, " +
-            "pl.address, p.image_url AS imageUrl " +
+            "pl.address, p.image_url AS imageUrl, p.server_photo_id AS serverPhotoId " +
             "FROM photo_location pl " +
             "INNER JOIN photo p ON pl.photo_id = p.id " +
             "WHERE p.user_id = :userId " +
@@ -155,5 +155,6 @@ public interface PhotoLocationDao {
         public String locationName;
         public String address;
         public String imageUrl;
+        public Long   serverPhotoId;
     }
 }

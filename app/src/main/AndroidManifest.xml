@@ -36,7 +36,20 @@
             배포 시에는 Spring Boot에 https 적용 후 제거
         -->
 
-        <!-- LoginActivity -->
+        <activity
+            android:name=".ui.auth.LoginActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- LoginActivity
         <activity
             android:name=".ui.auth.LoginActivity"
             android:exported="true">
@@ -45,12 +58,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        -->
 
-        <!-- MainActivity -->
+        <!-- MainActivity
         <activity
             android:name=".MainActivity"
             android:exported="false" />
-
+-->
 
         <!-- MenuActivity -->
         <activity android:name=".ui.menu.MenuActivity" />

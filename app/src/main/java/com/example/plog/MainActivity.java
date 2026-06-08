@@ -31,6 +31,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        ApiClient.init(this);
+
+        /*
         SharedPreferences prefs = getSharedPreferences("plog_prefs", MODE_PRIVATE);
         String token = prefs.getString("token", "");
 
@@ -42,7 +45,9 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        ApiClient.init(this);
+         */
+
+
 
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -50,10 +55,10 @@ public class MainActivity extends AppCompatActivity {
 
 
         // 일기 작성 알림 즉시 테스트 - 알림 되는지 바로 보고 싶으면 아래 코드
-        // DiaryReminderScheduler.testDiaryReminderWorkerNow(this);
+        DiaryReminderScheduler.testDiaryReminderWorkerNow(this);
 
         // 22시에 실행됨
-        DiaryReminderScheduler.scheduleDailyDiaryReminder(this);
+        // DiaryReminderScheduler.scheduleDailyDiaryReminder(this);
 
         // userId: 1인 상태
         PhotoLocationSyncManager.sync(this, 1);
@@ -75,6 +80,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupNavigation() {
+
+        handleNotificationIntent(getIntent());
+
         NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.navHostFragment);
 
@@ -174,5 +182,61 @@ public class MainActivity extends AppCompatActivity {
         dialog.show(getSupportFragmentManager(), "notification");
 
     }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleNotificationIntent(intent);
+    }
+
+    private void handleNotificationIntent(Intent intent) {
+        if (intent == null) return;
+
+        boolean openWriteDiary = intent.getBooleanExtra("openWriteDiary", false);
+
+        if (openWriteDiary && navController != null) {
+            navController.navigate(R.id.diaryEditFragment);
+            return;
+        }
+
+        String openDiaryDate = intent.getStringExtra("openDiaryDate");
+        if (openDiaryDate == null || openDiaryDate.isEmpty()) return;
+
+        ApiClient.getApiService().getDiaries(50)
+                .enqueue(new retrofit2.Callback<com.example.plog.model.ApiResponse<java.util.List<com.example.plog.model.DiarySimpleResponse>>>() {
+                    @Override
+                    public void onResponse(
+                            retrofit2.Call<com.example.plog.model.ApiResponse<java.util.List<com.example.plog.model.DiarySimpleResponse>>> call,
+                            retrofit2.Response<com.example.plog.model.ApiResponse<java.util.List<com.example.plog.model.DiarySimpleResponse>>> response
+                    ) {
+                        if (!response.isSuccessful()
+                                || response.body() == null
+                                || response.body().data == null
+                                || navController == null) {
+                            return;
+                        }
+
+                        for (com.example.plog.model.DiarySimpleResponse diary : response.body().data) {
+                            if (openDiaryDate.equals(diary.date)) {
+                                Bundle bundle = new Bundle();
+                                bundle.putLong("diaryId", diary.diaryId);
+
+                                navController.navigate(R.id.diaryDetailFragment, bundle);
+                                return;
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(
+                            retrofit2.Call<com.example.plog.model.ApiResponse<java.util.List<com.example.plog.model.DiarySimpleResponse>>> call,
+                            Throwable t
+                    ) {
+                        // 테스트용이므로 실패 시 무시
+                    }
+                });
+    }
+
 }
 
