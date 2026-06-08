@@ -18,6 +18,7 @@ import com.example.plog.R;
 import com.example.plog.network.ApiClient;
 import com.example.plog.network.auth.EmailRequest;
 import com.example.plog.network.auth.LoginRequest;
+import com.example.plog.util.SessionManager;
 import com.example.plog.network.auth.LoginResponse;
 import com.example.plog.network.auth.RegisterRequest;
 import com.example.plog.network.auth.VerifyRequest;
@@ -99,13 +100,15 @@ public class LoginActivity extends AppCompatActivity {
                             public void onResponse(Call<LoginResponse> call,
                                                    Response<LoginResponse> response) {
                                 if (response.isSuccessful() && response.body() != null) {
+                                    int uid = response.body().getUserId();
                                     SharedPreferences prefs =
                                             getSharedPreferences("plog_prefs", MODE_PRIVATE);
                                     prefs.edit()
                                             .putBoolean("isLoggedIn", true)
                                             .putString("token", response.body().getData().getAccessToken())
-                                            .putInt("userId", response.body().getUserId())
+                                            .putInt("userId", uid)
                                             .apply();
+                                    new SessionManager(LoginActivity.this).saveUserId(uid);
 
                                     Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK

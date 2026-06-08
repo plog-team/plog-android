@@ -78,8 +78,9 @@ public interface ApiService {
     // 선호도
     @GET("api/recommend/preference")
     Call<PreferenceResponse> getPreference();
-    @PUT("api/recommend/preference")
-    Call<Void> updatePreferences(@Body PreferenceUpdateRequest req);
+    @PUT("api/exchange/preferences")
+    Call<Void> updatePreferences(@Header("X-User-Id") long userId,
+                                 @Body PreferenceUpdateRequest req);
 
     // 북마크
     @POST("/api/recommend/bookmarks")
