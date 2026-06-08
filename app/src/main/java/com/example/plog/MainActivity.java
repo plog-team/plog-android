@@ -49,7 +49,7 @@ public class MainActivity extends AppCompatActivity {
             navController = navHostFragment.getNavController();
 
         binding.bottomNavigation.setOnItemSelectedListener(item -> {
-            if (item.getItemId() == R.id.nav_my) {
+            if (item.getItemId() == R.id.myFragment) {
                 startActivity(new Intent(this, MenuActivity.class));
                 return false; // nav_graph 이동 막기
             }

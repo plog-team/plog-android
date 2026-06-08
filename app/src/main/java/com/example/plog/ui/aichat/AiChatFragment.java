@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -14,6 +15,7 @@ import com.example.plog.network.ApiClient;
 import com.example.plog.network.ApiService;
 import com.example.plog.network.aichat.AiChatMessageResponse;
 import com.example.plog.network.aichat.AiChatSessionResponse;
+import com.example.plog.network.aichat.AiChatSessionDetailResponse;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -46,15 +48,28 @@ public class AiChatFragment extends Fragment {
         binding.recyclerChat.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerChat.setAdapter(adapter);
 
-        binding.btnClose.setOnClickListener(v ->
-                requireActivity().getOnBackPressedDispatcher().onBackPressed()
+        // 뒤로가기 시 endSession 호출
+        requireActivity().getOnBackPressedDispatcher().addCallback(
+                getViewLifecycleOwner(),
+                new OnBackPressedCallback(true) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        endSession();
+                    }
+                }
         );
 
-        // 달력에서 넘어온 날짜 확인
+        binding.btnClose.setOnClickListener(v -> endSession());
+
         Bundle args = getArguments();
-        if (args != null && args.containsKey("year")) {
+        if (args != null && args.containsKey("resumeSessionId")) {
+            // 이어하기: 기존 세션 불러오기
+            sessionId = args.getLong("resumeSessionId");
+            loadSession(sessionId);
+        } else if (args != null && args.containsKey("year")) {
+            // 달력에서 넘어온 날짜
             int year  = args.getInt("year");
-            int month = args.getInt("month"); // 이미 +1 된 값
+            int month = args.getInt("month");
             int day   = args.getInt("day");
             String date = String.format("%04d-%02d-%02d", year, month, day);
             startSession("DIARY_ASSIST", date);
@@ -73,8 +88,47 @@ public class AiChatFragment extends Fragment {
         });
     }
 
+    // 기존 세션 이어하기
+    private void loadSession(long sessionId) {
+        apiService.getSessionDetail(sessionId).enqueue(new Callback<AiChatSessionDetailResponse>() {
+            @Override
+            public void onResponse(Call<AiChatSessionDetailResponse> call, Response<AiChatSessionDetailResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    // 기존 메시지 복원
+                    for (AiChatSessionDetailResponse.Message msg : response.body().data.data.messages) {
+                        boolean isUser = "USER".equals(msg.sender);
+                        adapter.addMessage(msg.content, isUser);
+                    }
+                    binding.recyclerChat.scrollToPosition(adapter.getItemCount() - 1);
+                }
+            }
+            @Override
+            public void onFailure(Call<AiChatSessionDetailResponse> call, Throwable t) {
+                Toast.makeText(requireContext(), "대화 불러오기 실패", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    // 세션 종료 + 뒤로가기
+    private void endSession() {
+        if (sessionId == -1) {
+            // endSession 호출 없이 바로 뒤로가기
+            requireActivity().getSupportFragmentManager().popBackStack();
+            return;
+        }
+        apiService.endSession(sessionId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                requireActivity().getSupportFragmentManager().popBackStack();
+            }
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                requireActivity().getSupportFragmentManager().popBackStack();
+            }
+        });
+    }
+
     private void startSession(String type, @Nullable String date) {
-        // date가 있으면 쿼리 파라미터에 추가
         Call<AiChatSessionResponse> call;
         if (date != null) {
             call = apiService.startSessionWithDate(USER_ID, USER_ID, type, date);

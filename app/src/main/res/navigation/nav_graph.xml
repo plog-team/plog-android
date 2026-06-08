@@ -9,9 +9,6 @@
         android:name="com.example.plog.ui.home.HomeFragment"
         android:label="홈">
         <action
-            android:id="@+id/action_home_to_aiChatEntry"
-            app:destination="@id/aiChatEntryFragment" />
-    </fragment>
             android:id="@+id/action_homeFragment_to_diaryEditFragment"
             app:destination="@id/diaryEditFragment" />
         <action
@@ -26,6 +23,9 @@
         <action
             android:id="@+id/action_home_to_analysis"
             app:destination="@id/analysisFragment" />
+        <action
+            android:id="@+id/action_home_to_aiChatEntry"
+            app:destination="@id/aiChatEntryFragment" />
     </fragment>
 
     <fragment
@@ -98,6 +98,10 @@
         <action
             android:id="@+id/action_aiChatEntry_to_aiChatOption"
             app:destination="@id/aiChatOptionFragment" />
+
+        <action
+            android:id="@+id/action_aiChatEntry_to_aiChatFragment"
+            app:destination="@id/aiChatFragment" />
     </fragment>
     <fragment
         android:id="@+id/aiChatOptionFragment"

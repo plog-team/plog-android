@@ -21,6 +21,7 @@
 
     <!-- 구분선 -->
     <View
+        android:id="@+id/divider"
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:background="#E0E0E0"
@@ -35,10 +36,10 @@
         android:layout_width="80dp"
         android:layout_height="80dp"
         android:src="@drawable/ic_aichat_img"
-        app:layout_constraintBottom_toTopOf="@id/tv_message"
+        app:layout_constraintTop_toBottomOf="@id/divider"
         app:layout_constraintStart_toStartOf="parent"
         android:layout_marginStart="24dp"
-        android:layout_marginBottom="8dp"/>
+        android:layout_marginTop="24dp"/>
 
     <!-- 메시지 -->
     <TextView
@@ -49,10 +50,10 @@
         android:textSize="18sp"
         android:textStyle="bold"
         android:lineSpacingExtra="4dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/img_character"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginStart="24dp"/>
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="12dp"/>
 
     <!-- 대화 시작하기 버튼 -->
     <Button
@@ -68,5 +69,32 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="24dp"/>
+
+    <!-- 이전 대화 타이틀 -->
+    <TextView
+        android:id="@+id/tv_history_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="이전 대화"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="#1A1A1A"
+        app:layout_constraintTop_toBottomOf="@id/btn_start_chat"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="24dp"/>
+
+    <!-- 대화 목록 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_sessions"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:paddingHorizontal="16dp"
+        android:clipToPadding="false"
+        app:layout_constraintTop_toBottomOf="@id/tv_history_title"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="8dp"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

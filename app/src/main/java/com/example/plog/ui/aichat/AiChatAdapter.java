@@ -49,9 +49,15 @@ public class AiChatAdapter extends RecyclerView.Adapter<AiChatAdapter.MessageVie
 
     static class MessageViewHolder extends RecyclerView.ViewHolder {
         TextView tvMessage;
+
         MessageViewHolder(@NonNull View itemView) {
             super(itemView);
+
             tvMessage = itemView.findViewById(R.id.tv_message);
+
+            if (tvMessage == null) {
+                tvMessage = itemView.findViewById(R.id.tvContent);
+            }
         }
     }
 

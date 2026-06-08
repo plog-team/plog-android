@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 편하게 수정하셔도 됩니다 -->
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
     <color name="purple_500">#9C63F5</color>
@@ -11,14 +10,11 @@
     <color name="gray_400">#9E9E9E</color>
     <color name="gray_700">#424242</color>
     <color name="text_primary">#1A1A1A</color>
-
     <color name="colorPrimary">#3F51B5</color>
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
     <color name="yellow">#fff5f504</color>
     <color name="red">#B71C1C</color>
-
-</resources>
     <color name="diary_line">#D6D6D6</color>
     <color name="diary_placeholder">#EEEEEE</color>
     <color name="diary_purple_light">#EFE5FF</color>

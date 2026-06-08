@@ -1,6 +1,8 @@
 package com.example.plog.network;
 
 import com.example.plog.network.aichat.AiChatMessageResponse;
+import com.example.plog.network.aichat.AiChatSessionDetailResponse;
+import com.example.plog.network.aichat.AiChatSessionListResponse;
 import com.example.plog.network.aichat.AiChatSessionResponse;
 import com.example.plog.api.model.BookmarkRequest;
 import com.example.plog.api.model.ClickLogRequest;
@@ -244,13 +246,13 @@ public interface ApiService {
 
     // AI 챗봇 세션 목록 조회
     @GET("/api/chat/sessions")
-    Call<AiChatSessionResponse> getSessions(
+    Call<AiChatSessionListResponse> getSessions(
             @Query("userId") Long userId
     );
 
     // AI 챗봇 세션 상세 조회 (이어하기)
     @GET("/api/chat/session/{sessionId}")
-    Call<AiChatSessionResponse> getSessionDetail(
+    Call<AiChatSessionDetailResponse> getSessionDetail(
             @Path("sessionId") Long sessionId
     );
 
