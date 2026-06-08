@@ -1,7 +1,10 @@
 package com.example.plog.util;
 
+import android.content.ContentUris;
 import android.content.Context;
 import android.net.Uri;
+import android.os.ParcelFileDescriptor;
+import android.provider.MediaStore;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -9,7 +12,6 @@ import androidx.annotation.Nullable;
 import androidx.exifinterface.media.ExifInterface;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -84,26 +86,39 @@ public class ExifExtractor {
         }
     }
 
-    // ── 메인 추출 메서드 — parseLatLng() 바로 위에 추가 ──────────────────────
+    // ── 메인 추출 메서드 ──────────────────────────────────────────────────────
+    // openFileDescriptor() 사용: Android 10+ ContentResolver의 InputStream 경로는
+    // GPS EXIF 태그를 제거하지만, FileDescriptor는 원본 파일을 직접 가리키므로
+    // setRequireOriginal() 없이도 GPS를 읽을 수 있다.
+    // Photo Picker URI(content://media/picker/...)는 RedactingFileDescriptor를 반환해
+    // GPS를 제거하므로 MediaStore URI로 변환 후 추출한다.
     @Nullable
     public ExifResult extract(@NonNull Uri uri, @NonNull Context context) {
-        try (InputStream inputStream = context.getContentResolver().openInputStream(uri)) {
-            if (inputStream == null) {
-                Log.w(TAG, "InputStream이 null입니다. URI: " + uri);
+        uri = toMediaStoreUri(uri);
+        Log.d(TAG, "extract() 호출 — URI: " + uri);
+        try (ParcelFileDescriptor pfd =
+                     context.getContentResolver().openFileDescriptor(uri, "r")) {
+            if (pfd == null) {
+                Log.w(TAG, "FileDescriptor가 null입니다. URI: " + uri);
                 return null;
             }
 
-            ExifInterface exif = new ExifInterface(inputStream);
+            ExifInterface exif = new ExifInterface(pfd.getFileDescriptor());
 
             long takenAtMs  = parseTakenAt(exif);
             double[] latLng = parseLatLng(exif);
             int width       = exif.getAttributeInt(ExifInterface.TAG_IMAGE_WIDTH, 0);
             int height      = exif.getAttributeInt(ExifInterface.TAG_IMAGE_LENGTH, 0);
 
-            return new ExifResult(takenAtMs, latLng[0], latLng[1], width, height);
+            ExifResult result = new ExifResult(takenAtMs, latLng[0], latLng[1], width, height);
+            Log.d(TAG, "extract() 완료 — hasGPS=" + result.hasLocation()
+                    + " lat=" + result.latitude + " lng=" + result.longitude);
+            return result;
 
-        } catch (IOException e) {
-            Log.e(TAG, "EXIF 추출 실패: " + e.getMessage(), e);
+        } catch (Exception e) {
+            // SecurityException(권한 없음) 포함 모든 예외를 null로 처리해 사진 저장은 계속 진행
+            Log.e(TAG, "EXIF 추출 실패 (" + e.getClass().getSimpleName() + "): "
+                    + e.getMessage() + " | URI: " + uri);
             return null;
         }
     }
@@ -220,5 +235,25 @@ public class ExifExtractor {
             return denominator != 0 ? numerator / denominator : 0;
         }
         return Double.parseDouble(parts[0]);
+    }
+
+    /**
+     * Photo Picker URI (content://media/picker/.../media/ID) →
+     * MediaStore URI (content://media/external/images/media/ID) 변환.
+     * Picker URI가 아니면 그대로 반환.
+     */
+    @NonNull
+    private static Uri toMediaStoreUri(@NonNull Uri uri) {
+        if (!"media".equals(uri.getAuthority())) return uri;
+        java.util.List<String> segments = uri.getPathSegments();
+        if (segments.isEmpty() || !"picker".equals(segments.get(0))) return uri;
+        try {
+            long mediaId = Long.parseLong(uri.getLastPathSegment());
+            return ContentUris.withAppendedId(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, mediaId);
+        } catch (NumberFormatException e) {
+            Log.w(TAG, "Picker URI ID 파싱 실패: " + uri.getLastPathSegment());
+            return uri;
+        }
     }
 }

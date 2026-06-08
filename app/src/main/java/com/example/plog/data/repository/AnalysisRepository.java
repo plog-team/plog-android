@@ -115,6 +115,7 @@ public class AnalysisRepository {
         }
 
         List<String> top3Categories = new ArrayList<>();
+        Map<String, Float> top3Scores = new HashMap<>();
         int top = Math.min(labels.size(), 3);
         for (int i = 0; i < top; i++) {
             MonthlyReport.LabelItem label = labels.get(i);
@@ -132,14 +133,24 @@ public class AnalysisRepository {
             preferenceDao.upsert(e);
 
             top3Categories.add(label.labelText);
+            top3Scores.put(label.labelText, newScore);
         }
 
         // 서버 동기화 — fire-and-forget (실패해도 리포트 표시에 영향 없음)
-        syncPreferencesToServer(top3Categories);
+        syncPreferencesToServer(top3Categories, top3Scores);
     }
 
-    private void syncPreferencesToServer(@NonNull List<String> categories) {
+    private void syncPreferencesToServer(@NonNull List<String> categories,
+                                         @NonNull Map<String, Float> scores) {
         if (categories.isEmpty()) return;
+        try {
+            ApiClient.getApiService()
+                    .updatePreferences(new com.example.plog.model.PreferenceUpdateRequest(categories, scores))
+                    .execute();
+            Log.d("AnalysisRepository", "선호도 서버 동기화 완료 — " + categories + " scores=" + scores);
+        } catch (Exception e) {
+            Log.w("AnalysisRepository", "선호도 서버 동기화 실패 (무시): " + e.getMessage());
+        }
     }
 
     private static boolean isSameMonth(long ts1, long ts2) {
