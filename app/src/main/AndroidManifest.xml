@@ -64,7 +64,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="false" />
--->
+        -->
 
         <!-- MenuActivity -->
         <activity android:name=".ui.menu.MenuActivity" />

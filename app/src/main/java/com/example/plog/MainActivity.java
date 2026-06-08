@@ -55,10 +55,10 @@ public class MainActivity extends AppCompatActivity {
 
 
         // 일기 작성 알림 즉시 테스트 - 알림 되는지 바로 보고 싶으면 아래 코드
-        DiaryReminderScheduler.testDiaryReminderWorkerNow(this);
+        // DiaryReminderScheduler.testDiaryReminderWorkerNow(this);
 
         // 22시에 실행됨
-        // DiaryReminderScheduler.scheduleDailyDiaryReminder(this);
+        DiaryReminderScheduler.scheduleDailyDiaryReminder(this);
 
         // userId: 1인 상태
         PhotoLocationSyncManager.sync(this, 1);
@@ -80,8 +80,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupNavigation() {
-
-        handleNotificationIntent(getIntent());
 
         NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.navHostFragment);
@@ -113,6 +111,8 @@ public class MainActivity extends AppCompatActivity {
         });
 
             NavigationUI.setupWithNavController(binding.bottomNavigation, navController);
+
+            handleNotificationIntent(getIntent());
 
             binding.bottomNavigation.setOnItemSelectedListener(item -> {
                 int id = item.getItemId();
@@ -191,7 +191,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void handleNotificationIntent(Intent intent) {
-        if (intent == null) return;
+        android.app.NotificationManager manager =
+                (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+
+        manager.cancel(2002);
+
+        int cancelNotificationId = intent.getIntExtra("cancelNotificationId", -1);
+        if (cancelNotificationId != -1) {
+            manager.cancel(cancelNotificationId);
+        }
 
         boolean openWriteDiary = intent.getBooleanExtra("openWriteDiary", false);
 

@@ -13,6 +13,7 @@ public class NotificationDismissReceiver extends BroadcastReceiver {
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
         manager.cancel(1001);
+        manager.cancel(2002);
     }
 }
 

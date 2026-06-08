@@ -110,6 +110,7 @@ public class NotificationHelper {
                 .format(new Date(takenAt));
 
         openIntent.putExtra("openDiaryDate", dateKey);
+        openIntent.putExtra("cancelNotificationId", 1001);
 
         DiaryEntry diary = new DiaryRepository(context).getDiary(dateKey);
 
@@ -205,12 +206,13 @@ public class NotificationHelper {
         openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
         openIntent.putExtra("openWriteDiary", true);
+        openIntent.putExtra("cancelNotificationId", 2002);
 
         PendingIntent openPendingIntent = PendingIntent.getActivity(
                 context,
-                2,
+                2002,
                 openIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
         Intent dismissIntent = new Intent(context, NotificationDismissReceiver.class);
