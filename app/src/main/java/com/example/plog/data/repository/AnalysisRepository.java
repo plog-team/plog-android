@@ -137,16 +137,17 @@ public class AnalysisRepository {
         }
 
         // 서버 동기화 — fire-and-forget (실패해도 리포트 표시에 영향 없음)
-        syncPreferencesToServer(top3Categories, top3Scores);
+        syncPreferencesToServer(userId, top3Categories, top3Scores);
     }
 
-    private void syncPreferencesToServer(@NonNull List<String> categories,
+    private void syncPreferencesToServer(int userId,
+                                         @NonNull List<String> categories,
                                          @NonNull Map<String, Float> scores) {
         if (categories.isEmpty()) return;
 
         try {
             ApiClient.getApiService()
-                    .updatePreferences(new com.example.plog.model.PreferenceUpdateRequest(categories, scores))
+                    .updatePreferences(userId, new com.example.plog.model.PreferenceUpdateRequest(categories, scores))
                     .execute();
             Log.d("AnalysisRepository", "선호도 서버 동기화 완료 — " + categories + " scores=" + scores);
         } catch (Exception e) {

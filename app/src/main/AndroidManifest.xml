@@ -35,14 +35,25 @@
             usesCleartextTraffic="true" 는 개발 중 http 통신 허용용
             배포 시에는 Spring Boot에 https 적용 후 제거
         -->
+
+        <!-- LoginActivity -->
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.auth.LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- MainActivity -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+
+
+        <!-- MenuActivity -->
+        <activity android:name=".ui.menu.MenuActivity" />
 
         <!-- Maps API Key — build.gradle의 manifestPlaceholders에서 자동 주입 -->
         <meta-data

@@ -27,6 +27,11 @@
         <action
             android:id="@+id/action_homeFragment_to_calendarFragment"
             app:destination="@id/calendarFragment" />
+
+        <action
+            android:id="@+id/action_home_to_aiChatEntry"
+            app:destination="@id/aiChatEntryFragment" />
+
     </fragment>
 
     <fragment
@@ -91,6 +96,42 @@
         android:name="com.example.plog.ui.placeholder.PlaceholderFragment"
         android:label="My" />
 
+    <!-- AI 챗봇 -->
+    <fragment
+        android:id="@+id/aiChatEntryFragment"
+        android:name="com.example.plog.ui.aichat.AiChatEntryFragment"
+        android:label="AI 챗봇">
+        <action
+            android:id="@+id/action_aiChatEntry_to_aiChatOption"
+            app:destination="@id/aiChatOptionFragment" />
+
+        <action
+            android:id="@+id/action_aiChatEntry_to_aiChatFragment"
+            app:destination="@id/aiChatFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/aiChatOptionFragment"
+        android:name="com.example.plog.ui.aichat.AiChatOptionFragment"
+        android:label="대화 시작">
+        <action
+            android:id="@+id/action_aiChatOption_to_aiChat"
+            app:destination="@id/aiChatFragment" />
+        <action
+            android:id="@+id/action_aiChatOption_to_diarySelect"
+            app:destination="@id/diarySelectFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/diarySelectFragment"
+        android:name="com.example.plog.ui.aichat.DiarySelectFragment"
+        android:label="일기 선택">
+        <action
+            android:id="@+id/action_diarySelect_to_aiChat"
+            app:destination="@id/aiChatFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/aiChatFragment"
+        android:name="com.example.plog.ui.aichat.AiChatFragment"
+        android:label="AI 대화" />
     <fragment
         android:id="@+id/autoFillFragment"
         android:name="com.example.plog.autofill.AutoFillFragment"

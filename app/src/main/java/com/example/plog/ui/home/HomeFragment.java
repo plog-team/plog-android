@@ -45,6 +45,11 @@ public class HomeFragment extends Fragment {
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
+
+        binding.cardAiChat.setOnClickListener(v ->
+                Navigation.findNavController(v).navigate(R.id.action_home_to_aiChatEntry)
+        );
+
         return binding.getRoot();
     }
 
