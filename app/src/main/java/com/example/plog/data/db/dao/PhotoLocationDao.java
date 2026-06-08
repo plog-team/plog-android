@@ -16,6 +16,9 @@ public interface PhotoLocationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insert(PhotoLocationEntity entity);
 
+    @Query("SELECT COUNT(*) FROM photo_location WHERE photo_id = :photoId")
+    int countByPhotoId(int photoId);
+
     @Query("SELECT * FROM photo_location WHERE photo_id = :photoId")
     LiveData<PhotoLocationEntity> getByPhotoId(int photoId);
 
