@@ -2,6 +2,7 @@
 package com.example.plog.ui.photo;
 import android.app.Application;
 import android.net.Uri;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
@@ -16,6 +17,8 @@ import com.example.plog.util.SessionManager;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import com.example.plog.autofill.PhotoSaveResult;
 public class PhotoViewModel extends AndroidViewModel {
@@ -51,7 +54,17 @@ public class PhotoViewModel extends AndroidViewModel {
 
     /** 갤러리 URI로 서버 photoId 조회 */
     public Long getServerPhotoIdByImageUrl(String imageUrl) {
-        return photoRepository.getServerPhotoIdByImageUrl(imageUrl);
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            return photoRepository.getServerPhotoIdByImageUrl(imageUrl);
+        }
+
+        try {
+            Future<Long> future = executor.submit(() -> photoRepository.getServerPhotoIdByImageUrl(imageUrl));
+            return future.get(3, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            android.util.Log.w("PhotoViewModel", "serverPhotoId lookup failed: " + e.getMessage());
+            return null;
+        }
     }
 
     /** 일기 수정 시 교체된 갤러리 URI를 DB에서 소프트 삭제 */

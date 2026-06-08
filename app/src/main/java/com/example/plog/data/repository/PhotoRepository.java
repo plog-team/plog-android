@@ -1,15 +1,16 @@
 // data/repository/PhotoRepository.java
 package com.example.plog.data.repository;
 
+import android.content.ContentUris;
 import android.content.Context;
 import android.location.Address;
 import android.location.Geocoder;
 import android.net.Uri;
-import android.os.Build;
 import android.provider.MediaStore;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 import androidx.lifecycle.LiveData;
 
@@ -22,13 +23,12 @@ import com.example.plog.model.ApiResponse;
 import com.example.plog.model.PhotoUploadBatchResponse;
 import com.example.plog.network.ApiClient;
 import com.example.plog.util.ExifExtractor;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import okio.BufferedSink;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
@@ -74,21 +74,27 @@ public class PhotoRepository {
     @WorkerThread
     public long savePhoto(@NonNull Uri uri, int userId, @NonNull Context context) {
 
-        // ── Android 10 이상 — 원본 EXIF 접근을 위한 URI 변환 ──────────────
-        Uri exifUri = uri;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            exifUri = MediaStore.setRequireOriginal(uri);
-        }
+        // Photo Picker URI (content://media/picker/...) 는 openFileDescriptor() 에서도
+        // GPS 를 제거하는 RedactingFileDescriptor를 반환할 수 있다.
+        // MediaStore URI (content://media/external/images/media/ID) 로 변환 후 추출하면
+        // READ_MEDIA_IMAGES + ACCESS_MEDIA_LOCATION 허용 시 원본 FD에서 GPS를 읽을 수 있다.
+        Uri mediaUri = toMediaStoreUri(uri);
+        boolean converted = !mediaUri.equals(uri);
+        Log.d("PhotoRepository", "savePhoto 시작 — picker=" + uri
+                + " | mediaStore=" + (converted ? mediaUri : "변환 없음"));
 
-        ExifExtractor.ExifResult exif = null;
+        ExifExtractor.ExifResult exif = exifExtractor.extract(mediaUri, context);
+        Log.d("PhotoRepository", "1차 추출 결과: "
+                + (exif == null ? "null" : "hasGPS=" + exif.hasLocation()
+                + " lat=" + exif.latitude + " lng=" + exif.longitude));
 
-        try {
-            // 원본 URI로 EXIF 추출 시도
-            exif = exifExtractor.extract(exifUri, context);
-        } catch (Exception e) {
-            // 원본 URI 실패 시 일반 URI로 재시도
-            Log.w("PhotoRepository", "원본 URI 실패 — 일반 URI로 재시도" + e.getMessage());
+        // MediaStore URI 접근 실패(권한 없음 등)이면 원본 picker URI로 재시도
+        if (exif == null && converted) {
+            Log.w("PhotoRepository", "MediaStore URI 실패 — picker URI로 재시도");
             exif = exifExtractor.extract(uri, context);
+            Log.d("PhotoRepository", "2차 추출(picker) 결과: "
+                    + (exif == null ? "null" : "hasGPS=" + exif.hasLocation()
+                    + " lat=" + exif.latitude + " lng=" + exif.longitude));
         }
 
         // ── Photo 저장 ──────────────────────────────────────────────────────
@@ -114,8 +120,9 @@ public class PhotoRepository {
             loc.latitude  = exif.latitude;
             loc.longitude = exif.longitude;
             locationDao.insert(loc);
-            Log.d("PhotoRepository", "GPS 저장 완료 — lat: "
-                    + loc.latitude + " lng: " + loc.longitude);
+            int verify = locationDao.countByPhotoId((int) photoId);
+            Log.d("PhotoRepository", "GPS 저장 완료 — lat: " + loc.latitude
+                    + " lng: " + loc.longitude + " | DB확인 rows=" + verify);
 
             // 역지오코딩 — locationName / address 업데이트
             reverseGeocode(context, (int) photoId, loc.latitude, loc.longitude);
@@ -174,19 +181,14 @@ public class PhotoRepository {
     /** 갤러리 URI → 서버 업로드. 실패해도 로컬 저장에 영향 없음. */
     @WorkerThread
     private void uploadToServer(@NonNull Uri uri, @NonNull Context context) {
-        try (InputStream is = context.getContentResolver().openInputStream(uri)) {
-            if (is == null) return;
-
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            byte[] buf = new byte[8192];
-            int n;
-            while ((n = is.read(buf)) > 0) baos.write(buf, 0, n);
-
+        try {
             String mime = context.getContentResolver().getType(uri);
             if (mime == null) mime = "image/jpeg";
             String filename = "photo_" + System.currentTimeMillis() + ".jpg";
 
-            RequestBody body = RequestBody.create(baos.toByteArray(), MediaType.parse(mime));
+            // Picker URI는 openInputStream이 GPS를 제거하므로 MediaStore URI로 변환 후 업로드
+            Uri readUri = toMediaStoreUri(uri);
+            RequestBody body = new ContentUriRequestBody(context, readUri, MediaType.parse(mime));
             MultipartBody.Part part = MultipartBody.Part.createFormData("file", filename, body);
 
             Response<ApiResponse<PhotoUploadBatchResponse>> response =
@@ -204,6 +206,40 @@ public class PhotoRepository {
             }
         } catch (Exception e) {
             Log.w("PhotoRepository", "서버 업로드 실패 (무시): " + e.getMessage());
+        }
+    }
+
+    private static class ContentUriRequestBody extends RequestBody {
+        private final Context context;
+        private final Uri uri;
+        private final MediaType mediaType;
+
+        ContentUriRequestBody(@NonNull Context context, @NonNull Uri uri, @Nullable MediaType mediaType) {
+            this.context = context.getApplicationContext();
+            this.uri = uri;
+            this.mediaType = mediaType;
+        }
+
+        @Nullable
+        @Override
+        public MediaType contentType() {
+            return mediaType;
+        }
+
+        @Override
+        public void writeTo(@NonNull BufferedSink sink) throws IOException {
+            try (android.os.ParcelFileDescriptor pfd =
+                         context.getContentResolver().openFileDescriptor(uri, "r")) {
+                if (pfd == null) throw new IOException("Cannot open file descriptor: " + uri);
+                try (java.io.FileInputStream fis =
+                             new java.io.FileInputStream(pfd.getFileDescriptor())) {
+                    byte[] buffer = new byte[8192];
+                    int read;
+                    while ((read = fis.read(buffer)) != -1) {
+                        sink.write(buffer, 0, read);
+                    }
+                }
+            }
         }
     }
 
@@ -272,5 +308,28 @@ public class PhotoRepository {
     @WorkerThread
     public Long getServerPhotoIdByImageUrl(String imageUrl) {
         return photoDao.getServerPhotoIdByImageUrl(imageUrl);
+    }
+
+    /**
+     * Photo Picker URI (content://media/picker/.../media/ID) →
+     * MediaStore URI (content://media/external/images/media/ID) 변환.
+     * Picker URI가 아니면 그대로 반환.
+     *
+     * MediaStore URI는 READ_MEDIA_IMAGES + ACCESS_MEDIA_LOCATION 허용 시
+     * openFileDescriptor()로 GPS가 보존된 원본 FD를 반환한다.
+     */
+    @NonNull
+    private static Uri toMediaStoreUri(@NonNull Uri uri) {
+        if (!"media".equals(uri.getAuthority())) return uri;
+        List<String> segments = uri.getPathSegments();
+        if (segments.isEmpty() || !"picker".equals(segments.get(0))) return uri;
+        try {
+            long mediaId = Long.parseLong(uri.getLastPathSegment());
+            return ContentUris.withAppendedId(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, mediaId);
+        } catch (NumberFormatException e) {
+            Log.w("PhotoRepository", "Picker URI ID 파싱 실패: " + uri.getLastPathSegment());
+            return uri;
+        }
     }
 }

@@ -17,19 +17,19 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.gms.location.*;
 import com.google.android.gms.location.Priority;
 import com.example.plog.R;
-import com.example.plog.api.*;
 import com.example.plog.api.model.*;
 import com.example.plog.network.ApiClient;
 import com.example.plog.ui.recommend.adapter.*;
 import com.example.plog.ui.recommend.model.PlaceItem;
-import com.example.plog.api.model.PreferenceResponse;
 import java.util.*;
 import retrofit2.*;
+import com.example.plog.model.ApiResponse;
+
 
 public class RecommendFragment extends Fragment {
 
     private static final int LOCATION_REQUEST = 1001;
-    private static final int PAGE_SIZE        = 5;
+    private static final int PAGE_SIZE        = 10;
     private static final int NEARBY_RADIUS    = 2000;
     private static final int FEATURED_RADIUS  = 1000;
 
@@ -45,7 +45,7 @@ public class RecommendFragment extends Fragment {
     private final List<PlaceItem> originalList = new ArrayList<>();
     private final List<PlaceItem> nearbyList   = new ArrayList<>();
 
-    // 클릭로그 기반 선호 카테고리 (동률 포함 가능)
+    // 클릭로그 기반 선호 카테고리
     private List<String> preferredTypeIds = new ArrayList<>();
 
     private double currentLat = 37.5665;
@@ -77,20 +77,20 @@ public class RecommendFragment extends Fragment {
     }
 
     private void initViews(View v) {
-        layoutContent        = v.findViewById(R.id.layoutContent);
-        layoutLoading        = v.findViewById(R.id.layoutLoading);
-        layoutError          = v.findViewById(R.id.layoutError);
-        layoutEmpty          = v.findViewById(R.id.layoutEmpty);
+        layoutContent         = v.findViewById(R.id.layoutContent);
+        layoutLoading         = v.findViewById(R.id.layoutLoading);
+        layoutError           = v.findViewById(R.id.layoutError);
+        layoutEmpty           = v.findViewById(R.id.layoutEmpty);
         layoutFeaturedSection = v.findViewById(R.id.layoutFeaturedSection);
-        rvFeatured           = v.findViewById(R.id.rvFeatured);
-        rvNearby             = v.findViewById(R.id.rvNearby);
-        tvNearbyCount        = v.findViewById(R.id.tvNearbyCount);
-        tvSortBtn            = v.findViewById(R.id.tvSortBtn);
-        tvTabAll             = v.findViewById(R.id.tvTabAll);
-        tvTabTourist         = v.findViewById(R.id.tvTabTourist);
-        tvTabCulture         = v.findViewById(R.id.tvTabCulture);
-        tvTabEvent           = v.findViewById(R.id.tvTabEvent);
-        tvTabFood            = v.findViewById(R.id.tvTabFood);
+        rvFeatured            = v.findViewById(R.id.rvFeatured);
+        rvNearby              = v.findViewById(R.id.rvNearby);
+        tvNearbyCount         = v.findViewById(R.id.tvNearbyCount);
+        tvSortBtn             = v.findViewById(R.id.tvSortBtn);
+        tvTabAll              = v.findViewById(R.id.tvTabAll);
+        tvTabTourist          = v.findViewById(R.id.tvTabTourist);
+        tvTabCulture          = v.findViewById(R.id.tvTabCulture);
+        tvTabEvent            = v.findViewById(R.id.tvTabEvent);
+        tvTabFood             = v.findViewById(R.id.tvTabFood);
         v.findViewById(R.id.btnRetry).setOnClickListener(x -> getLocationAndLoad());
     }
 
@@ -245,7 +245,7 @@ public class RecommendFragment extends Fragment {
                         .show());
     }
 
-    // 선호 카테고리 로드 후 장소 조회 (재로딩마다 preference 갱신)
+    // 선호 카테고리 로드 후 장소 조회
     private void loadPlaces() {
         currentPage = 1;
         hasMorePages = true;
@@ -265,7 +265,6 @@ public class RecommendFragment extends Fragment {
                             } else {
                                 preferredTypeIds = new ArrayList<>();
                             }
-                            // 선호 카테고리 기반 featured 전용 호출 후 일반 목록 호출
                             fetchFeatured();
                             fetchPage(currentPage, true);
                         }
@@ -282,51 +281,22 @@ public class RecommendFragment extends Fragment {
             fetchPage(currentPage, true);
         }
     }
-    // featured 전용 호출: 선호 카테고리 1위로 2km 내 전체 조회
+
+    // 취향 기반 featured 전용 호출
     private void fetchFeatured() {
-        // 클릭로그 없으면 카테고리 지정 없이 전체 조회
         String featuredTypeId = preferredTypeIds.isEmpty() ? "" : preferredTypeIds.get(0);
 
-        TourApiClient.getTourService().getNearby(
-                        TourApiClient.TOUR_API_KEY,
+        ApiClient.getApiService().getNearby(
                         currentLon, currentLat,
-                        FEATURED_RADIUS,  // 1000m
-                        "Plog", "AND", "json",
-                        100, 1, featuredTypeId)
-                .enqueue(new Callback<TourResponse>() {
+                        FEATURED_RADIUS, 100, 1, featuredTypeId)
+                .enqueue(new Callback<ApiResponse<List<PlaceItemDto>>>() {
                     @Override
-                    public void onResponse(@NonNull Call<TourResponse> call,
-                                           @NonNull Response<TourResponse> resp) {
-                        if (!isAdded()) return;
-                        if (!resp.isSuccessful() || resp.body() == null) return;
-
-                        TourResponse.Body body = resp.body().response.body;
-                        if (body.items == null || body.items.isJsonNull()) return;
-
-                        List<TourItem> rawItems = null;
-                        try {
-                            if (body.items.isJsonObject()
-                                    && body.items.getAsJsonObject().has("item")) {
-                                com.google.gson.JsonElement itemEl =
-                                        body.items.getAsJsonObject().get("item");
-                                com.google.gson.Gson gson = new com.google.gson.Gson();
-                                if (itemEl.isJsonArray()) {
-                                    rawItems = gson.fromJson(itemEl,
-                                            new com.google.gson.reflect.TypeToken<List<TourItem>>(){}.getType());
-                                } else if (itemEl.isJsonObject()) {
-                                    rawItems = new ArrayList<>();
-                                    rawItems.add(gson.fromJson(itemEl, TourItem.class));
-                                }
-                            }
-                        } catch (Exception e) {
-                            rawItems = null;
-                        }
-
-                        if (rawItems == null || rawItems.isEmpty()) return;
-
-                        List<PlaceItem> items = parseItems(rawItems);
+                    public void onResponse(@NonNull Call<ApiResponse<List<PlaceItemDto>>> call,
+                                           @NonNull Response<ApiResponse<List<PlaceItemDto>>> resp) {
+                        if (!isAdded() || !resp.isSuccessful()
+                                || resp.body() == null || resp.body().data == null) return;
+                        List<PlaceItem> items = parseDtoItems(resp.body().data);
                         requireActivity().runOnUiThread(() -> {
-                            // 응답 왔을 때 여전히 전체 탭인지 확인
                             if (!selectedTypeId.isEmpty()) return;
                             featuredList.clear();
                             featuredList.addAll(items);
@@ -335,7 +305,7 @@ public class RecommendFragment extends Fragment {
                     }
 
                     @Override
-                    public void onFailure(@NonNull Call<TourResponse> call,
+                    public void onFailure(@NonNull Call<ApiResponse<List<PlaceItemDto>>> call,
                                           @NonNull Throwable t) {}
                 });
     }
@@ -348,58 +318,34 @@ public class RecommendFragment extends Fragment {
     }
 
     private void fetchPage(int page, boolean isFirst) {
-        TourApiClient.getTourService().getNearby(
-                        TourApiClient.TOUR_API_KEY,
+        ApiClient.getApiService().getNearby(
                         currentLon, currentLat,
-                        NEARBY_RADIUS, "Plog", "AND", "json",
-                        PAGE_SIZE, page, selectedTypeId)
-                .enqueue(new Callback<TourResponse>() {
+                        NEARBY_RADIUS, PAGE_SIZE, page, selectedTypeId)
+                .enqueue(new Callback<ApiResponse<List<PlaceItemDto>>>() {
                     @Override
-                    public void onResponse(@NonNull Call<TourResponse> call,
-                                           @NonNull Response<TourResponse> resp) {
+                    public void onResponse(@NonNull Call<ApiResponse<List<PlaceItemDto>>> call,
+                                           @NonNull Response<ApiResponse<List<PlaceItemDto>>> resp) {
                         if (!isAdded()) return;
                         isLoadingMore = false;
 
-                        if (resp.isSuccessful() && resp.body() != null) {
-                            TourResponse.Body body = resp.body().response.body;
+                        if (resp.isSuccessful() && resp.body() != null
+                                && resp.body().data != null) {
+                            List<PlaceItemDto> body = resp.body().data;
 
-                            if (isFirst && (body.totalCount == 0
-                                    || body.items == null
-                                    || body.items.isJsonNull())) {
+                            if (isFirst && body.isEmpty()) {
                                 RecommendFragment.this.showEmpty();
                                 return;
                             }
 
-                            List<TourItem> rawItems = null;
-                            try {
-                                if (body.items != null
-                                        && body.items.isJsonObject()
-                                        && body.items.getAsJsonObject().has("item")) {
-                                    com.google.gson.JsonElement itemEl =
-                                            body.items.getAsJsonObject().get("item");
-                                    com.google.gson.Gson gson = new com.google.gson.Gson();
-                                    if (itemEl.isJsonArray()) {
-                                        rawItems = gson.fromJson(itemEl,
-                                                new com.google.gson.reflect.TypeToken<List<TourItem>>(){}.getType());
-                                    } else if (itemEl.isJsonObject()) {
-                                        rawItems = new ArrayList<>();
-                                        rawItems.add(gson.fromJson(itemEl, TourItem.class));
-                                    }
-                                }
-                            } catch (Exception e) {
-                                rawItems = null;
-                            }
+                            List<PlaceItem> newItems = parseDtoItems(body);
 
-                            if (rawItems == null || rawItems.isEmpty()) {
+                            if (newItems.isEmpty()) {
                                 hasMorePages = false;
                                 if (isFirst) RecommendFragment.this.showEmpty();
                                 return;
                             }
 
-                            List<PlaceItem> newItems = parseItems(rawItems);
-                            int totalPages = (int) Math.ceil(
-                                    (double) body.totalCount / PAGE_SIZE);
-                            if (page >= totalPages) hasMorePages = false;
+                            if (body.size() < PAGE_SIZE) hasMorePages = false;
 
                             if (isFirst) {
                                 originalList.clear();
@@ -419,24 +365,12 @@ public class RecommendFragment extends Fragment {
                     }
 
                     @Override
-                    public void onFailure(@NonNull Call<TourResponse> call,
+                    public void onFailure(@NonNull Call<ApiResponse<List<PlaceItemDto>>> call,
                                           @NonNull Throwable t) {
                         isLoadingMore = false;
                         if (isAdded() && isFirst) RecommendFragment.this.showError();
                     }
                 });
-    }
-
-
-    // 두 좌표 간 거리 계산 (미터)
-    private double distanceMeters(double lat1, double lon1, double lat2, double lon2) {
-        double R = 6371000;
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLon = Math.toRadians(lon2 - lon1);
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     private void fetchCongestionAndSort() {
@@ -445,19 +379,10 @@ public class RecommendFragment extends Fragment {
         Map<String, List<PlaceItem>> areaMap = new HashMap<>();
         for (PlaceItem item : originalList) {
             String area = matchAreaFromAddress(item.getAddress(), item.getTitle());
+            if (area == null) area = getNearestSeoulArea(item.getLatitude(), item.getLongitude());
             if (area != null) {
                 if (!areaMap.containsKey(area)) areaMap.put(area, new ArrayList<>());
                 areaMap.get(area).add(item);
-            }
-        }
-
-        if (areaMap.isEmpty()) {
-            for (PlaceItem item : originalList) {
-                String area = getNearestSeoulArea(item.getLatitude(), item.getLongitude());
-                if (area != null) {
-                    if (!areaMap.containsKey(area)) areaMap.put(area, new ArrayList<>());
-                    areaMap.get(area).add(item);
-                }
             }
         }
 
@@ -475,7 +400,7 @@ public class RecommendFragment extends Fragment {
             return;
         }
 
-        int[] completed   = {0};
+        int[] completed    = {0};
         int[] successCount = {0};
         int total = areaMap.size();
 
@@ -485,20 +410,14 @@ public class RecommendFragment extends Fragment {
             try { encodedArea = java.net.URLEncoder.encode(area, "UTF-8"); }
             catch (Exception e) { encodedArea = area; }
 
-            TourApiClient.getSeoulService()
-                    .getRealtimeData(TourApiClient.SEOUL_API_KEY, encodedArea)
-                    .enqueue(new Callback<SeoulResponse>() {
+            ApiClient.getApiService().getCongestion(encodedArea)
+                    .enqueue(new Callback<CongestionDto>() {
                         @Override
-                        public void onResponse(@NonNull Call<SeoulResponse> call,
-                                               @NonNull Response<SeoulResponse> resp) {
-                            if (resp.isSuccessful()
-                                    && resp.body() != null
-                                    && resp.body().CITYDATA != null
-                                    && resp.body().CITYDATA.LIVE_PPLTN_STTS != null
-                                    && !resp.body().CITYDATA.LIVE_PPLTN_STTS.isEmpty()) {
-                                int score = congestionToScore(
-                                        resp.body().CITYDATA.LIVE_PPLTN_STTS
-                                                .get(0).AREA_CONGEST_LVL);
+                        public void onResponse(@NonNull Call<CongestionDto> call,
+                                               @NonNull Response<CongestionDto> resp) {
+                            if (resp.isSuccessful() && resp.body() != null
+                                    && !"정보없음".equals(resp.body().congestionLevel)) {
+                                int score = congestionToScore(resp.body().congestionLevel);
                                 for (PlaceItem item : itemsInArea) {
                                     item.setCongestionScore(score);
                                 }
@@ -508,7 +427,7 @@ public class RecommendFragment extends Fragment {
                         }
 
                         @Override
-                        public void onFailure(@NonNull Call<SeoulResponse> call,
+                        public void onFailure(@NonNull Call<CongestionDto> call,
                                               @NonNull Throwable t) {
                             checkAndSort(completed, total, successCount);
                         }
@@ -547,6 +466,45 @@ public class RecommendFragment extends Fragment {
                 }
             }
         }
+    }
+
+    // DTO → PlaceItem 변환
+    private List<PlaceItem> parseDtoItems(List<PlaceItemDto> dtos) {
+        List<PlaceItem> result = new ArrayList<>();
+        for (PlaceItemDto d : dtos) {
+            result.add(new PlaceItem(
+                    d.contentId, d.title, d.address,
+                    d.imageUrl, getCategoryName(d.contentTypeId),
+                    d.contentTypeId, d.dist, d.lat, d.lng));
+        }
+        return result;
+    }
+
+    // 클릭 시 로그 저장 후 상세 화면 이동
+    private void navigateToDetail(PlaceItem item) {
+        ApiClient.getApiService().saveClickLog(
+                        new ClickLogRequest(
+                                item.getContentId(),
+                                item.getContentTypeId(),
+                                item.getCategory()))
+                .enqueue(new Callback<Void>() {
+                    @Override public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> resp) {}
+                    @Override public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {}
+                });
+
+        Bundle b = new Bundle();
+        b.putString("contentId",     item.getContentId());
+        b.putString("contentTypeId", item.getContentTypeId());
+        b.putString("title",         item.getTitle());
+        b.putString("address",       item.getAddress());
+        b.putString("imageUrl",      item.getImageUrl());
+        b.putString("category",      item.getCategory());
+        b.putString("distance",      item.getDistance());
+        b.putString("congestion",    item.getCongestion());
+        b.putFloat("latitude",       (float) item.getLatitude());
+        b.putFloat("longitude",      (float) item.getLongitude());
+        Navigation.findNavController(requireView())
+                .navigate(R.id.action_recommend_to_detail, b);
     }
 
     private String matchAreaFromAddress(String address, String title) {
@@ -596,44 +554,6 @@ public class RecommendFragment extends Fragment {
             if (d < minDist) { minDist = d; nearest = names[i]; }
         }
         return nearest;
-    }
-
-    private List<PlaceItem> parseItems(List<TourItem> raw) {
-        List<PlaceItem> result = new ArrayList<>();
-        for (TourItem t : raw) {
-            result.add(new PlaceItem(t.contentid, t.title, t.addr1,
-                    t.firstimage, getCategoryName(t.contenttypeid),
-                    t.contenttypeid, t.dist,
-                    parseDouble(t.mapy), parseDouble(t.mapx)));
-        }
-        return result;
-    }
-
-    // 클릭 시 로그 저장 후 상세 화면 이동
-    private void navigateToDetail(PlaceItem item) {
-        ApiClient.getApiService().saveClickLog(
-                        new ClickLogRequest(
-                                item.getContentId(),
-                                item.getContentTypeId(),
-                                item.getCategory()))
-                .enqueue(new Callback<Void>() {
-                    @Override public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> resp) {}
-                    @Override public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {}
-                });
-
-        Bundle b = new Bundle();
-        b.putString("contentId",     item.getContentId());
-        b.putString("contentTypeId", item.getContentTypeId());
-        b.putString("title",         item.getTitle());
-        b.putString("address",       item.getAddress());
-        b.putString("imageUrl",      item.getImageUrl());
-        b.putString("category",      item.getCategory());
-        b.putString("distance",      item.getDistance());
-        b.putString("congestion",    item.getCongestion());
-        b.putFloat("latitude",       (float) item.getLatitude());
-        b.putFloat("longitude",      (float) item.getLongitude());
-        Navigation.findNavController(requireView())
-                .navigate(R.id.action_recommend_to_detail, b);
     }
 
     private void showLoading() {

@@ -36,12 +36,17 @@ import com.example.plog.network.auth.LoginRequest;
 import com.example.plog.network.auth.LoginResponse;
 import com.example.plog.network.auth.RegisterRequest;
 import com.example.plog.network.auth.VerifyRequest;
-
 import java.util.List;
 import java.util.Map;
 import okhttp3.MultipartBody;
 import retrofit2.Call;
 import retrofit2.http.*;
+import com.example.plog.api.model.PlaceItemDto;
+import com.example.plog.api.model.PlaceDetailDto;
+import com.example.plog.api.model.CongestionDto;
+import com.example.plog.model.PreferenceUpdateRequest;
+
+
 
 public interface ApiService {
 
@@ -73,6 +78,8 @@ public interface ApiService {
     // 선호도
     @GET("api/recommend/preference")
     Call<PreferenceResponse> getPreference();
+    @PUT("api/recommend/preference")
+    Call<Void> updatePreferences(@Body PreferenceUpdateRequest req);
 
     // 북마크
     @POST("/api/recommend/bookmarks")
@@ -105,6 +112,7 @@ public interface ApiService {
     Call<Void> logout(@Header("Authorization") String token);
 
     // 사진
+
     @Multipart
     @POST("api/photos")
     Call<ApiResponse<PhotoUploadBatchResponse>> uploadPhoto(@Part MultipartBody.Part file);
@@ -116,6 +124,7 @@ public interface ApiService {
     Call<ApiResponse<PhotoAutoInputContext>> getPhotoAutoInput(@Path("photoId") long photoId);
 
     // AI 가이드
+
     @POST("api/ai-guide/sessions")
     Call<ApiResponse<CreateSessionResponse>> createAiSession(@Body CreateSessionRequest request);
 
@@ -124,15 +133,15 @@ public interface ApiService {
 
     @POST("api/ai-guide/sessions/{sessionId}/questions/{questionId}/answer")
     Call<ApiResponse<AnswerResponse>> answerQuestion(
-            @Path("sessionId") long sessionId,
-            @Path("questionId") long questionId,
-            @Body AnswerRequest request
+        @Path("sessionId") long sessionId,
+        @Path("questionId") long questionId,
+        @Body AnswerRequest request
     );
 
     @POST("api/ai-guide/sessions/{sessionId}/chat")
     Call<ApiResponse<SendChatResponse>> sendChat(
-            @Path("sessionId") long sessionId,
-            @Body SendChatRequest request
+        @Path("sessionId") long sessionId,
+        @Body SendChatRequest request
     );
 
     @POST("api/ai-guide/sessions/{sessionId}/draft")
@@ -143,8 +152,8 @@ public interface ApiService {
 
     @POST("api/ai-guide/sessions/{sessionId}/feedback")
     Call<Void> submitFeedback(
-            @Path("sessionId") long sessionId,
-            @Body FeedbackRequest request
+        @Path("sessionId") long sessionId,
+        @Body FeedbackRequest request
     );
 
     // 일기
@@ -261,4 +270,26 @@ public interface ApiService {
     Call<Void> endSession(
             @Path("sessionId") Long sessionId
     );
+
+    // Tour API (백엔드 경유)
+    @GET("api/tour/nearby")
+    Call<ApiResponse<List<PlaceItemDto>>> getNearby(
+            @Query("mapX") double mapX,
+            @Query("mapY") double mapY,
+            @Query("radius") int radius,
+            @Query("numOfRows") int numOfRows,
+            @Query("pageNo") int pageNo,
+            @Query("contentTypeId") String contentTypeId);
+
+    @GET("api/tour/detail")
+    Call<ApiResponse<PlaceDetailDto>> getDetail(
+            @Query("contentId") String contentId,
+            @Query("contentTypeId") String contentTypeId);
+
+    @GET("api/tour/congestion/{placeName}")
+    Call<CongestionDto> getCongestion(@Path("placeName") String placeName);
+
+
+
 }
+
