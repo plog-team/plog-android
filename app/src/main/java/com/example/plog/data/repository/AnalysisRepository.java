@@ -144,6 +144,7 @@ public class AnalysisRepository {
                                          @NonNull List<String> categories,
                                          @NonNull Map<String, Float> scores) {
         if (categories.isEmpty()) return;
+
         try {
             ApiClient.getApiService()
                     .updatePreferences(userId, new com.example.plog.model.PreferenceUpdateRequest(categories, scores))

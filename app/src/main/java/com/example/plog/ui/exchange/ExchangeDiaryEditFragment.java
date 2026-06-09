@@ -19,11 +19,11 @@ import com.example.plog.R;
 import com.example.plog.databinding.FragmentDiaryEditBinding;
 import com.example.plog.network.RetrofitClient;
 import com.example.plog.network.api.ExchangeDiaryApi;
+import com.example.plog.network.dto.ExchangeDiaryListResponse;
 import com.example.plog.network.dto.ExchangeDiaryRequest;
 import com.example.plog.network.dto.ExchangeDiaryResponse;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -51,6 +51,7 @@ public class ExchangeDiaryEditFragment extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        android.util.Log.d("ExchangeDiaryEdit", "onViewCreated 진입");
         super.onViewCreated(view, savedInstanceState);
 
         if (getArguments() != null) {
@@ -75,21 +76,22 @@ public class ExchangeDiaryEditFragment extends Fragment {
 
     private void loadExistingDiary() {
         ExchangeDiaryApi api = RetrofitClient.getClient().create(ExchangeDiaryApi.class);
-        api.getDiaries(sessionId).enqueue(new Callback<List<ExchangeDiaryResponse>>() {
+        api.getDiaries(sessionId).enqueue(new Callback<ExchangeDiaryListResponse>() {
             @Override
-            public void onResponse(Call<List<ExchangeDiaryResponse>> call, Response<List<ExchangeDiaryResponse>> response) {
+            public void onResponse(Call<ExchangeDiaryListResponse> call, Response<ExchangeDiaryListResponse> response) {
                 if (!isAdded()) return;
-                if (response.isSuccessful() && response.body() != null) {
-                    for (ExchangeDiaryResponse d : response.body()) {
-                        if (d.getId().equals(diaryId)) {
-                            binding.etBody.setText(d.getContent());
+                if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                    for (ExchangeDiaryResponse.Data d : response.body().getData()) {
+                        if (d.id != null && d.id.equals(diaryId)) {
+                            binding.etTitle.setText(d.title != null ? d.title : "");
+                            binding.etBody.setText(d.content);
                             break;
                         }
                     }
                 }
             }
             @Override
-            public void onFailure(Call<List<ExchangeDiaryResponse>> call, Throwable t) {
+            public void onFailure(Call<ExchangeDiaryListResponse> call, Throwable t) {
                 android.util.Log.e("ExchangeDiaryEdit", "기존 일기 로드 실패: " + t.getMessage());
             }
         });
@@ -142,8 +144,8 @@ public class ExchangeDiaryEditFragment extends Fragment {
         ExchangeDiaryApi api = RetrofitClient.getClient().create(ExchangeDiaryApi.class);
 
         if (diaryId != null) {
-            // 수정
             Map<String, String> requestBody = new HashMap<>();
+            requestBody.put("title", binding.etTitle.getText().toString().trim());
             requestBody.put("content", body);
             api.updateDiary(diaryId, requestBody).enqueue(new Callback<ExchangeDiaryResponse>() {
                 @Override
@@ -164,8 +166,8 @@ public class ExchangeDiaryEditFragment extends Fragment {
                 }
             });
         } else {
-            // 새로 작성
-            ExchangeDiaryRequest request = new ExchangeDiaryRequest(sessionId, userId, body, dayNumber);
+            String title = binding.etTitle.getText().toString().trim();
+            ExchangeDiaryRequest request = new ExchangeDiaryRequest(sessionId, userId, title, body, dayNumber);
             api.createDiary(request).enqueue(new Callback<ExchangeDiaryResponse>() {
                 @Override
                 public void onResponse(Call<ExchangeDiaryResponse> call, Response<ExchangeDiaryResponse> response) {

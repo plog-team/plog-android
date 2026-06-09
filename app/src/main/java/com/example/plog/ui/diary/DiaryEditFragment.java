@@ -150,6 +150,7 @@ public class DiaryEditFragment extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        android.util.Log.d("DiaryEditFragment", "onViewCreated, isExchange=" + isExchange);
         super.onViewCreated(view, savedInstanceState);
         photoViewModel = new ViewModelProvider(this).get(PhotoViewModel.class);
         todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
@@ -467,6 +468,7 @@ public class DiaryEditFragment extends Fragment {
         ExchangeDiaryApi api = RetrofitClient.getClient().create(ExchangeDiaryApi.class);
         if (exchangeDiaryId != null) {
             Map<String, String> requestBody = new HashMap<>();
+            requestBody.put("title", binding.etTitle.getText().toString().trim());
             requestBody.put("content", body);
             api.updateDiary(exchangeDiaryId, requestBody).enqueue(new Callback<ExchangeDiaryResponse>() {
                 @Override
@@ -483,7 +485,8 @@ public class DiaryEditFragment extends Fragment {
                 }
             });
         } else {
-            ExchangeDiaryRequest request = new ExchangeDiaryRequest(sessionId, userId, body, dayNumber);
+            String title = binding.etTitle.getText().toString().trim();
+            ExchangeDiaryRequest request = new ExchangeDiaryRequest(sessionId, userId, title, body, dayNumber);
             api.createDiary(request).enqueue(new Callback<ExchangeDiaryResponse>() {
                 @Override
                 public void onResponse(Call<ExchangeDiaryResponse> call, Response<ExchangeDiaryResponse> response) {
