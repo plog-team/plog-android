@@ -124,7 +124,7 @@ public class DiaryDetailFragment extends Fragment {
                     binding.tvDate.setText(diary.getCreatedAt() != null ? diary.getCreatedAt().substring(0, 10) : "");
                     binding.tvWeather.setText("");
                     binding.tvLocation.setText("");
-                    binding.tvTitle.setText("DAY " + diary.getDayNumber());
+                    binding.tvTitle.setText(diary.getTitle() != null ? diary.getTitle() : "");
                     binding.tvSecretNotice.setVisibility(View.GONE);
                     binding.btnEmoji.setVisibility(View.VISIBLE);
                     binding.btnEdit.setVisibility(View.GONE);

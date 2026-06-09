@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.plog.R;
 import com.example.plog.network.RetrofitClient;
 import com.example.plog.network.api.ExchangeMatchApi;
+import com.example.plog.network.dto.ExchangeMatchListResponse;
 import com.example.plog.network.dto.ExchangeMatchResponse;
 import com.example.plog.network.dto.ExchangeRoomResponse;
 import com.google.android.material.button.MaterialButton;
@@ -71,19 +72,19 @@ public class NotMatchedFragment extends Fragment {
 
     private void loadPendingMatches() {
         ExchangeMatchApi api = RetrofitClient.getClient().create(ExchangeMatchApi.class);
-        api.getPendingMatches(getMyUserId()).enqueue(new Callback<List<ExchangeMatchResponse>>() {
+        api.getPendingMatches(getMyUserId()).enqueue(new Callback<ExchangeMatchListResponse>() {
             @Override
-            public void onResponse(Call<List<ExchangeMatchResponse>> call, Response<List<ExchangeMatchResponse>> response) {
+            public void onResponse(Call<ExchangeMatchListResponse> call, Response<ExchangeMatchListResponse> response) {
                 if (!isAdded()) return;
-                if (response.isSuccessful() && response.body() != null) {
-                    List<ExchangeMatchResponse> list = response.body();
+                if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                    List<ExchangeMatchResponse> list = response.body().getData();
                     adapter.updateList(list);
                     tvNoPending.setVisibility(list.isEmpty() ? View.VISIBLE : View.GONE);
                     rvPendingMatches.setVisibility(list.isEmpty() ? View.GONE : View.VISIBLE);
                 }
             }
             @Override
-            public void onFailure(Call<List<ExchangeMatchResponse>> call, Throwable t) {
+            public void onFailure(Call<ExchangeMatchListResponse> call, Throwable t) {
                 android.util.Log.e("NotMatched", "목록 로드 실패: " + t.getMessage());
             }
         });

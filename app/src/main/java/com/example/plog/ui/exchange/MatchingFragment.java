@@ -16,6 +16,7 @@ import com.example.plog.network.api.ExchangeRoomApi;
 import com.example.plog.network.api.MatchRecommendApi;
 import com.example.plog.network.dto.ExchangeMatchResponse;
 import com.example.plog.network.dto.ExchangeRoomResponse;
+import com.example.plog.network.dto.MatchRecommendListResponse;
 import com.example.plog.network.dto.MatchRecommendResponse;
 
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ import android.util.Log;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+
 
 public class MatchingFragment extends Fragment {
 
@@ -90,13 +92,13 @@ public class MatchingFragment extends Fragment {
 
     private void loadRecommendedUsers() {
         MatchRecommendApi api = RetrofitClient.getClient().create(MatchRecommendApi.class);
-        api.recommendMatches(getMyUserId()).enqueue(new Callback<List<MatchRecommendResponse>>() {
+        api.recommendMatches(getMyUserId()).enqueue(new Callback<MatchRecommendListResponse>() {
             @Override
-            public void onResponse(Call<List<MatchRecommendResponse>> call, Response<List<MatchRecommendResponse>> response) {
+            public void onResponse(Call<MatchRecommendListResponse> call, Response<MatchRecommendListResponse> response) {
                 if (!isAdded()) return;
-                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
+                if (response.isSuccessful() && response.body() != null && response.body().getData() != null && !response.body().getData().isEmpty()) {
                     Bundle bundle = new Bundle();
-                    bundle.putSerializable("recommendList", new ArrayList<>(response.body()));
+                    bundle.putSerializable("recommendList", new ArrayList<>(response.body().getData()));
                     NavHostFragment.findNavController(MatchingFragment.this)
                             .navigate(R.id.matchConfirmFragment, bundle);
                 } else {
@@ -105,7 +107,7 @@ public class MatchingFragment extends Fragment {
                 }
             }
             @Override
-            public void onFailure(Call<List<MatchRecommendResponse>> call, Throwable t) {
+            public void onFailure(Call<MatchRecommendListResponse> call, Throwable t) {
                 if (isAdded()) {
                     Log.e("Matching", "사용자 검색 실패: " + t.getMessage());
                     NavHostFragment.findNavController(MatchingFragment.this)
