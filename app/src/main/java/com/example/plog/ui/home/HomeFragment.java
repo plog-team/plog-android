@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -35,6 +34,7 @@ import retrofit2.Response;
 public class HomeFragment extends Fragment {
 
     private FragmentHomeBinding binding;
+    private Long todayDiaryId;
 
     @Nullable
     @Override
@@ -42,6 +42,11 @@ public class HomeFragment extends Fragment {
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
+
+        binding.cardAiChat.setOnClickListener(v ->
+                Navigation.findNavController(v).navigate(R.id.action_home_to_aiChatEntry)
+        );
+
         return binding.getRoot();
     }
 
@@ -49,33 +54,9 @@ public class HomeFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        binding.cardDiaryBanner.setOnClickListener(v -> {
-            String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
-            ApiClient.getApiService().getDiaryByDate(todayKey)
-                    .enqueue(new Callback<ApiResponse<DiarySimpleResponse>>() {
-                        @Override
-                        public void onResponse(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
-                                               @NonNull Response<ApiResponse<DiarySimpleResponse>> response) {
-                            if (response.isSuccessful()
-                                    && response.body() != null
-                                    && response.body().data != null) {
-                                Bundle args = new Bundle();
-                                args.putLong("diaryId", response.body().data.diaryId);
-                                Navigation.findNavController(v)
-                                        .navigate(R.id.action_homeFragment_to_diaryDetailFragment, args);
-                            } else {
-                                Navigation.findNavController(v)
-                                        .navigate(R.id.action_homeFragment_to_diaryEditFragment);
-                            }
-                        }
+        loadTodayDiaryBanner();
 
-                        @Override
-                        public void onFailure(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
-                                              @NonNull Throwable t) {
-                            Toast.makeText(requireContext(), "서버 연결에 실패했습니다.", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-        });
+        binding.cardDiaryBanner.setOnClickListener(this::openTodayDiaryBanner);
 
         binding.cardPlaceReport.setOnClickListener(v ->
                 Navigation.findNavController(v).navigate(R.id.action_home_to_place_report));
@@ -84,6 +65,53 @@ public class HomeFragment extends Fragment {
                 Navigation.findNavController(v).navigate(R.id.action_home_to_emotion_report));
 
         binding.cardExchangeBanner.setOnClickListener(v -> checkActiveRoom());
+    }
+
+    private void loadTodayDiaryBanner() {
+        String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(new Date());
+        ApiClient.getApiService().getDiaryByDate(todayKey)
+                .enqueue(new Callback<ApiResponse<DiarySimpleResponse>>() {
+                    @Override
+                    public void onResponse(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
+                                           @NonNull Response<ApiResponse<DiarySimpleResponse>> response) {
+                        if (!isAdded() || binding == null) return;
+
+                        if (response.isSuccessful()
+                                && response.body() != null
+                                && response.body().data != null) {
+                            todayDiaryId = response.body().data.diaryId;
+                            binding.tvDiaryBannerTitle.setText("오늘 작성한 일기가 있어요");
+                            binding.tvDiaryBannerAction.setText("오늘의 일기 보러가기 >");
+                        } else {
+                            showEmptyTodayDiaryBanner();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<ApiResponse<DiarySimpleResponse>> call,
+                                          @NonNull Throwable t) {
+                        if (!isAdded() || binding == null) return;
+                        showEmptyTodayDiaryBanner();
+                    }
+                });
+    }
+
+    private void showEmptyTodayDiaryBanner() {
+        todayDiaryId = null;
+        binding.tvDiaryBannerTitle.setText("오늘은 아직\n일기를 작성하지 않으셨네요!");
+        binding.tvDiaryBannerAction.setText("오늘의 일기 쓰기 >");
+    }
+
+    private void openTodayDiaryBanner(View view) {
+        if (todayDiaryId != null) {
+            Bundle args = new Bundle();
+            args.putLong("diaryId", todayDiaryId);
+            Navigation.findNavController(view)
+                    .navigate(R.id.action_homeFragment_to_diaryDetailFragment, args);
+        } else {
+            Navigation.findNavController(view)
+                    .navigate(R.id.action_homeFragment_to_diaryEditFragment);
+        }
     }
 
     private long getMyUserId() {

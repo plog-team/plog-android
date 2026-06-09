@@ -28,6 +28,7 @@
                 android:padding="16dp"
                 android:gravity="center_vertical">
                 <TextView
+                    android:id="@+id/tvDiaryBannerTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="오늘은 아직\n일기를 작성하지 않으셨네요!"
@@ -35,6 +36,7 @@
                     android:textSize="16sp"
                     android:textStyle="bold" />
                 <TextView
+                    android:id="@+id/tvDiaryBannerAction"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="오늘의 일기 >"
@@ -46,6 +48,7 @@
 
         <!-- AI 챗봇 배너 -->
         <androidx.cardview.widget.CardView
+            android:id="@+id/card_ai_chat"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             app:cardCornerRadius="24dp"

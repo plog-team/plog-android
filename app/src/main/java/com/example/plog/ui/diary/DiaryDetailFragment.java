@@ -1,7 +1,5 @@
 package com.example.plog.ui.diary;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -21,9 +19,12 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.model.LazyHeaders;
 import com.example.plog.R;
 import com.example.plog.data.DiaryEmojiDecoration;
 import com.example.plog.data.DiaryEntry;
@@ -41,8 +42,8 @@ import com.example.plog.network.ApiClient;
 import com.example.plog.network.RetrofitClient;
 import com.example.plog.network.api.ExchangeDiaryApi;
 import com.example.plog.network.dto.ExchangeDiaryResponse;
+import com.example.plog.util.Constants;
 
-import java.io.InputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -123,7 +124,7 @@ public class DiaryDetailFragment extends Fragment {
                     binding.tvDate.setText(diary.getCreatedAt() != null ? diary.getCreatedAt().substring(0, 10) : "");
                     binding.tvWeather.setText("");
                     binding.tvLocation.setText("");
-                    binding.tvTitle.setText("DAY " + diary.getDayNumber());
+                    binding.tvTitle.setText(diary.getTitle() != null ? diary.getTitle() : "");
                     binding.tvSecretNotice.setVisibility(View.GONE);
                     binding.btnEmoji.setVisibility(View.VISIBLE);
                     binding.btnEdit.setVisibility(View.GONE);
@@ -226,7 +227,11 @@ public class DiaryDetailFragment extends Fragment {
         TextView edit = createCommentAction("수정");
         edit.setOnClickListener(v -> {
             editingCommentId = comment.getId();
-            renderExchangeLines();
+            if (key == null) {
+                renderLines();
+            } else {
+                renderExchangeLines();
+            }
         });
         actionRow.addView(edit);
 
@@ -367,6 +372,7 @@ public class DiaryDetailFragment extends Fragment {
         diaryEntry.setSecret(response.secret);
         diaryEntry.setBookmarked(response.bookmarked);
         diaryEntry.setRepresentativePhotoIndex(response.representativePhotoIndex);
+        diaryEntry.setPhotoUris(photoUrls(response.photoIds));
 
         interactionsEnabled = !diaryEntry.isSecret();
         binding.tvDate.setText(formatDisplayDate(diaryEntry.getDate()));
@@ -384,6 +390,12 @@ public class DiaryDetailFragment extends Fragment {
 
     private void setupListeners() {
         binding.btnBack.setOnClickListener(v -> Navigation.findNavController(v).navigateUp());
+        binding.btnHome.setOnClickListener(v -> {
+            NavController navController = Navigation.findNavController(v);
+            if (!navController.popBackStack(R.id.homeFragment, false)) {
+                navController.navigate(R.id.homeFragment);
+            }
+        });
         if (!isExchange) {
             binding.btnEdit.setOnClickListener(v -> {
                 Bundle args = new Bundle();
@@ -486,16 +498,11 @@ public class DiaryDetailFragment extends Fragment {
         }
 
         Uri uri = Uri.parse(photoUri);
-        try (InputStream inputStream = requireContext().getContentResolver().openInputStream(uri)) {
-            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-            if (bitmap != null) {
-                binding.ivRepresentativePhoto.setImageBitmap(bitmap);
-                return;
-            }
-        } catch (Exception ignored) {
-        }
-
-        Glide.with(this).load(uri).centerCrop().error(R.drawable.bg_photo_placeholder).into(binding.ivRepresentativePhoto);
+        Glide.with(this)
+                .load(glidePhotoModel(photoUri))
+                .centerCrop()
+                .error(R.drawable.bg_photo_placeholder)
+                .into(binding.ivRepresentativePhoto);
     }
 
     private void renderLines() {
@@ -632,8 +639,15 @@ public class DiaryDetailFragment extends Fragment {
                         @Override
                         public void onResponse(@NonNull Call<ApiResponse<DiaryLineCommentResponse>> call,
                                                @NonNull Response<ApiResponse<DiaryLineCommentResponse>> response) {
-                            editingCommentId = null;
-                            loadComments();
+                            if (response.isSuccessful() && response.body() != null
+                                    && response.body().data != null) {
+                                editingCommentId = null;
+                                loadComments();
+                                return;
+                            }
+                            Toast.makeText(requireContext(),
+                                    "댓글 수정에 실패했습니다. (" + response.code() + ")",
+                                    Toast.LENGTH_SHORT).show();
                         }
                         @Override
                         public void onFailure(@NonNull Call<ApiResponse<DiaryLineCommentResponse>> call, @NonNull Throwable t) {
@@ -942,6 +956,33 @@ public class DiaryDetailFragment extends Fragment {
 
     private String blankToDefault(String value, String fallback) {
         return (value == null || value.trim().isEmpty()) ? fallback : value;
+    }
+
+    private List<String> photoUrls(List<Long> photoIds) {
+        List<String> urls = new ArrayList<>();
+        if (photoIds == null) {
+            return urls;
+        }
+        for (Long photoId : photoIds) {
+            urls.add(photoUrl(photoId));
+        }
+        return urls;
+    }
+
+    private String photoUrl(Long photoId) {
+        String baseUrl = Constants.BASE_URL.endsWith("/")
+                ? Constants.BASE_URL
+                : Constants.BASE_URL + "/";
+        return baseUrl + "api/photos/" + photoId;
+    }
+
+    private Object glidePhotoModel(String photoUri) {
+        if (photoUri != null && (photoUri.startsWith("http://") || photoUri.startsWith("https://"))) {
+            return new GlideUrl(photoUri, new LazyHeaders.Builder()
+                    .addHeader(Constants.HEADER_USER_ID, String.valueOf(Constants.DEV_USER_ID))
+                    .build());
+        }
+        return Uri.parse(photoUri);
     }
 
     private int clamp(int value, int min, int max) {

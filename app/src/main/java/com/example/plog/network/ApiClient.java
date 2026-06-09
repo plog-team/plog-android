@@ -11,6 +11,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class ApiClient {
 
     private static Retrofit retrofit = null;
+    private static final String BASE_URL = "http://10.0.2.2:8080/";
     private static Context appContext = null;
 
     public static void init(Context context) {

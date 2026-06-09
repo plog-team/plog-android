@@ -7,6 +7,7 @@ import com.example.plog.network.api.ExchangeRoomApi;
 import com.example.plog.network.api.ExchangeSessionApi;
 import com.example.plog.network.api.ReportBlockApi;
 import com.example.plog.network.dto.BlockRequest;
+import com.example.plog.network.dto.ExchangeDiaryListResponse;
 import com.example.plog.network.dto.ExchangeDiaryResponse;
 import com.example.plog.network.dto.ExchangeMatchResponse;
 import com.example.plog.network.dto.ExchangeRoomResponse;
@@ -56,8 +57,8 @@ public class MatchedFragment extends Fragment {
     private Long partnerUserId = null;
     private Long roomId = null;
     private Long sessionId = null;
-    private List<ExchangeDiaryResponse> diaryList = null;
-    private ExchangeDiaryResponse currentDiary = null;
+    private List<ExchangeDiaryResponse.Data> diaryList = null;
+    private ExchangeDiaryResponse.Data currentDiary = null;
     private TabLayout dayTab;
 
     private TextView tvUserName, tvDate, tvWeather, tvLocation, tvTitleDiary, tvBody;
@@ -145,7 +146,7 @@ public class MatchedFragment extends Fragment {
 
     private void loadSession() {
         ExchangeSessionApi sessionApi = RetrofitClient.getClient().create(ExchangeSessionApi.class);
-        sessionApi.startSession(roomId).enqueue(new Callback<ExchangeSessionResponse>() {
+        sessionApi.getSessionByRoomId(roomId).enqueue(new Callback<ExchangeSessionResponse>() {  // startSession → getSessionByRoomId
             @Override
             public void onResponse(Call<ExchangeSessionResponse> call, Response<ExchangeSessionResponse> response) {
                 if (!isAdded()) return;
@@ -248,17 +249,17 @@ public class MatchedFragment extends Fragment {
     private void loadDiaries() {
         if (sessionId == null) return;
         ExchangeDiaryApi api = RetrofitClient.getClient().create(ExchangeDiaryApi.class);
-        api.getDiaries(sessionId).enqueue(new Callback<List<ExchangeDiaryResponse>>() {
+        api.getDiaries(sessionId).enqueue(new Callback<ExchangeDiaryListResponse>() {
             @Override
-            public void onResponse(Call<List<ExchangeDiaryResponse>> call, Response<List<ExchangeDiaryResponse>> response) {
+            public void onResponse(Call<ExchangeDiaryListResponse> call, Response<ExchangeDiaryListResponse> response) {
                 if (!isAdded()) return;
-                if (response.isSuccessful() && response.body() != null) {
-                    diaryList = response.body();
+                if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                    diaryList = response.body().getData();
                     displayDiary();
                 }
             }
             @Override
-            public void onFailure(Call<List<ExchangeDiaryResponse>> call, Throwable t) {
+            public void onFailure(Call<ExchangeDiaryListResponse> call, Throwable t) {
                 android.util.Log.e("MatchedFragment", "일기 목록 로드 실패: " + t.getMessage());
             }
         });
@@ -266,10 +267,10 @@ public class MatchedFragment extends Fragment {
 
     private void displayDiary() {
         if (diaryList == null) return;
-        ExchangeDiaryResponse found = null;
-        for (ExchangeDiaryResponse d : diaryList) {
-            boolean isMyDiary = d.getUserId() == getMyUserId();
-            if (isMine == isMyDiary && d.getDayNumber() == currentDay) {
+        ExchangeDiaryResponse.Data found = null;
+        for (ExchangeDiaryResponse.Data d : diaryList) {
+            boolean isMyDiary = d.userId != null && d.userId.longValue() == getMyUserId();
+            if (isMine == isMyDiary && d.dayNumber == currentDay) {
                 found = d;
                 break;
             }
@@ -278,7 +279,7 @@ public class MatchedFragment extends Fragment {
         updateUI(found);
     }
 
-    private void updateUI(@Nullable ExchangeDiaryResponse diary) {
+    private void updateUI(@Nullable ExchangeDiaryResponse.Data diary) {
         boolean isTabToday = (currentDay == getCurrentDayNumber());
 
         if (diary == null) {
@@ -289,16 +290,16 @@ public class MatchedFragment extends Fragment {
         } else {
             emptyDiaryLayout.setVisibility(View.GONE);
             diaryContentLayout.setVisibility(View.VISIBLE);
-            tvDate.setText(diary.getCreatedAt() != null ? diary.getCreatedAt().substring(0, 10) : "");
+            tvDate.setText(diary.createdAt != null ? diary.createdAt.substring(0, 10) : "");
             tvWeather.setText("");
             tvLocation.setText("");
-            tvTitleDiary.setText("DAY " + diary.getDayNumber());
-            tvBody.setText(diary.getContent());
+            tvTitleDiary.setText(diary.title != null ? diary.title : "");
+            tvBody.setText(diary.content);
 
             cvDiaryCard.setOnClickListener(v -> {
                 Bundle bundle = new Bundle();
                 bundle.putBoolean("isExchange", true);
-                bundle.putLong("diaryId", diary.getId());
+                bundle.putLong("diaryId", diary.id);
                 Navigation.findNavController(requireView())
                         .navigate(R.id.action_matchedFragment_to_diaryDetailFragment, bundle);
             });
@@ -351,16 +352,23 @@ public class MatchedFragment extends Fragment {
         bundle.putLong("userId", getMyUserId());
         bundle.putInt("dayNumber", currentDay);
         if (currentDiary != null) {
-            bundle.putLong("diaryId", currentDiary.getId());
+            bundle.putLong("diaryId", currentDiary.id);
         }
         Navigation.findNavController(requireView())
-                .navigate(R.id.action_matchedFragment_to_diaryEditFragment, bundle);
+                .navigate(R.id.action_matchedFragment_to_exchangeDiaryEditFragment, bundle);
     }
 
     @Override
     public void onResume() {
         super.onResume();
         startSessionValidation();
+        View view = getView();
+        if (view != null) {
+            TabLayout typeTab = view.findViewById(R.id.typeTab);
+            if (typeTab != null) {
+                typeTab.selectTab(typeTab.getTabAt(isMine ? 0 : 1));
+            }
+        }
         loadDiaries();
     }
 
