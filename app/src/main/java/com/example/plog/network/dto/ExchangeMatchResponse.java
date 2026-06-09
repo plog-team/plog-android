@@ -3,17 +3,22 @@ package com.example.plog.network.dto;
 import java.util.List;
 
 public class ExchangeMatchResponse {
-    private Long id;
-    private String status;
-    private String createdAt;
-    private String requesterNickname;
-    private List<String> topCategories;
-    private Long partnerUserId;
+    private boolean success;
+    private Data data;
 
-    public Long getId() { return id; }
-    public String getStatus() { return status; }
-    public String getCreatedAt() { return createdAt; }
-    public String getRequesterNickname() { return requesterNickname; }
-    public List<String> getTopCategories() { return topCategories; }
-    public Long getPartnerUserId() { return partnerUserId; }
+    public Long getId() { return data != null ? data.id : null; }
+    public String getStatus() { return data != null ? data.status : null; }
+    public String getCreatedAt() { return data != null ? data.createdAt : null; }
+    public String getRequesterNickname() { return data != null ? data.requesterNickname : null; }
+    public List<String> getTopCategories() { return data != null ? data.topCategories : null; }
+    public Long getPartnerUserId() { return data != null ? data.partnerUserId : null; }
+
+    public static class Data {
+        private Long id;
+        private String status;
+        private String createdAt;
+        private String requesterNickname;
+        private List<String> topCategories;
+        private Long partnerUserId;
+    }
 }
