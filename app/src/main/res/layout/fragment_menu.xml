@@ -3,22 +3,7 @@
                     android:layout_width="match_parent" android:layout_height="match_parent"
                     android:paddingTop="50dp" android:paddingLeft="20dp" android:paddingRight="20dp"
                     android:orientation="vertical" android:background="#FFFFFF">
-    <!--  상단 툴바  -->
-    <LinearLayout android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:orientation="horizontal" android:gravity="center_vertical"
-        android:paddingStart="16dp" android:paddingEnd="16dp">
 
-        <!--  홈 아이콘  -->
-        <ImageView android:id="@+id/iv_home" android:layout_width="28dp"
-            android:layout_height="28dp" android:src="@drawable/ic_home" android:contentDescription="홈"/>
-        <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
-
-        <!--  닫기 버튼  -->
-        <ImageView android:id="@+id/iv_close" android:layout_width="28dp" android:layout_height="28dp"
-            android:src="@drawable/ic_cross" android:contentDescription="닫기" android:clickable="true"
-            android:focusable="true"/>
-    </LinearLayout>
 
     <!--  구분선  -->
     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#E0E0E0"/>

@@ -87,7 +87,7 @@
 
     <fragment
         android:id="@+id/myFragment"
-        android:name="com.example.plog.ui.placeholder.PlaceholderFragment"
+        android:name="com.example.plog.ui.menu.MenuFragment"
         android:label="My" />
 
     <!-- AI 챗봇 -->
