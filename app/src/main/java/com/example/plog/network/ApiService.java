@@ -254,6 +254,12 @@ public interface ApiService {
             @Path("threadId") String threadId,
             @Body ReportFeedbackRequest request);
 
+    // 홈 화면 - 최신 일기 조회
+    @GET("/api/diaries")
+    Call<ApiResponse<List<DiarySimpleResponse>>> getDiaries(
+            @Query("limit") int limit
+    );
+
     // AI 챗봇 세션 목록 조회
     @GET("/api/chat/sessions")
     Call<AiChatSessionListResponse> getSessions(
@@ -289,8 +295,6 @@ public interface ApiService {
 
     @GET("api/tour/congestion/{placeName}")
     Call<CongestionDto> getCongestion(@Path("placeName") String placeName);
-
-
 
 }
 
