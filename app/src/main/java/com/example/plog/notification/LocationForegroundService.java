@@ -72,7 +72,7 @@ public class LocationForegroundService extends Service {
     private void startLocationUpdates() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
-            Log.e("LOCATION_SERVICE", "Location permission not granted");
+            // Log.e("LOCATION_SERVICE", "Location permission not granted");
             stopSelf();
             return;
         }
@@ -88,9 +88,11 @@ public class LocationForegroundService extends Service {
                 if (locationResult == null) return;
 
                 for (Location currentLocation : locationResult.getLocations()) {
+                    /*
                     Log.d("LOCATION_SERVICE",
                             "Current: lat=" + currentLocation.getLatitude()
                                     + ", lng=" + currentLocation.getLongitude());
+                     */
 
                     checkRevisitLocation(currentLocation);
                 }
@@ -103,7 +105,7 @@ public class LocationForegroundService extends Service {
                 getMainLooper()
         );
 
-        // 마지막 위치로 즉시 한 번 검사
+        /* 마지막 위치로 즉시 한 번 검사
         fusedLocationClient.getLastLocation()
                 .addOnSuccessListener(location -> {
                     if (location != null) {
@@ -117,6 +119,8 @@ public class LocationForegroundService extends Service {
                     }
                 });
 
+         */
+
         Log.d("LOCATION_SERVICE", "Started foreground location updates");
     }
 
@@ -125,15 +129,18 @@ public class LocationForegroundService extends Service {
             int rawUserId = new SessionManager(this).getUserId();
             int userId = rawUserId == -1 ? (int) Constants.DEV_USER_ID : rawUserId;
 
-            Log.d("LOCATION_SERVICE",
-                    "rawUserId = " + rawUserId + ", 조회 userId = " + userId);
+            // Log.d("LOCATION_SERVICE",
+            //        "rawUserId = " + rawUserId + ", 조회 userId = " + userId);
 
             List<PhotoLocationDao.PhotoLocationWithImage> locations =
                     AppDatabase.getInstance(this)
                             .photoLocationDao()
                             .getAllWithLocationAndImageSync(userId);
 
-            Log.d("LOCATION_SERVICE", "저장된 사진 위치 개수: " + locations.size());
+            // Log.d("LOCATION_SERVICE", "저장된 사진 위치 개수: " + locations.size());
+
+            PhotoLocationDao.PhotoLocationWithImage latestLocation = null;
+            float latestDistance = -1f;
 
             for (PhotoLocationDao.PhotoLocationWithImage savedLocation : locations) {
                 float[] result = new float[1];
@@ -148,26 +155,58 @@ public class LocationForegroundService extends Service {
 
                 float distance = result[0];
 
+                /*
                 Log.d("LOCATION_SERVICE",
                         "저장된 사진 위치 id=" + savedLocation.id
                                 + ", lat=" + savedLocation.latitude
                                 + ", lng=" + savedLocation.longitude
                                 + ", distance=" + distance);
+                */
 
                 if (distance <= REVISIT_RADIUS) {
-                    if (!notifiedLocationIds.contains(savedLocation.id)) {
-                        NotificationHelper.showRevisitNotification(this, savedLocation, distance);
-                        notifiedLocationIds.add(savedLocation.id);
-
-                        Log.d("LOCATION_SERVICE",
-                                "재방문 알림 표시 완료 id=" + savedLocation.id);
+                    if (latestLocation == null
+                            || savedLocation.takenAt > latestLocation.takenAt) {
+                        latestLocation = savedLocation;
+                        latestDistance = distance;
                     }
                 } else {
                     notifiedLocationIds.remove(savedLocation.id);
                 }
             }
+
+            if (latestLocation != null) {
+                if (!notifiedLocationIds.contains(latestLocation.id)) {
+
+                    NotificationHelper.showRevisitNotification(this, latestLocation, latestDistance);
+                    notifiedLocationIds.add(latestLocation.id);
+
+                    //saveNotifiedToday(latestLocation.id);
+
+                    // Log.d("LOCATION_SERVICE",
+                    //        "최신 재방문 알림 표시 완료 id=" + latestLocation.id);
+                }
+            }
+
+            /* 해당 장소에 대한 알림은 한 번만 오게
+            if (latestLocation != null) {
+                if (!notifiedLocationIds.contains(latestLocation.id)
+                        && !isAlreadyNotifiedToday(latestLocation.id)) {
+
+                    NotificationHelper.showRevisitNotification(this, latestLocation, latestDistance);
+                    notifiedLocationIds.add(latestLocation.id);
+                    saveNotifiedToday(latestLocation.id);
+
+                    Log.d("LOCATION_SERVICE",
+                            "최신 재방문 알림 표시 완료 id=" + latestLocation.id);
+                }
+            }
+
+             */
         }).start();
     }
+
+
+
 
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -194,7 +233,30 @@ public class LocationForegroundService extends Service {
 
         notifiedLocationIds.clear();
 
-        Log.d("LOCATION_SERVICE", "Foreground service stopped");
+        // Log.d("LOCATION_SERVICE", "Foreground service stopped");
+    }
+
+    private boolean isAlreadyNotifiedToday(int locationId) {
+        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.KOREA)
+                .format(new java.util.Date());
+
+        String key = "revisit_notified_" + locationId;
+
+        return getSharedPreferences("revisit_notification", MODE_PRIVATE)
+                .getString(key, "")
+                .equals(today);
+    }
+
+    private void saveNotifiedToday(int locationId) {
+        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.KOREA)
+                .format(new java.util.Date());
+
+        String key = "revisit_notified_" + locationId;
+
+        getSharedPreferences("revisit_notification", MODE_PRIVATE)
+                .edit()
+                .putString(key, today)
+                .apply();
     }
 
     @Nullable

@@ -58,9 +58,10 @@ public class MainActivity extends AppCompatActivity {
 
 
         // 일기 작성 알림 즉시 테스트 - 알림 되는지 바로 보고 싶으면 아래 코드
-        //DiaryReminderScheduler.testDiaryReminderWorkerNow(this);
+        // DiaryReminderScheduler.testDiaryReminderWorkerNow(this);
 
-        // 일기 작성 알림 즉시 테스트 (최초 1회만 실행)
+        /*
+        일기 작성 알림 즉시 테스트 (최초 1회만 실행)
         SharedPreferences prefs = getSharedPreferences("test", MODE_PRIVATE);
         boolean tested = prefs.getBoolean("diary_test_done", false);
 
@@ -71,16 +72,16 @@ public class MainActivity extends AppCompatActivity {
                     .putBoolean("diary_test_done", true)
                     .apply();
         }
-
-
+        */
 
         // 22시에 실행됨
         // DiaryReminderScheduler.scheduleDailyDiaryReminder(this);
 
         // userId: 1인 상태
-        PhotoLocationSyncManager.sync(this, 1);
+        // PhotoLocationSyncManager.sync(this, 1);
 
-        /* 이후 변화 필요하다면 이렇게
+        /*
+        이후 변화 필요하다면 이렇게
         int rawUserId = new SessionManager(this).getUserId();
 
         long userId =
@@ -176,7 +177,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // // 위치 권한 승인 결과에 따라 Foreground Service 시작 처리
+    // 위치 권한 승인 결과에 따라 Foreground Service 시작 처리
     @Override
     public void onRequestPermissionsResult(
             int requestCode,

@@ -42,6 +42,7 @@ public class PhotoLocationSyncManager {
                                 || response.body().data == null) {
                             return;
                         }
+                        // Log.d("SYNC", "응답 개수 = " + response.body().data.size());
 
                         new Thread(() -> {
 
@@ -52,8 +53,23 @@ public class PhotoLocationSyncManager {
 
                             for (PhotoLocationResponse item : response.body().data) {
 
+                                /*
+                                Log.d("SYNC",
+                                        "server item: photoId="
+                                                + item.photoId
+                                                + ", lat=" + item.latitude
+                                                + ", lng=" + item.longitude
+                                                + ", location=" + item.locationName);
+                                 */
+
                                 Integer localPhotoId =
                                         photoDao.getLocalIdByServerPhotoIdSync(item.photoId);
+                                /*
+                                Log.d("SYNC",
+                                        "localPhotoId = " + localPhotoId
+                                                + ", serverPhotoId = " + item.photoId);
+
+                                 */
 
                                 if (localPhotoId == null) {
 
@@ -65,6 +81,7 @@ public class PhotoLocationSyncManager {
                                     photo.serverPhotoId = (long) item.photoId;
 
                                     long insertedId = photoDao.insert(photo);
+                                    // Log.d("SYNC", "photo insert 성공 insertedId = " + insertedId);
 
                                     localPhotoId = (int) insertedId;
                                 }
@@ -81,17 +98,35 @@ public class PhotoLocationSyncManager {
 
                                 entity.locationName = item.locationName;
 
-                                entity.takenAt =
-                                        LocalDateTime.parse(item.takenAt)
-                                                .atZone(ZoneId.systemDefault())
-                                                .toInstant()
-                                                .toEpochMilli();
+                                if (item.takenAt != null && !item.takenAt.isEmpty()) {
+                                    entity.takenAt =
+                                            LocalDateTime.parse(item.takenAt)
+                                                    .atZone(ZoneId.systemDefault())
+                                                    .toInstant()
+                                                    .toEpochMilli();
+                                } else {
+                                    entity.takenAt = System.currentTimeMillis();
+                                    // Log.w("SYNC", "takenAt is null. photoId=" + item.photoId);
+                                }
+                                /*
+                                Log.d("SYNC",
+                                        "location insert 시도 photoId="
+                                                + entity.photoId
+                                                + ", lat=" + entity.latitude
+                                                + ", lng=" + entity.longitude);
 
+                                 */
                                 locationDao.insert(entity);
+                                /*
+                                Log.d("SYNC",
+                                        "photo location synced: "
+                                                + entity.locationName);
 
                                 Log.d("SYNC",
                                         "photo location synced: "
                                                 + entity.locationName);
+
+                                 */
                             }
 
                         }).start();
@@ -102,7 +137,7 @@ public class PhotoLocationSyncManager {
                             Call<ApiResponse<List<PhotoLocationResponse>>> call,
                             Throwable t
                     ) {
-                        Log.e("SYNC", "sync failed", t);
+                        // Log.e("SYNC", "sync failed", t);
                     }
                 });
     }
