@@ -13,6 +13,7 @@ import com.example.plog.ui.auth.LoginActivity;
 import com.example.plog.ui.menu.MenuActivity;
 import com.example.plog.network.ApiClient;
 import com.example.plog.ui.exchange.NotificationFragment;
+import com.example.plog.network.RetrofitClient;
 
 // 알림
 import com.example.plog.util.SessionManager;
@@ -32,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         ApiClient.init(this);
+        RetrofitClient.init(this);
 
         /*
         SharedPreferences prefs = getSharedPreferences("plog_prefs", MODE_PRIVATE);
@@ -54,11 +56,26 @@ public class MainActivity extends AppCompatActivity {
         setupNavigation();
 
 
+
         // 일기 작성 알림 즉시 테스트 - 알림 되는지 바로 보고 싶으면 아래 코드
-        // DiaryReminderScheduler.testDiaryReminderWorkerNow(this);
+        //DiaryReminderScheduler.testDiaryReminderWorkerNow(this);
+
+        // 일기 작성 알림 즉시 테스트 (최초 1회만 실행)
+        SharedPreferences prefs = getSharedPreferences("test", MODE_PRIVATE);
+        boolean tested = prefs.getBoolean("diary_test_done", false);
+
+        if (!tested) {
+            DiaryReminderScheduler.testDiaryReminderWorkerNow(this);
+
+            prefs.edit()
+                    .putBoolean("diary_test_done", true)
+                    .apply();
+        }
+
+
 
         // 22시에 실행됨
-        DiaryReminderScheduler.scheduleDailyDiaryReminder(this);
+        // DiaryReminderScheduler.scheduleDailyDiaryReminder(this);
 
         // userId: 1인 상태
         PhotoLocationSyncManager.sync(this, 1);
@@ -243,6 +260,8 @@ public class MainActivity extends AppCompatActivity {
                     ) {
                         // 테스트용이므로 실패 시 무시
                     }
+
+
                 });
     }
 

@@ -228,7 +228,7 @@ public class NotificationHelper {
                 new NotificationCompat.Builder(context, REMINDER_CHANNEL_ID)
                         .setSmallIcon(R.mipmap.ic_launcher)
                         .setContentTitle("✨ 어떤 하루를 보내셨나요?")
-                        .setContentText("오늘의 순간을 기록해보세요!")
+                        .setContentText("    오늘의 순간을 기록해보세요!")
                         .setPriority(NotificationCompat.PRIORITY_HIGH)
                         .setAutoCancel(true)
                         .setContentIntent(openPendingIntent)
