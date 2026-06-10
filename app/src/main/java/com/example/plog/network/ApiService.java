@@ -45,6 +45,7 @@ import com.example.plog.api.model.PlaceItemDto;
 import com.example.plog.api.model.PlaceDetailDto;
 import com.example.plog.api.model.CongestionDto;
 import com.example.plog.model.PreferenceUpdateRequest;
+import com.example.plog.api.model.BookmarkItem;
 
 
 
@@ -91,6 +92,9 @@ public interface ApiService {
 
     @GET("/api/recommend/bookmarks/{contentId}/status")
     Call<Map<String, Boolean>> isBookmarked(@Path("contentId") String contentId);
+
+    @GET("/api/recommend/bookmarks")
+    Call<ApiResponse<List<BookmarkItem>>> getBookmarks();
 
     // 클릭로그
     @POST("api/recommend/clicklog")

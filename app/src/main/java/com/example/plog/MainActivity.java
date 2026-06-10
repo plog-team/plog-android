@@ -151,8 +151,10 @@ public class MainActivity extends AppCompatActivity {
             navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
                 boolean isDiaryScreen = destination.getId() == R.id.diaryEditFragment
                         || destination.getId() == R.id.diaryDetailFragment;
-                binding.topBar.setVisibility(isDiaryScreen ? View.GONE : View.VISIBLE);
-                binding.divider.setVisibility(isDiaryScreen ? View.GONE : View.VISIBLE);
+                boolean isBookmarkScreen = destination.getId() == R.id.bookmarkFragment;
+
+                binding.topBar.setVisibility((isDiaryScreen || isBookmarkScreen) ? View.GONE : View.VISIBLE);
+                binding.divider.setVisibility((isDiaryScreen || isBookmarkScreen) ? View.GONE : View.VISIBLE);
                 binding.bottomNavigation.setVisibility(isDiaryScreen ? View.GONE : View.VISIBLE);
 
                 if (destination.getId() == R.id.homeFragment) {
