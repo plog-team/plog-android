@@ -48,10 +48,11 @@ public class MenuFragment extends Fragment {
                 });
 
         // 북마크
-        view.findViewById(R.id.menu_bookmark)
-                .setOnClickListener(v -> {
-                    // TODO
-                });
+        view.findViewById(R.id.menu_bookmark).setOnClickListener(v -> {
+            androidx.navigation.Navigation
+                    .findNavController(view)
+                    .navigate(R.id.bookmarkFragment);
+        });
 
         // 비밀글
         view.findViewById(R.id.menu_private)

@@ -96,6 +96,11 @@
         android:name="com.example.plog.ui.menu.MenuFragment"
         android:label="My" />
 
+    <fragment
+        android:id="@+id/bookmarkFragment"
+        android:name="com.example.plog.ui.my.BookmarkFragment"
+        android:label="북마크" />
+
     <!-- AI 챗봇 -->
     <fragment
         android:id="@+id/aiChatEntryFragment"
