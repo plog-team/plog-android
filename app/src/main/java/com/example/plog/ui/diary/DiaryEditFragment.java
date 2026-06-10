@@ -2,6 +2,8 @@ package com.example.plog.ui.diary;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -10,6 +12,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -102,6 +106,27 @@ public class DiaryEditFragment extends Fragment {
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted ->
                     openGalleryIntent());
 
+    private final ActivityResultLauncher<String> requestAudioPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                if (granted) {
+                    startVoiceRecognition();
+                } else {
+                    Toast.makeText(requireContext(), "음성 인식을 사용하려면 마이크 권한이 필요합니다.", Toast.LENGTH_SHORT).show();
+                }
+            });
+
+    private final ActivityResultLauncher<Intent> voiceRecognitionLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) return;
+                ArrayList<String> results =
+                        result.getData().getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                if (results == null || results.isEmpty()) {
+                    Toast.makeText(requireContext(), "인식된 음성이 없습니다.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                applyVoiceCommand(results.get(0));
+            });
+
     private final ActivityResultLauncher<Intent> photoPicker =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
                 if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) return;
@@ -193,6 +218,7 @@ public class DiaryEditFragment extends Fragment {
             binding.tvMode.setText(editingDiaryId > 0 ? "일기 수정" : "일기 작성");
         }
         binding.tvPhotoCount.setText("0/" + MAX_PHOTO_COUNT + "(사진 개수)");
+        binding.btnVoice.setVisibility(isExchange ? View.GONE : View.VISIBLE);
         updateBookmarkUi();
         if (!isExchange && editingDiaryId > 0) {
             loadExistingDiary();
@@ -261,6 +287,71 @@ public class DiaryEditFragment extends Fragment {
 
         binding.btnAiQuestion.setOnClickListener(v -> openAiGuide(v));
         binding.btnAiDraft.setOnClickListener(v -> openAiGuide(v));
+        binding.btnVoice.setOnClickListener(v -> requestVoiceRecognition());
+    }
+
+    private void requestVoiceRecognition() {
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED) {
+            startVoiceRecognition();
+        } else {
+            requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+        }
+    }
+
+    private void startVoiceRecognition() {
+        if (!SpeechRecognizer.isRecognitionAvailable(requireContext())) {
+            Toast.makeText(requireContext(), "이 기기에서는 음성 인식을 사용할 수 없습니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR");
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "제목은 ... 내용은 ... 전체 공개로 일기 저장");
+        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+
+        try {
+            voiceRecognitionLauncher.launch(intent);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(requireContext(), "음성 인식 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void applyVoiceCommand(String spokenText) {
+        VoiceDiaryCommandParser.Result command = VoiceDiaryCommandParser.parse(spokenText);
+        if (command == null) {
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("음성 명령을 이해하지 못했습니다")
+                    .setMessage("다음 형식으로 말해주세요.\n\n제목은 첫 번째 편지 내용은 오늘의 기록입니다 전체 공개로 일기 저장")
+                    .setPositiveButton("확인", null)
+                    .show();
+            return;
+        }
+
+        binding.etTitle.setText(command.getTitle());
+        binding.etBody.setText(command.getBody());
+        if (command.getSecret() != null) isSecret = command.getSecret();
+
+        if (command.isSaveRequested()) {
+            showVoiceSaveConfirmation(command);
+        } else {
+            Toast.makeText(requireContext(), "음성 명령을 일기에 반영했습니다.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showVoiceSaveConfirmation(VoiceDiaryCommandParser.Result command) {
+        String visibility = isSecret ? "비밀글" : "전체 공개";
+        String message = "제목: " + command.getTitle()
+                + "\n\n내용: " + command.getBody()
+                + "\n\n게시 방식: " + visibility;
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("이 내용으로 일기를 저장할까요?")
+                .setMessage(message)
+                .setNegativeButton("취소", null)
+                .setPositiveButton("저장", (dialog, which) -> saveDiary(null))
+                .show();
     }
 
     private void openAiGuide(View view) {
@@ -568,7 +659,7 @@ public class DiaryEditFragment extends Fragment {
         }).start();
     }
 
-    private void saveDiary(PopupWindow popupWindow) {
+    private void saveDiary(@Nullable PopupWindow popupWindow) {
         String title = binding.etTitle.getText().toString().trim();
         String body = binding.etBody.getText().toString().trim();
 
@@ -625,7 +716,7 @@ public class DiaryEditFragment extends Fragment {
                     Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show();
                     return;
                 }
-                popupWindow.dismiss();
+                if (popupWindow != null) popupWindow.dismiss();
                 Toast.makeText(requireContext(), "일기가 저장되었습니다.", Toast.LENGTH_SHORT).show();
                 Bundle args = new Bundle();
                 args.putLong("diaryId", response.body().data.diaryId);
