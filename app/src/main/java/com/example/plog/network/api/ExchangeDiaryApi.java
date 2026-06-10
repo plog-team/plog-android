@@ -1,9 +1,9 @@
 package com.example.plog.network.api;
 
+import com.example.plog.network.dto.ExchangeDiaryListResponse;
 import com.example.plog.network.dto.ExchangeDiaryRequest;
 import com.example.plog.network.dto.ExchangeDiaryResponse;
 
-import java.util.List;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -22,7 +22,7 @@ public interface ExchangeDiaryApi {
     Call<ExchangeDiaryResponse> updateDiary(@Path("diaryId") Long diaryId, @Body Map<String, String> body);
 
     @GET("api/exchange/diaries/session/{sessionId}")
-    Call<List<ExchangeDiaryResponse>> getDiaries(@Path("sessionId") Long sessionId);
+    Call<ExchangeDiaryListResponse> getDiaries(@Path("sessionId") Long sessionId);
 
     @GET("api/exchange/diaries/{diaryId}")
     Call<ExchangeDiaryResponse> getDiary(@Path("diaryId") Long diaryId);

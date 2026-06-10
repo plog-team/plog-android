@@ -46,4 +46,10 @@ public interface PhotoDao {
             "AND created_at BETWEEN :startMs AND :endMs " +
             "AND is_deleted = 0")
     int getTotalPhotoCount(int userId, long startMs, long endMs);
+
+    @Query("SELECT * FROM photo WHERE server_photo_id = :serverPhotoId AND is_deleted = 0 LIMIT 1")
+    PhotoEntity getByServerPhotoIdSync(long serverPhotoId);
+
+    @Query("SELECT id FROM photo WHERE server_photo_id = :serverPhotoId AND is_deleted = 0 LIMIT 1")
+    Integer getLocalIdByServerPhotoIdSync(long serverPhotoId);
 }

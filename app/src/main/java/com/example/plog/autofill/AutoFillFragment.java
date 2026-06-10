@@ -50,16 +50,18 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
-import androidx.exifinterface.media.ExifInterface;
 import androidx.fragment.app.Fragment;
 
 import com.example.plog.R;
+import com.example.plog.util.ExifExtractor;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -71,6 +73,7 @@ import com.example.plog.util.Constants;
 
 public class AutoFillFragment extends Fragment {
 
+    private static final String TAG = "AutoFillFragment";
     private static final String TAG_KAKAO = "KAKAO_API";
     private static final String TAG_WEATHER = "OPENWEATHER_API";
     private static final OkHttpClient client = new OkHttpClient();
@@ -214,13 +217,21 @@ public class AutoFillFragment extends Fragment {
                 registerForActivityResult(
                         new ActivityResultContracts.StartActivityForResult(),
                         result -> {
+                            Log.d(TAG, "picker 결과 — resultCode=" + result.getResultCode()
+                                    + " hasData=" + (result.getData() != null));
+
                             if (result.getResultCode() != Activity.RESULT_OK
                                     || result.getData() == null) {
+                                Log.w(TAG, "picker 취소 또는 데이터 없음");
                                 return;
                             }
 
                             Uri imageUri = result.getData().getData();
-                            if (imageUri == null) return;
+                            Log.d(TAG, "picker URI=" + imageUri);
+                            if (imageUri == null) {
+                                Log.w(TAG, "imageUri null — 종료");
+                                return;
+                            }
 
                             persistReadPermissionIfPossible(imageUri);
                             ivSelectedPhoto.setImageURI(imageUri);
@@ -244,61 +255,42 @@ public class AutoFillFragment extends Fragment {
     }
 
     // Step 12. EXIF 정보 추출 후 날짜/위치/날씨 자동입력 처리
+    // openInputStream()은 Android가 GPS를 제거하므로 openFileDescriptor() 기반의 ExifExtractor 사용
     private void readExifAndApplyToUi(Uri imageUri) {
-        try (
-                InputStream inputStream =
-                        requireContext()
-                                .getContentResolver()
-                                .openInputStream(imageUri)
-        ) {
-            if (inputStream == null) return;
+        Log.d(TAG, "EXIF 추출 시작 — URI: " + imageUri);
 
-            ExifInterface exif = new ExifInterface(inputStream);
+        ExifExtractor.ExifResult exif =
+                new ExifExtractor().extract(imageUri, requireContext());
 
-            String displayDate =
-                    formatExifDateTime(
-                            getExifDateTime(exif)
-                    );
-
-            double[] latLong = exif.getLatLong();
-
-            applyAutoFillData(
-                    new AutoFillData(
-                            displayDate,
-                            "날씨 조회 중",
-                            latLong == null ? "GPS 위치 정보 없음" : "주소 조회 중",
-                            imageUri
-                    )
-            );
-
-            if (latLong == null) return;
-
-            double latitude = latLong[0];
-            double longitude = latLong[1];
-
-            getAddressFromKakao(latitude, longitude);
-            getWeatherFromOpenWeather(latitude, longitude);
-
-        } catch (IOException e) {
-            Log.e("EXIF_ERROR", "EXIF 정보 읽기 실패", e);
-        }
-    }
-
-    // Step 13. EXIF 촬영 날짜 추출
-    private String getExifDateTime(ExifInterface exif) {
-        String dateTime =
-                exif.getAttribute(
-                        ExifInterface.TAG_DATETIME_ORIGINAL
-                );
-
-        if (dateTime == null) {
-            dateTime =
-                    exif.getAttribute(
-                            ExifInterface.TAG_DATETIME
-                    );
+        if (exif == null) {
+            Log.w(TAG, "EXIF 추출 실패(null) — URI: " + imageUri);
+        } else {
+            Log.d(TAG, "EXIF 추출 완료 — hasGPS=" + exif.hasLocation()
+                    + " lat=" + exif.latitude + " lng=" + exif.longitude
+                    + " hasTakenAt=" + exif.hasTakenAt());
         }
 
-        return dateTime;
+        String displayDate = (exif != null && exif.hasTakenAt())
+                ? new SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault())
+                        .format(new Date(exif.takenAtMs))
+                : "촬영 날짜 정보 없음";
+
+        boolean hasLocation = exif != null && exif.hasLocation();
+
+        Log.d(TAG, "자동입력 적용 — date=" + displayDate + " hasLocation=" + hasLocation);
+
+        applyAutoFillData(new AutoFillData(
+                displayDate,
+                "날씨 조회 중",
+                hasLocation ? "주소 조회 중" : "GPS 위치 정보 없음",
+                imageUri
+        ));
+
+        if (!hasLocation) return;
+
+        Log.d(TAG, "API 조회 시작 — lat=" + exif.latitude + " lng=" + exif.longitude);
+        getAddressFromKakao(exif.latitude, exif.longitude);
+        getWeatherFromOpenWeather(exif.latitude, exif.longitude);
     }
 
     // Step 14. Kakao API로 위도/경도를 주소로 변환
@@ -327,7 +319,7 @@ public class AutoFillFragment extends Fragment {
 
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                Log.e(TAG_KAKAO, "주소 API 요청 실패", e);
+                Log.e(TAG_KAKAO, "주소 API 요청 실패: " + e.getMessage());
             }
 
             @Override
@@ -391,7 +383,7 @@ public class AutoFillFragment extends Fragment {
 
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                Log.e(TAG_WEATHER, "날씨 API 요청 실패", e);
+                Log.e(TAG_WEATHER, "날씨 API 요청 실패: " + e.getMessage());
             }
 
             @Override
@@ -488,28 +480,7 @@ public class AutoFillFragment extends Fragment {
         return weatherIcon + " " + weatherName + " " + String.format("%.0f", temp) + "℃";
     }
 
-    // Step 17. EXIF 날짜 형식 변환
-    private String formatExifDateTime(String exifDateTime) {
-        if (exifDateTime == null) {
-            return "촬영 날짜 정보 없음";
-        }
-
-        try {
-            String[] parts = exifDateTime.split(" ");
-            String datePart = parts[0].replace(":", "/");
-
-            if (parts.length > 1 && parts[1].length() >= 5) {
-                return datePart + " " + parts[1].substring(0, 5);
-            }
-
-            return datePart;
-
-        } catch (Exception e) {
-            return exifDateTime;
-        }
-    }
-
-    // Step 18. 자동입력 정보 전체 반영
+    // Step 17. 자동입력 정보 전체 반영
     private void applyAutoFillData(AutoFillData data) {
         if (data == null) return;
 

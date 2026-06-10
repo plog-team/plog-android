@@ -26,6 +26,9 @@ import com.example.plog.network.dto.ExchangeRoomResponse;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.List;
+
+import android.util.Log;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -42,6 +45,11 @@ public class HomeFragment extends Fragment {
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
+
+        binding.cardAiChat.setOnClickListener(v ->
+                Navigation.findNavController(v).navigate(R.id.action_home_to_aiChatEntry)
+        );
+
         return binding.getRoot();
     }
 

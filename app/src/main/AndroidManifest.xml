@@ -3,20 +3,24 @@
 
 <!--    EXIF 접근권한허용-->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- 사진 접근: API 33+ READ_MEDIA_IMAGES, 하위 호환 READ_EXTERNAL_STORAGE -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-
-    <!-- 사진 접근 권한. API 33+는 READ_MEDIA_IMAGES, 하위 호환으로 READ_EXTERNAL_STORAGE 병행 선언. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+    <!-- API 34+: 부분 허용(선택한 사진만) 지원 선언. 미선언 시 전체/거부만 표시됨 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
@@ -32,6 +36,11 @@
             usesCleartextTraffic="true" 는 개발 중 http 통신 허용용
             배포 시에는 Spring Boot에 https 적용 후 제거
         -->
+
+        <activity
+            android:name=".ui.auth.LoginActivity"
+            android:exported="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -40,6 +49,26 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- LoginActivity
+        <activity
+            android:name=".ui.auth.LoginActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        -->
+
+        <!-- MainActivity
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+        -->
+
+        <!-- MenuActivity -->
+        <activity android:name=".ui.menu.MenuFragment" />
 
         <!-- Maps API Key — build.gradle의 manifestPlaceholders에서 자동 주입 -->
         <meta-data
@@ -50,6 +79,17 @@
         <meta-data
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
+
+        <!-- 백그라운드 위치 추적 및 재방문 알림 -->
+        <service
+            android:name=".notification.LocationForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <!-- 알림의 [닫기] 버튼 처리용 -->
+        <receiver
+            android:name=".notification.NotificationDismissReceiver"
+            android:exported="false" />
 
     </application>
 

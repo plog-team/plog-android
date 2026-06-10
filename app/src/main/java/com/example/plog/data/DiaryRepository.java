@@ -61,6 +61,21 @@ public class DiaryRepository {
         }
     }
 
+    public List<DiaryEntry> getAllDiaries() {
+        List<DiaryEntry> diaries = new ArrayList<>();
+
+        for (String key : preferences.getAll().keySet()) {
+            DiaryEntry diary = getDiary(key);
+            if (diary != null) {
+                diaries.add(diary);
+            }
+        }
+
+        diaries.sort((d1, d2) -> d2.getDate().compareTo(d1.getDate()));
+
+        return diaries;
+    }
+
     public void saveDiary(DiaryEntry entry) {
         if (entry == null || entry.getDate() == null) {
             return;

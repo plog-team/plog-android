@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="0dp"
+    android:layout_height="48dp"
+    android:layout_margin="1dp"
+    android:layout_weight="1"
+    android:background="#FFFFFF">
+
+    <!-- 날짜 사진 -->
+    <ImageView
+        android:id="@+id/imgDiary"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <!-- 선택 배경 -->
+    <View
+        android:id="@+id/selectedBackground"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#A855F7"
+        android:visibility="gone" />
+
+    <!-- 날짜 숫자 -->
+    <TextView
+        android:id="@+id/tvDay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="6dp"
+        android:text="1"
+        android:textColor="#000000"
+        android:textSize="14sp" />
+
+</FrameLayout>

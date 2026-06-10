@@ -16,6 +16,9 @@ public interface PhotoLocationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insert(PhotoLocationEntity entity);
 
+    @Query("SELECT COUNT(*) FROM photo_location WHERE photo_id = :photoId")
+    int countByPhotoId(int photoId);
+
     @Query("SELECT * FROM photo_location WHERE photo_id = :photoId")
     LiveData<PhotoLocationEntity> getByPhotoId(int photoId);
 
@@ -108,6 +111,31 @@ public interface PhotoLocationDao {
             "AND pl.location_name IS NULL")
     List<PhotoLocationEntity> getMissingLocationNames();
 
+    // 알림 기능
+    @Query("SELECT pl.* FROM photo_location pl " +
+            "INNER JOIN photo p ON pl.photo_id = p.id " +
+            "WHERE p.user_id = :userId " +
+            "AND p.is_deleted = 0 " +
+            "AND pl.latitude != 0.0 " +
+            "AND pl.longitude != 0.0")
+    List<PhotoLocationEntity> getAllWithLocationSync(int userId);
+
+    // 알림 기능 - 사진 포함
+    @Query("SELECT pl.id, pl.photo_id AS photoId, pl.taken_at AS takenAt, " +
+            "pl.latitude, pl.longitude, pl.location_name AS locationName, " +
+            "pl.address, p.image_url AS imageUrl, p.server_photo_id AS serverPhotoId " +
+            "FROM photo_location pl " +
+            "INNER JOIN photo p ON pl.photo_id = p.id " +
+            "WHERE p.user_id = :userId " +
+            "AND p.is_deleted = 0 " +
+            "AND pl.latitude != 0.0 " +
+            "AND pl.longitude != 0.0")
+    List<PhotoLocationWithImage> getAllWithLocationAndImageSync(int userId);
+
+    // 같은 photo_id이면 위치 1개라고 보기
+    @Query("DELETE FROM photo_location WHERE photo_id = :photoId")
+    void deleteByPhotoId(int photoId);
+
     // ── 결과 클래스 ───────────────────────────────────────────────────────
     class LocationCluster {
         public double clusterLat;
@@ -127,5 +155,6 @@ public interface PhotoLocationDao {
         public String locationName;
         public String address;
         public String imageUrl;
+        public Long   serverPhotoId;
     }
 }

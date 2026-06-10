@@ -1,5 +1,9 @@
 package com.example.plog.network;
 
+import com.example.plog.network.aichat.AiChatMessageResponse;
+import com.example.plog.network.aichat.AiChatSessionDetailResponse;
+import com.example.plog.network.aichat.AiChatSessionListResponse;
+import com.example.plog.network.aichat.AiChatSessionResponse;
 import com.example.plog.api.model.BookmarkRequest;
 import com.example.plog.api.model.ClickLogRequest;
 import com.example.plog.api.model.PreferenceResponse;
@@ -41,21 +45,45 @@ import com.example.plog.api.model.PlaceItemDto;
 import com.example.plog.api.model.PlaceDetailDto;
 import com.example.plog.api.model.CongestionDto;
 import com.example.plog.model.PreferenceUpdateRequest;
+import com.example.plog.api.model.BookmarkItem;
 
 
 
 public interface ApiService {
 
+    // AI 챗봇 세션 시작 (FREE_CHAT)
+    @POST("/api/chat/session")
+    Call<AiChatSessionResponse> startSession(
+            @Header("X-User-Id") Long userId,
+            @Query("userId") Long userIdParam,
+            @Query("type") String type
+    );
+
+    // AI 챗봇 세션 시작 (DIARY_ASSIST)
+    @POST("/api/chat/session")
+    Call<AiChatSessionResponse> startSessionWithDate(
+            @Header("X-User-Id") Long userId,
+            @Query("userId") Long userIdParam,
+            @Query("type") String type,
+            @Query("date") String date
+    );
+
+    // AI 챗봇 메시지 전송
+    @POST("/api/chat/session/{sessionId}/message")
+    Call<AiChatMessageResponse> sendMessage(
+            @Header("X-User-Id") Long userId,
+            @Path("sessionId") Long sessionId,
+            @Query("message") String message
+    );
 
     // 선호도
-
     @GET("api/recommend/preference")
     Call<PreferenceResponse> getPreference();
-    @PUT("api/recommend/preference")
-    Call<Void> updatePreferences(@Body PreferenceUpdateRequest req);
+    @PUT("api/exchange/preferences")
+    Call<Void> updatePreferences(@Header("X-User-Id") long userId,
+                                 @Body PreferenceUpdateRequest req);
 
     // 북마크
-
     @POST("/api/recommend/bookmarks")
     Call<Void> addBookmark(@Body BookmarkRequest req);
 
@@ -65,13 +93,14 @@ public interface ApiService {
     @GET("/api/recommend/bookmarks/{contentId}/status")
     Call<Map<String, Boolean>> isBookmarked(@Path("contentId") String contentId);
 
-    // 클릭로그
+    @GET("/api/recommend/bookmarks")
+    Call<ApiResponse<List<BookmarkItem>>> getBookmarks();
 
+    // 클릭로그
     @POST("api/recommend/clicklog")
     Call<Void> saveClickLog(@Body ClickLogRequest req);
 
     // 로그인 / 회원가입
-
     @POST("api/auth/login")
     Call<LoginResponse> login(@Body LoginRequest request);
 
@@ -128,12 +157,11 @@ public interface ApiService {
 
     @POST("api/ai-guide/sessions/{sessionId}/feedback")
     Call<Void> submitFeedback(
-            @Path("sessionId") long sessionId,
-            @Body FeedbackRequest request
+        @Path("sessionId") long sessionId,
+        @Body FeedbackRequest request
     );
 
     // 일기
-
     @POST("api/diaries")
     Call<ApiResponse<DiarySimpleResponse>> saveDiary(@Body DiaryUpsertRequest request);
 
@@ -197,7 +225,6 @@ public interface ApiService {
     );
 
     // 장소 리포트
-
     @POST("api/report/place/generate")
     Call<ApiResponse<ReportStatusResponse>> generatePlaceReport(@Body GenerateReportRequest request);
 
@@ -215,7 +242,6 @@ public interface ApiService {
             @Body ReportFeedbackRequest request);
 
     // 감정 리포트
-
     @POST("api/report/emotion/generate")
     Call<ApiResponse<ReportStatusResponse>> generateEmotionReport(@Body GenerateReportRequest request);
 
@@ -231,6 +257,30 @@ public interface ApiService {
     Call<Void> submitEmotionReportFeedback(
             @Path("threadId") String threadId,
             @Body ReportFeedbackRequest request);
+
+    // 홈 화면 - 최신 일기 조회
+    @GET("/api/diaries")
+    Call<ApiResponse<List<DiarySimpleResponse>>> getDiaries(
+            @Query("limit") int limit
+    );
+
+    // AI 챗봇 세션 목록 조회
+    @GET("/api/chat/sessions")
+    Call<AiChatSessionListResponse> getSessions(
+            @Query("userId") Long userId
+    );
+
+    // AI 챗봇 세션 상세 조회 (이어하기)
+    @GET("/api/chat/session/{sessionId}")
+    Call<AiChatSessionDetailResponse> getSessionDetail(
+            @Path("sessionId") Long sessionId
+    );
+
+    // AI 챗봇 세션 종료
+    @DELETE("/api/chat/session/{sessionId}")
+    Call<Void> endSession(
+            @Path("sessionId") Long sessionId
+    );
 
     // Tour API (백엔드 경유)
     @GET("api/tour/nearby")
@@ -251,3 +301,4 @@ public interface ApiService {
     Call<ApiResponse<CongestionDto>> getCongestion(@Path("placeName") String placeName);
 
 }
+
