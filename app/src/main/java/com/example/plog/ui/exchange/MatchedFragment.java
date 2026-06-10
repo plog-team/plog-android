@@ -13,6 +13,7 @@ import com.example.plog.network.dto.ExchangeMatchResponse;
 import com.example.plog.network.dto.ExchangeRoomResponse;
 import com.example.plog.network.dto.ExchangeSessionResponse;
 import com.example.plog.network.dto.ReportRequest;
+import com.example.plog.util.SessionManager;
 
 import android.content.Context;
 import android.os.Bundle;
@@ -76,9 +77,7 @@ public class MatchedFragment extends Fragment {
     public MatchedFragment() {}
 
     private long getMyUserId() {
-        return requireActivity()
-                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
-                .getLong("userId", -1L);
+        return new SessionManager(requireContext()).getUserId();
     }
 
     @Override

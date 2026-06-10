@@ -1,6 +1,5 @@
 package com.example.plog.ui.home;
 
-import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -22,6 +21,7 @@ import com.example.plog.network.api.ExchangeMatchApi;
 import com.example.plog.network.api.ExchangeRoomApi;
 import com.example.plog.network.dto.ExchangeMatchResponse;
 import com.example.plog.network.dto.ExchangeRoomResponse;
+import com.example.plog.util.SessionManager;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -118,9 +118,7 @@ public class HomeFragment extends Fragment {
     }
 
     private long getMyUserId() {
-        return requireActivity()
-                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
-                .getLong("userId", -1L);
+        return new SessionManager(requireContext()).getUserId();
     }
 
     private void checkActiveRoom() {
