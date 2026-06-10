@@ -3,9 +3,17 @@
 
 <!--    EXIF 접근권한허용-->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
+
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
     <!-- 사진 접근: API 33+ READ_MEDIA_IMAGES, 하위 호환 READ_EXTERNAL_STORAGE -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission
@@ -29,7 +37,20 @@
             배포 시에는 Spring Boot에 https 적용 후 제거
         -->
 
-        <!-- LoginActivity -->
+        <activity
+            android:name=".ui.auth.LoginActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- LoginActivity
         <activity
             android:name=".ui.auth.LoginActivity"
             android:exported="true">
@@ -38,12 +59,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        -->
 
-        <!-- MainActivity -->
+        <!-- MainActivity
         <activity
             android:name=".MainActivity"
             android:exported="false" />
-
+        -->
 
         <!-- MenuActivity -->
         <activity android:name=".ui.menu.MenuFragment" />
@@ -58,9 +80,16 @@
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
 
-        <activity android:name=".ui.my.BookmarkActivity"
-            android:exported="false"/>
+        <!-- 백그라운드 위치 추적 및 재방문 알림 -->
+        <service
+            android:name=".notification.LocationForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
+        <!-- 알림의 [닫기] 버튼 처리용 -->
+        <receiver
+            android:name=".notification.NotificationDismissReceiver"
+            android:exported="false" />
 
     </application>
 
