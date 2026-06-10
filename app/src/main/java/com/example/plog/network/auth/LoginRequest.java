@@ -1,11 +1,11 @@
 package com.example.plog.network.auth;
 
 public class LoginRequest {
-    private String nickname;
-    private String userPassword;
+    private String name;
+    private String password;
 
-    public LoginRequest(String nickname, String userPassword) {
-        this.nickname = nickname;
-        this.userPassword = userPassword;
+    public LoginRequest(String name, String password) {
+        this.name = name;
+        this.password = password;
     }
 }
