@@ -33,6 +33,24 @@ public class RecommendFragment extends Fragment {
     private static final int NEARBY_RADIUS    = 2000;
     private static final int FEATURED_RADIUS  = 1000;
 
+    // ── 서울 실시간 혼잡도 지원 지점 (좌표 → area명) ──────────────────────────
+    private static final double[][] CONGESTION_COORDS = {
+            {37.5172, 127.0473}, {37.5563, 126.9236}, {37.5636, 126.9869},
+            {37.5796, 126.9770}, {37.5340, 126.9940}, {37.5133, 127.1001},
+            {37.5714, 126.9882}, {37.5824, 126.9830}, {37.5648, 127.0816},
+            {37.5443, 127.0557}, {37.5219, 126.9245}, {37.5572, 126.9368},
+            {37.5404, 127.0694}, {37.5172, 126.8686}, {37.5260, 126.9368},
+            {37.4979, 127.0276}, {37.5145, 126.9947}, {37.5598, 127.0366},
+    };
+    private static final String[] CONGESTION_NAMES = {
+            "강남 MICE 관광특구", "홍대 관광특구", "명동 관광특구",
+            "광화문·덕수궁", "이태원 관광특구", "잠실 관광특구",
+            "인사동·익선동", "북촌한옥마을", "어린이대공원",
+            "왕십리역", "여의도한강공원", "신촌·이대역",
+            "건대입구역", "영등포·타임스퀘어", "서울역",
+            "강남역", "서울대입구역", "성수역",
+    };
+
     private NestedScrollView layoutContent;
     private View layoutLoading, layoutError, layoutEmpty, layoutFeaturedSection;
     private RecyclerView rvFeatured, rvNearby;
@@ -373,21 +391,32 @@ public class RecommendFragment extends Fragment {
                 });
     }
 
+    // ── 가장 가까운 혼잡도 지점 자동 배정 (좌표 기반) ──────────────────────────
+    private String getNearestCongestionArea(double lat, double lon) {
+        double minDist = Double.MAX_VALUE;
+        String nearest = null;
+        for (int i = 0; i < CONGESTION_COORDS.length; i++) {
+            double d = Math.pow(lat - CONGESTION_COORDS[i][0], 2)
+                    + Math.pow(lon - CONGESTION_COORDS[i][1], 2);
+            if (d < minDist) { minDist = d; nearest = CONGESTION_NAMES[i]; }
+        }
+        return nearest;
+    }
+
+    // ── 혼잡도 조회 & 인기순 정렬 (matchAreaFromAddress 완전 제거, 좌표 기반) ──
     private void fetchCongestionAndSort() {
         if (originalList.isEmpty()) return;
 
+        // 장소마다 가장 가까운 혼잡도 지점 배정
         Map<String, List<PlaceItem>> areaMap = new HashMap<>();
         for (PlaceItem item : originalList) {
-            String area = matchAreaFromAddress(item.getAddress(), item.getTitle());
-            if (area == null) area = getNearestSeoulArea(item.getLatitude(), item.getLongitude());
-            if (area != null) {
-                if (!areaMap.containsKey(area)) areaMap.put(area, new ArrayList<>());
-                areaMap.get(area).add(item);
-            }
+            String area = getNearestCongestionArea(item.getLatitude(), item.getLongitude());
+            if (area == null) continue;
+            if (!areaMap.containsKey(area)) areaMap.put(area, new ArrayList<>());
+            areaMap.get(area).add(item);
         }
 
         if (areaMap.isEmpty()) {
-            // 서울 외 지역 → 거리순 유지 + 안내
             requireActivity().runOnUiThread(() -> {
                 isSortedByPopularity = false;
                 tvSortBtn.setText("거리순 ∨");
@@ -406,18 +435,15 @@ public class RecommendFragment extends Fragment {
 
         for (String area : areaMap.keySet()) {
             List<PlaceItem> itemsInArea = areaMap.get(area);
-            String encodedArea;
-            try { encodedArea = java.net.URLEncoder.encode(area, "UTF-8"); }
-            catch (Exception e) { encodedArea = area; }
-
-            ApiClient.getApiService().getCongestion(encodedArea)
-                    .enqueue(new Callback<CongestionDto>() {
+            ApiClient.getApiService().getCongestion(area)
+                    .enqueue(new Callback<ApiResponse<CongestionDto>>() {
                         @Override
-                        public void onResponse(@NonNull Call<CongestionDto> call,
-                                               @NonNull Response<CongestionDto> resp) {
+                        public void onResponse(@NonNull Call<ApiResponse<CongestionDto>> call,
+                                               @NonNull Response<ApiResponse<CongestionDto>> resp) {
                             if (resp.isSuccessful() && resp.body() != null
-                                    && !"정보없음".equals(resp.body().congestionLevel)) {
-                                int score = congestionToScore(resp.body().congestionLevel);
+                                    && resp.body().data != null
+                                    && !"정보없음".equals(resp.body().data.congestionLevel)) {
+                                int score = congestionToScore(resp.body().data.congestionLevel);
                                 for (PlaceItem item : itemsInArea) {
                                     item.setCongestionScore(score);
                                 }
@@ -427,7 +453,7 @@ public class RecommendFragment extends Fragment {
                         }
 
                         @Override
-                        public void onFailure(@NonNull Call<CongestionDto> call,
+                        public void onFailure(@NonNull Call<ApiResponse<CongestionDto>> call,
                                               @NonNull Throwable t) {
                             checkAndSort(completed, total, successCount);
                         }
@@ -507,55 +533,6 @@ public class RecommendFragment extends Fragment {
                 .navigate(R.id.action_recommend_to_detail, b);
     }
 
-    private String matchAreaFromAddress(String address, String title) {
-        if (address == null && title == null) return null;
-        String text = (address != null ? address : "") + (title != null ? title : "");
-        if (text.contains("강남") || text.contains("삼성") || text.contains("코엑스")) return "강남 MICE 관광특구";
-        if (text.contains("동대문") || text.contains("DDP"))                           return "동대문 관광특구";
-        if (text.contains("명동") || text.contains("충무로"))                          return "명동 관광특구";
-        if (text.contains("홍대") || text.contains("홍익") || text.contains("합정"))   return "홍대 관광특구";
-        if (text.contains("이태원") || text.contains("한남"))                         return "이태원 관광특구";
-        if (text.contains("종로") || text.contains("청계"))                           return "종로·청계 관광특구";
-        if (text.contains("잠실") || text.contains("송파"))                           return "잠실 관광특구";
-        if (text.contains("인사동") || text.contains("익선"))                         return "인사동·익선동";
-        if (text.contains("북촌") || text.contains("삼청"))                           return "북촌한옥마을";
-        if (text.contains("경복궁") || text.contains("광화문"))                       return "경복궁";
-        if (text.contains("창덕궁") || text.contains("종묘"))                         return "창덕궁·종묘";
-        if (text.contains("남산"))                                                    return "남산공원";
-        if (text.contains("서울숲") || text.contains("성수"))                         return "서울숲";
-        if (text.contains("여의도"))                                                  return "여의도";
-        if (text.contains("영등포") || text.contains("타임스퀘어"))                   return "영등포·타임스퀘어";
-        if (text.contains("신촌") || text.contains("이대") || text.contains("이화여대")) return "신촌·이대";
-        if (text.contains("왕십리") || text.contains("뚝섬"))                         return "왕십리·성수·뚝섬";
-        if (text.contains("노원") || text.contains("불암산"))                         return "노원·불암산";
-        if (text.contains("수유") || text.contains("도봉"))                           return "수유리·도봉산";
-        if (text.contains("어린이대공원") || text.contains("광진"))                   return "어린이대공원";
-        return null;
-    }
-
-    private String getNearestSeoulArea(double lat, double lon) {
-        if (lat < 37.4 || lat > 37.7 || lon < 126.7 || lon > 127.2) return null;
-        double[][] areas = {
-                {37.5636, 126.9869}, {37.5563, 126.9236}, {37.5172, 127.0473},
-                {37.5796, 126.9770}, {37.5340, 126.9940}, {37.5133, 127.1001},
-                {37.5714, 126.9882}, {37.5824, 126.9830}, {37.5648, 127.0816},
-                {37.5443, 127.0557}, {37.5219, 126.9245}, {37.5572, 126.9368},
-        };
-        String[] names = {
-                "명동 관광특구", "홍대 관광특구", "강남 MICE 관광특구",
-                "경복궁", "이태원 관광특구", "잠실 관광특구",
-                "인사동·익선동", "북촌한옥마을", "어린이대공원",
-                "왕십리·성수·뚝섬", "여의도", "신촌·이대"
-        };
-        double minDist = Double.MAX_VALUE;
-        String nearest = null;
-        for (int i = 0; i < areas.length; i++) {
-            double d = Math.pow(lat - areas[i][0], 2) + Math.pow(lon - areas[i][1], 2);
-            if (d < minDist) { minDist = d; nearest = names[i]; }
-        }
-        return nearest;
-    }
-
     private void showLoading() {
         layoutContent.setVisibility(View.GONE);
         layoutLoading.setVisibility(View.VISIBLE);
@@ -588,10 +565,12 @@ public class RecommendFragment extends Fragment {
     private int congestionToScore(String level) {
         if (level == null) return 0;
         switch (level) {
-            case "매우붐빔": return 3;
-            case "붐빔":     return 2;
-            case "보통":     return 1;
-            default:         return 0;
+            case "매우붐빔": return 4;
+            case "붐빔":     return 3;
+            case "보통":     return 2;
+            case "약간붐빔": return 1;
+            case "여유":     return 0;
+            default:         return -1;
         }
     }
 
@@ -604,11 +583,6 @@ public class RecommendFragment extends Fragment {
             case "38": return "쇼핑";     case "39": return "음식점";
             default:   return "기타";
         }
-    }
-
-    private double parseDouble(String s) {
-        try { return Double.parseDouble(s); }
-        catch (Exception e) { return 0.0; }
     }
 
     @Override

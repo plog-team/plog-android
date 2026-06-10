@@ -248,6 +248,6 @@ public interface ApiService {
             @Query("contentTypeId") String contentTypeId);
 
     @GET("api/tour/congestion/{placeName}")
-    Call<CongestionDto> getCongestion(@Path("placeName") String placeName);
+    Call<ApiResponse<CongestionDto>> getCongestion(@Path("placeName") String placeName);
 
 }
