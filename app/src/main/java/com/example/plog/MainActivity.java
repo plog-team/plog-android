@@ -10,7 +10,7 @@ import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.NavigationUI;
 import com.example.plog.databinding.ActivityMainBinding;
 import com.example.plog.ui.auth.LoginActivity;
-import com.example.plog.ui.menu.MenuActivity;
+import com.example.plog.ui.menu.MenuFragment;
 import com.example.plog.network.ApiClient;
 import com.example.plog.ui.exchange.NotificationFragment;
 import com.example.plog.network.RetrofitClient;
@@ -107,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
 
         binding.bottomNavigation.setOnItemSelectedListener(item -> {
             if (item.getItemId() == R.id.myFragment) {
-                startActivity(new Intent(this, MenuActivity.class));
+                startActivity(new Intent(this, MenuFragment.class));
                 return false; // nav_graph 이동 막기
             }
             return NavigationUI.onNavDestinationSelected(item, navController);

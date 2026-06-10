@@ -67,7 +67,7 @@
         -->
 
         <!-- MenuActivity -->
-        <activity android:name=".ui.menu.MenuActivity" />
+        <activity android:name=".ui.menu.MenuFragment" />
 
         <!-- Maps API Key — build.gradle의 manifestPlaceholders에서 자동 주입 -->
         <meta-data
