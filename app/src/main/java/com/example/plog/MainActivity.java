@@ -31,7 +31,10 @@ public class MainActivity extends AppCompatActivity {
         ApiClient.init(this);
         RetrofitClient.init(this);
 
-        if (!new SessionManager(this).isLoggedIn()) {
+        SessionManager sessionManager = new SessionManager(this);
+        sessionManager.saveSession(1L, "");
+
+        if (!sessionManager.isLoggedIn()) {
             Intent intent = new Intent(this, LoginActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);

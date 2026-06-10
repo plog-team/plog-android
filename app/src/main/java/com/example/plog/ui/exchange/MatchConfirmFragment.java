@@ -2,7 +2,6 @@ package com.example.plog.ui.exchange;
 
 import com.example.plog.network.dto.MatchRecommendResponse;
 
-import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -23,6 +22,7 @@ import com.example.plog.network.api.ExchangeRoomApi;
 import com.example.plog.network.dto.ExchangeMatchRequest;
 import com.example.plog.network.dto.ExchangeMatchResponse;
 import com.example.plog.network.dto.ExchangeRoomResponse;
+import com.example.plog.util.SessionManager;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 
@@ -52,9 +52,7 @@ public class MatchConfirmFragment extends Fragment {
     }
 
     private long getMyUserId() {
-        return requireActivity()
-                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
-                .getLong("userId", -1L);
+        return new SessionManager(requireContext()).getUserId();
     }
 
     @Override

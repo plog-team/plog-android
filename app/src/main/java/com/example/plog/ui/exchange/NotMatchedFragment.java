@@ -1,6 +1,5 @@
 package com.example.plog.ui.exchange;
 
-import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,6 +20,7 @@ import com.example.plog.network.api.ExchangeMatchApi;
 import com.example.plog.network.dto.ExchangeMatchListResponse;
 import com.example.plog.network.dto.ExchangeMatchResponse;
 import com.example.plog.network.dto.ExchangeRoomResponse;
+import com.example.plog.util.SessionManager;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
@@ -39,9 +39,7 @@ public class NotMatchedFragment extends Fragment {
     public NotMatchedFragment() {}
 
     private long getMyUserId() {
-        return requireActivity()
-                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
-                .getLong("userId", -1L);
+        return new SessionManager(requireContext()).getUserId();
     }
 
     @Override

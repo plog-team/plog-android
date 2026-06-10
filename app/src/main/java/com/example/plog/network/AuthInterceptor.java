@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 import androidx.annotation.NonNull;
+import com.example.plog.util.SessionManager;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import okhttp3.Interceptor;
@@ -43,14 +44,18 @@ public class AuthInterceptor implements Interceptor {
         }
 
         SharedPreferences prefs = context.getSharedPreferences("plog_prefs", Context.MODE_PRIVATE);
-        String token = prefs.getString("token", null);
+        SessionManager sessionManager = new SessionManager(context);
+        String token = sessionManager.getToken();
+        long userId = sessionManager.getUserId();
 
-        Request request = original;
+        Request.Builder requestBuilder = original.newBuilder();
         if (token != null && !token.isEmpty()) {
-            request = original.newBuilder()
-                    .header("Authorization", "Bearer " + token)
-                    .build();
+            requestBuilder.header("Authorization", "Bearer " + token);
         }
+        if (userId > 0) {
+            requestBuilder.header("X-User-Id", String.valueOf(userId));
+        }
+        Request request = requestBuilder.build();
 
         Response response = chain.proceed(request);
 

@@ -1,8 +1,8 @@
 package com.example.plog.ui.exchange;
 
-import android.content.Context;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -18,6 +18,7 @@ import com.example.plog.network.dto.ExchangeMatchResponse;
 import com.example.plog.network.dto.ExchangeRoomResponse;
 import com.example.plog.network.dto.MatchRecommendListResponse;
 import com.example.plog.network.dto.MatchRecommendResponse;
+import com.example.plog.util.SessionManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,9 +36,7 @@ public class MatchingFragment extends Fragment {
     }
 
     private long getMyUserId() {
-        return requireActivity()
-                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
-                .getLong("userId", -1L);
+        return new SessionManager(requireContext()).getUserId();
     }
 
     @Override
@@ -102,18 +101,22 @@ public class MatchingFragment extends Fragment {
                     NavHostFragment.findNavController(MatchingFragment.this)
                             .navigate(R.id.matchConfirmFragment, bundle);
                 } else {
-                    NavHostFragment.findNavController(MatchingFragment.this)
-                            .navigate(R.id.notMatchedFragment);
+                    showNoRecommendedUser();
                 }
             }
             @Override
             public void onFailure(Call<MatchRecommendListResponse> call, Throwable t) {
                 if (isAdded()) {
                     Log.e("Matching", "사용자 검색 실패: " + t.getMessage());
-                    NavHostFragment.findNavController(MatchingFragment.this)
-                            .navigate(R.id.notMatchedFragment);
+                    Toast.makeText(requireContext(), "추천 사용자 조회에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    NavHostFragment.findNavController(MatchingFragment.this).popBackStack();
                 }
             }
         });
+    }
+
+    private void showNoRecommendedUser() {
+        Toast.makeText(requireContext(), "현재 매칭 가능한 사용자가 없습니다.", Toast.LENGTH_SHORT).show();
+        NavHostFragment.findNavController(MatchingFragment.this).popBackStack();
     }
 }

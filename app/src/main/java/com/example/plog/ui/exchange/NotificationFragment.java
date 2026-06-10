@@ -1,6 +1,5 @@
 package com.example.plog.ui.exchange;
 
-import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,6 +16,7 @@ import com.example.plog.R;
 import com.example.plog.network.RetrofitClient;
 import com.example.plog.network.api.NotificationApi;
 import com.example.plog.network.dto.NotificationResponse;
+import com.example.plog.util.SessionManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,9 +34,7 @@ public class NotificationFragment extends DialogFragment {
     public NotificationFragment() {}
 
     private long getMyUserId() {
-        return requireActivity()
-                .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
-                .getLong("userId", -1L);
+        return new SessionManager(requireContext()).getUserId();
     }
 
     @Override
