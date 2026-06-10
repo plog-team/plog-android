@@ -1,6 +1,7 @@
 package com.example.plog.ui.exchange;
 
 import com.example.plog.network.RetrofitClient;
+import com.example.plog.network.ApiClient;
 import com.example.plog.network.api.ExchangeDiaryApi;
 import com.example.plog.network.api.ExchangeMatchApi;
 import com.example.plog.network.api.ExchangeRoomApi;
@@ -14,6 +15,12 @@ import com.example.plog.network.dto.ExchangeRoomResponse;
 import com.example.plog.network.dto.ExchangeSessionResponse;
 import com.example.plog.network.dto.ReportRequest;
 import com.example.plog.util.SessionManager;
+import com.example.plog.util.Constants;
+import com.example.plog.model.ApiResponse;
+import com.example.plog.model.DiarySimpleResponse;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.model.LazyHeaders;
 
 import android.content.Context;
 import android.os.Bundle;
@@ -25,6 +32,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.LinearLayout;
+import android.widget.ImageView;
 import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -58,11 +66,12 @@ public class MatchedFragment extends Fragment {
     private Long partnerUserId = null;
     private Long roomId = null;
     private Long sessionId = null;
-    private List<ExchangeDiaryResponse.Data> diaryList = null;
-    private ExchangeDiaryResponse.Data currentDiary = null;
+    private List<DiarySimpleResponse> diaryList = null;
+    private DiarySimpleResponse currentDiary = null;
     private TabLayout dayTab;
 
     private TextView tvUserName, tvDate, tvWeather, tvLocation, tvTitleDiary, tvBody;
+    private ImageView ivPhoto;
     private CardView cvProfile;
     private MaterialButton btnEdit, btnWriteDiary;
     private View cvDiaryCard;
@@ -99,6 +108,7 @@ public class MatchedFragment extends Fragment {
         tvLocation = view.findViewById(R.id.tvLocation);
         tvTitleDiary = view.findViewById(R.id.tvTitleDiary);
         tvBody = view.findViewById(R.id.tvBody);
+        ivPhoto = view.findViewById(R.id.ivPhoto);
         tvUserName = view.findViewById(R.id.tvUserName);
         btnEdit = view.findViewById(R.id.btn_start_match);
         emptyDiaryLayout = view.findViewById(R.id.emptyDiaryLayout);
@@ -109,13 +119,13 @@ public class MatchedFragment extends Fragment {
         setupDayTabs(7);
 
         cvProfile.setOnClickListener(v -> { if (!isMine) showReportPopup(v); });
-        btnWriteDiary.setOnClickListener(v -> navigateToEdit());
-        btnEdit.setOnClickListener(v -> navigateToEdit());
+        btnWriteDiary.setVisibility(View.GONE);
+        btnEdit.setVisibility(View.GONE);
 
         typeTab.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override public void onTabSelected(TabLayout.Tab tab) {
                 isMine = tab.getPosition() == 0;
-                animateSmoothTransition(() -> displayDiary());
+                animateSmoothTransition(() -> loadDiaries());
             }
             @Override public void onTabUnselected(TabLayout.Tab tab) {}
             @Override public void onTabReselected(TabLayout.Tab tab) {}
@@ -131,6 +141,7 @@ public class MatchedFragment extends Fragment {
         });
 
         if (roomId != null) loadSession();
+        loadDiaries();
 
         return view;
     }
@@ -235,6 +246,7 @@ public class MatchedFragment extends Fragment {
                     }
                     if (response.body().getPartnerUserId() != null) {
                         partnerUserId = response.body().getPartnerUserId();
+                        if (!isMine) loadDiaries();
                     }
                 }
             }
@@ -246,59 +258,72 @@ public class MatchedFragment extends Fragment {
     }
 
     private void loadDiaries() {
-        if (sessionId == null) return;
-        ExchangeDiaryApi api = RetrofitClient.getClient().create(ExchangeDiaryApi.class);
-        api.getDiaries(sessionId).enqueue(new Callback<ExchangeDiaryListResponse>() {
+        Long targetUserId = isMine ? getMyUserId() : partnerUserId;
+        if (targetUserId == null) {
+            diaryList = java.util.List.of();
+            setupDiaryTabs();
+            updateUI(null);
+            return;
+        }
+        ApiClient.getApiService().getPublicDiaries(targetUserId, 100)
+                .enqueue(new Callback<ApiResponse<List<DiarySimpleResponse>>>() {
             @Override
-            public void onResponse(Call<ExchangeDiaryListResponse> call, Response<ExchangeDiaryListResponse> response) {
+            public void onResponse(Call<ApiResponse<List<DiarySimpleResponse>>> call,
+                                   Response<ApiResponse<List<DiarySimpleResponse>>> response) {
                 if (!isAdded()) return;
-                if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
-                    diaryList = response.body().getData();
+                if (response.isSuccessful() && response.body() != null && response.body().data != null) {
+                    diaryList = response.body().data;
+                    currentDay = 1;
+                    setupDiaryTabs();
                     displayDiary();
                 }
             }
             @Override
-            public void onFailure(Call<ExchangeDiaryListResponse> call, Throwable t) {
+            public void onFailure(Call<ApiResponse<List<DiarySimpleResponse>>> call, Throwable t) {
                 android.util.Log.e("MatchedFragment", "일기 목록 로드 실패: " + t.getMessage());
             }
         });
     }
 
+    private void setupDiaryTabs() {
+        if (dayTab == null) return;
+        dayTab.removeAllTabs();
+        if (diaryList == null || diaryList.isEmpty()) return;
+        for (DiarySimpleResponse diary : diaryList) {
+            dayTab.addTab(dayTab.newTab().setText(diary.date != null ? diary.date : "일기"));
+        }
+    }
+
     private void displayDiary() {
-        if (diaryList == null) return;
-        ExchangeDiaryResponse.Data found = null;
-        for (ExchangeDiaryResponse.Data d : diaryList) {
-            boolean isMyDiary = d.userId != null && d.userId.longValue() == getMyUserId();
-            if (isMine == isMyDiary && d.dayNumber == currentDay) {
-                found = d;
-                break;
-            }
+        DiarySimpleResponse found = null;
+        int index = currentDay - 1;
+        if (diaryList != null && index >= 0 && index < diaryList.size()) {
+            found = diaryList.get(index);
         }
         currentDiary = found;
         updateUI(found);
     }
 
-    private void updateUI(@Nullable ExchangeDiaryResponse.Data diary) {
-        boolean isTabToday = (currentDay == getCurrentDayNumber());
-
+    private void updateUI(@Nullable DiarySimpleResponse diary) {
         if (diary == null) {
             emptyDiaryLayout.setVisibility(View.VISIBLE);
             diaryContentLayout.setVisibility(View.GONE);
-            btnWriteDiary.setVisibility(isMine && isTabToday ? View.VISIBLE : View.GONE);
+            ivPhoto.setVisibility(View.GONE);
+            btnWriteDiary.setVisibility(View.GONE);
             cvDiaryCard.setOnClickListener(null);
         } else {
             emptyDiaryLayout.setVisibility(View.GONE);
             diaryContentLayout.setVisibility(View.VISIBLE);
-            tvDate.setText(diary.createdAt != null ? diary.createdAt.substring(0, 10) : "");
-            tvWeather.setText("");
-            tvLocation.setText("");
+            tvDate.setText(diary.date != null ? diary.date : "");
+            tvWeather.setText(diary.weather != null ? diary.weather : "");
+            tvLocation.setText(diary.location != null ? diary.location : "");
             tvTitleDiary.setText(diary.title != null ? diary.title : "");
-            tvBody.setText(diary.content);
+            tvBody.setText(diary.body != null ? diary.body : "");
+            showRepresentativePhoto(diary);
 
             cvDiaryCard.setOnClickListener(v -> {
                 Bundle bundle = new Bundle();
-                bundle.putBoolean("isExchange", true);
-                bundle.putLong("diaryId", diary.id);
+                bundle.putLong("diaryId", diary.diaryId);
                 Navigation.findNavController(requireView())
                         .navigate(R.id.action_matchedFragment_to_diaryDetailFragment, bundle);
             });
@@ -311,7 +336,7 @@ public class MatchedFragment extends Fragment {
             params.startToEnd = ConstraintLayout.LayoutParams.UNSET;
             params.endToStart = ConstraintLayout.LayoutParams.UNSET;
             tvUserName.setVisibility(View.GONE);
-            btnEdit.setVisibility(diary != null && isTabToday ? View.VISIBLE : View.GONE);
+            btnEdit.setVisibility(View.GONE);
         } else {
             params.startToStart = ConstraintLayout.LayoutParams.UNSET;
             params.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID;
@@ -323,6 +348,21 @@ public class MatchedFragment extends Fragment {
         }
         cvProfile.setLayoutParams(params);
         cvProfile.requestLayout();
+    }
+
+    private void showRepresentativePhoto(DiarySimpleResponse diary) {
+        if (diary.photoIds == null || diary.photoIds.isEmpty()) {
+            ivPhoto.setVisibility(View.GONE);
+            return;
+        }
+        int index = Math.max(0, Math.min(diary.representativePhotoIndex, diary.photoIds.size() - 1));
+        String baseUrl = Constants.BASE_URL.endsWith("/") ? Constants.BASE_URL : Constants.BASE_URL + "/";
+        String url = baseUrl + "api/photos/" + diary.photoIds.get(index);
+        GlideUrl model = new GlideUrl(url, new LazyHeaders.Builder()
+                .addHeader("X-User-Id", String.valueOf(getMyUserId()))
+                .build());
+        ivPhoto.setVisibility(View.VISIBLE);
+        Glide.with(this).load(model).centerCrop().into(ivPhoto);
     }
 
     private int getCurrentDayNumber() {
@@ -351,7 +391,7 @@ public class MatchedFragment extends Fragment {
         bundle.putLong("userId", getMyUserId());
         bundle.putInt("dayNumber", currentDay);
         if (currentDiary != null) {
-            bundle.putLong("diaryId", currentDiary.id);
+            bundle.putLong("diaryId", currentDiary.diaryId);
         }
         Navigation.findNavController(requireView())
                 .navigate(R.id.action_matchedFragment_to_exchangeDiaryEditFragment, bundle);
