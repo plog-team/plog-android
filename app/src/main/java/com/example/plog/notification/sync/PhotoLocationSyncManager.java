@@ -23,12 +23,12 @@ import retrofit2.Response;
 
 public class PhotoLocationSyncManager {
 
-    public static void sync(Context context, long userId) {
+    public static void sync(Context context) {
 
         PhotoLocationApi api =
                 RetrofitClient.getClient().create(PhotoLocationApi.class);
 
-        api.getPhotoLocations(userId)
+        api.getPhotoLocations()
                 .enqueue(new Callback<ApiResponse<List<PhotoLocationResponse>>>() {
 
                     @Override
@@ -75,7 +75,7 @@ public class PhotoLocationSyncManager {
 
                                     PhotoEntity photo = new PhotoEntity();
 
-                                    photo.userId = (int) userId;
+                                    photo.userId = 0;
                                     photo.imageUrl = "";
                                     photo.createdAt = System.currentTimeMillis();
                                     photo.serverPhotoId = (long) item.photoId;

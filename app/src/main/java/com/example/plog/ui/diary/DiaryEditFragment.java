@@ -796,8 +796,11 @@ public class DiaryEditFragment extends Fragment {
     private Object glidePhotoModel(Uri photoUri) {
         String uri = photoUri == null ? "" : photoUri.toString();
         if (uri.startsWith("http://") || uri.startsWith("https://")) {
+            android.content.SharedPreferences prefs = requireContext()
+                    .getSharedPreferences("plog_prefs", android.content.Context.MODE_PRIVATE);
+            String token = prefs.getString("token", "");
             return new GlideUrl(uri, new LazyHeaders.Builder()
-                    .addHeader(Constants.HEADER_USER_ID, String.valueOf(Constants.DEV_USER_ID))
+                    .addHeader("Authorization", "Bearer " + token)
                     .build());
         }
         return photoUri;

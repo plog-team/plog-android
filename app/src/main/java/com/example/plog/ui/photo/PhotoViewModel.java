@@ -11,7 +11,6 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.example.plog.data.repository.LabelRepository;
 import com.example.plog.data.repository.PhotoRepository;
-import com.example.plog.util.Constants;
 import com.example.plog.util.ImageLabelerHelper;
 import com.example.plog.util.SessionManager;
 
@@ -73,8 +72,7 @@ public class PhotoViewModel extends AndroidViewModel {
     }
 
     public void processPhoto(@NonNull Uri uri) {
-        int raw = sessionManager.getUserId();
-        int userId = (raw == -1) ? (int) Constants.DEV_USER_ID : raw;
+        int userId = (int) sessionManager.getUserId();
 
         isLoading.setValue(true);
 

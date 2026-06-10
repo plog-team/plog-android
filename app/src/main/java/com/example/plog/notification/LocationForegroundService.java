@@ -3,7 +3,6 @@ package com.example.plog.notification;
 import com.example.plog.data.db.AppDatabase;
 import com.example.plog.data.db.entity.PhotoLocationEntity;
 import com.example.plog.util.SessionManager;
-import com.example.plog.util.Constants;
 
 import com.example.plog.R;
 
@@ -126,8 +125,8 @@ public class LocationForegroundService extends Service {
 
     private void checkRevisitLocation(Location currentLocation) {
         new Thread(() -> {
-            int rawUserId = new SessionManager(this).getUserId();
-            int userId = rawUserId == -1 ? (int) Constants.DEV_USER_ID : rawUserId;
+            int rawUserId = (int) new SessionManager(this).getUserId();
+            int userId = rawUserId == -1 ? 0 : rawUserId;
 
             // Log.d("LOCATION_SERVICE",
             //        "rawUserId = " + rawUserId + ", 조회 userId = " + userId);

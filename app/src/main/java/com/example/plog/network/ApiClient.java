@@ -30,7 +30,7 @@ public class ApiClient {
                     .connectTimeout(15, TimeUnit.SECONDS)
                     .readTimeout(90, TimeUnit.SECONDS)
                     .writeTimeout(90, TimeUnit.SECONDS)
-                    .addInterceptor(new UserIdInterceptor(appContext))
+                    .addInterceptor(new AuthInterceptor(appContext))
                     .addInterceptor(logging)
                     .build();
 

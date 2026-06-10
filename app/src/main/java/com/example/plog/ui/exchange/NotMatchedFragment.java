@@ -41,7 +41,7 @@ public class NotMatchedFragment extends Fragment {
     private long getMyUserId() {
         return requireActivity()
                 .getSharedPreferences("plog_prefs", Context.MODE_PRIVATE)
-                .getInt("userId", 1);
+                .getLong("userId", -1L);
     }
 
     @Override

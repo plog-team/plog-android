@@ -244,10 +244,14 @@ public class SearchFragment extends Fragment {
 
         String url = buildSearchUrl(keyword);
 
+        android.content.SharedPreferences prefs = requireContext()
+                .getSharedPreferences("plog_prefs", android.content.Context.MODE_PRIVATE);
+        String token = prefs.getString("token", "");
+
         Request request =
                 new Request.Builder()
                         .url(url)
-                        .addHeader("X-User-Id", String.valueOf(Constants.DEV_USER_ID))
+                        .addHeader("Authorization", "Bearer " + token)
                         .get()
                         .build();
 

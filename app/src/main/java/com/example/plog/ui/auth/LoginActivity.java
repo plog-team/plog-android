@@ -1,7 +1,6 @@
 package com.example.plog.ui.auth;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,10 +17,10 @@ import com.example.plog.R;
 import com.example.plog.network.ApiClient;
 import com.example.plog.network.auth.EmailRequest;
 import com.example.plog.network.auth.LoginRequest;
-import com.example.plog.util.SessionManager;
 import com.example.plog.network.auth.LoginResponse;
 import com.example.plog.network.auth.RegisterRequest;
 import com.example.plog.network.auth.VerifyRequest;
+import com.example.plog.util.SessionManager;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputLayout;
 import com.google.android.material.textfield.TextInputEditText;
@@ -32,10 +31,8 @@ import retrofit2.Response;
 
 public class LoginActivity extends AppCompatActivity {
 
-    // 로그인 화면 뷰
     EditText username, password;
 
-    // 회원가입 다이얼로그 뷰
     TextInputEditText reg_username, reg_password, reg_email;
 
     Button login, signUp, reg_register;
@@ -53,8 +50,8 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        SharedPreferences prefs = getSharedPreferences("plog_prefs", MODE_PRIVATE);
-        if (prefs.getBoolean("isLoggedIn", false)) {
+        SessionManager sessionManager = new SessionManager(this);
+        if (sessionManager.isLoggedIn()) {
             startActivity(new Intent(this, MainActivity.class));
             finish();
             return;
@@ -69,16 +66,14 @@ public class LoginActivity extends AppCompatActivity {
         rememberMe     = findViewById(R.id.rememberMe);
 
         clickLogin();
-
         signUp.setOnClickListener(view -> clickSignUp());
     }
 
     private void clickLogin() {
         login.setOnClickListener(view -> {
-
             boolean valid = true;
             if (username.getText().toString().trim().isEmpty()) {
-                txtInLayoutUsername.setError("닉네임을 입력하세요");
+                txtInLayoutUsername.setError("이메일을 입력하세요");
                 valid = false;
             } else { txtInLayoutUsername.setError(null); }
 
@@ -91,30 +86,16 @@ public class LoginActivity extends AppCompatActivity {
                 String email = username.getText().toString().trim();
                 String pw    = password.getText().toString().trim();
 
-                LoginRequest request = new LoginRequest(email, pw);
-
                 ApiClient.getApiService()
-                        .login(request)
+                        .login(new LoginRequest(email, pw))
                         .enqueue(new Callback<LoginResponse>() {
                             @Override
                             public void onResponse(Call<LoginResponse> call,
                                                    Response<LoginResponse> response) {
-                                if (response.isSuccessful() && response.body() != null) {
-                                    int uid = response.body().getUserId();
-                                    SharedPreferences prefs =
-                                            getSharedPreferences("plog_prefs", MODE_PRIVATE);
-                                    prefs.edit()
-                                            .putBoolean("isLoggedIn", true)
-                                            .putString("token", response.body().getData().getAccessToken())
-                                            .putInt("userId", uid)
-                                            .apply();
-                                    new SessionManager(LoginActivity.this).saveUserId(uid);
-
-                                    Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                                            | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                                    startActivity(intent);
-                                    finish();
+                                if (response.isSuccessful()
+                                        && response.body() != null
+                                        && response.body().isSuccess()) {
+                                    saveSessionAndGoMain(response.body());
                                 } else {
                                     Snackbar.make(view, "이메일 또는 비밀번호가 틀렸습니다",
                                             Snackbar.LENGTH_LONG).show();
@@ -128,6 +109,17 @@ public class LoginActivity extends AppCompatActivity {
                         });
             }
         });
+    }
+
+    private void saveSessionAndGoMain(LoginResponse body) {
+        new SessionManager(this).saveSession(
+                body.getData().getUserId(),
+                body.getData().getToken()
+        );
+        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     private void clickSignUp() {
@@ -144,132 +136,56 @@ public class LoginActivity extends AppCompatActivity {
 
         btnSendCode = dialogView.findViewById(R.id.btnSendCode);
         btnVerifyCode = dialogView.findViewById(R.id.btnVerifyCode);
-        reg_verificationCode =
-                dialogView.findViewById(R.id.reg_verificationCode);
+        reg_verificationCode = dialogView.findViewById(R.id.reg_verificationCode);
 
         AlertDialog alertDialog = builder.create();
 
         btnSendCode.setOnClickListener(v -> {
-
-            String email =
-                    reg_email.getText().toString().trim();
-
-            if(email.isEmpty()) {
-
+            String email = reg_email.getText().toString().trim();
+            if (email.isEmpty()) {
                 reg_email.setError("이메일 입력");
                 return;
             }
-
             ApiClient.getApiService()
-                    .sendEmailCode(
-                            new EmailRequest(email))
+                    .sendEmailCode(new EmailRequest(email))
                     .enqueue(new Callback<Void>() {
-
                         @Override
-                        public void onResponse(
-                                Call<Void> call,
-                                Response<Void> response
-                        ) {
-
-                            if(response.isSuccessful()) {
-
-                                Toast.makeText(
-                                        LoginActivity.this,
-                                        "인증코드 발송 완료",
-                                        Toast.LENGTH_SHORT
-                                ).show();
-
-                            } else {
-
-                                Toast.makeText(
-                                        LoginActivity.this,
-                                        "발송 실패",
-                                        Toast.LENGTH_SHORT
-                                ).show();
-                            }
+                        public void onResponse(Call<Void> call, Response<Void> response) {
+                            Toast.makeText(LoginActivity.this,
+                                    response.isSuccessful() ? "인증코드 발송 완료" : "발송 실패",
+                                    Toast.LENGTH_SHORT).show();
                         }
-
                         @Override
-                        public void onFailure(
-                                Call<Void> call,
-                                Throwable t
-                        ) {
-
-                            Toast.makeText(
-                                    LoginActivity.this,
-                                    "서버 오류",
-                                    Toast.LENGTH_SHORT
-                            ).show();
+                        public void onFailure(Call<Void> call, Throwable t) {
+                            Toast.makeText(LoginActivity.this, "서버 오류", Toast.LENGTH_SHORT).show();
                         }
                     });
-
         });
 
         btnVerifyCode.setOnClickListener(v -> {
-
-            String email =
-                    reg_email.getText().toString().trim();
-
-            String code =
-                    reg_verificationCode
-                            .getText()
-                            .toString()
-                            .trim();
-
+            String email = reg_email.getText().toString().trim();
+            String code  = reg_verificationCode.getText().toString().trim();
             ApiClient.getApiService()
-                    .verifyEmailCode(
-                            new VerifyRequest(
-                                    email,
-                                    code
-                            )
-                    )
+                    .verifyEmailCode(new VerifyRequest(email, code))
                     .enqueue(new Callback<Void>() {
-
                         @Override
-                        public void onResponse(
-                                Call<Void> call,
-                                Response<Void> response
-                        ) {
-
-                            if(response.isSuccessful()) {
-
+                        public void onResponse(Call<Void> call, Response<Void> response) {
+                            if (response.isSuccessful()) {
                                 emailVerified = true;
-
-                                Toast.makeText(
-                                        LoginActivity.this,
-                                        "인증 완료",
-                                        Toast.LENGTH_SHORT
-                                ).show();
-
+                                Toast.makeText(LoginActivity.this, "인증 완료", Toast.LENGTH_SHORT).show();
                             } else {
-
-                                Toast.makeText(
-                                        LoginActivity.this,
-                                        "인증 실패",
-                                        Toast.LENGTH_SHORT
-                                ).show();
+                                Toast.makeText(LoginActivity.this, "인증 실패", Toast.LENGTH_SHORT).show();
                             }
                         }
-
                         @Override
-                        public void onFailure(
-                                Call<Void> call,
-                                Throwable t
-                        ) {
-
-                            Toast.makeText(
-                                    LoginActivity.this,
-                                    "서버 오류",
-                                    Toast.LENGTH_SHORT
-                            ).show();
+                        public void onFailure(Call<Void> call, Throwable t) {
+                            Toast.makeText(LoginActivity.this, "서버 오류", Toast.LENGTH_SHORT).show();
                         }
                     });
-
         });
 
         reg_register.setOnClickListener(view -> {
             boolean valid = true;
-
             if (reg_username.getText().toString().trim().isEmpty()) {
                 reg_username.setError("아이디를 입력하세요"); valid = false;
             }
@@ -279,15 +195,8 @@ public class LoginActivity extends AppCompatActivity {
             if (reg_email.getText().toString().trim().isEmpty()) {
                 reg_email.setError("이메일을 입력하세요"); valid = false;
             }
-
-            if(!emailVerified){
-
-                Toast.makeText(
-                        LoginActivity.this,
-                        "이메일 인증을 완료하세요",
-                        Toast.LENGTH_SHORT
-                ).show();
-
+            if (!emailVerified) {
+                Toast.makeText(LoginActivity.this, "이메일 인증을 완료하세요", Toast.LENGTH_SHORT).show();
                 return;
             }
             if (valid) {
@@ -296,24 +205,24 @@ public class LoginActivity extends AppCompatActivity {
                         reg_email.getText().toString().trim(),
                         reg_password.getText().toString().trim()
                 );
-
                 ApiClient.getApiService()
                         .register(request)
-                        .enqueue(new Callback<Void>() {
+                        .enqueue(new Callback<LoginResponse>() {
                             @Override
-                            public void onResponse(Call<Void> call, Response<Void> response) {
-                                if (response.isSuccessful()) {
-                                    Toast.makeText(LoginActivity.this,
-                                            "회원가입 완료! 로그인해주세요",
-                                            Toast.LENGTH_SHORT).show();
+                            public void onResponse(Call<LoginResponse> call,
+                                                   Response<LoginResponse> response) {
+                                if (response.isSuccessful()
+                                        && response.body() != null
+                                        && response.body().isSuccess()) {
                                     alertDialog.dismiss();
+                                    saveSessionAndGoMain(response.body());
                                 } else {
                                     Toast.makeText(LoginActivity.this,
                                             "회원가입 실패", Toast.LENGTH_SHORT).show();
                                 }
                             }
                             @Override
-                            public void onFailure(Call<Void> call, Throwable t) {
+                            public void onFailure(Call<LoginResponse> call, Throwable t) {
                                 Toast.makeText(LoginActivity.this,
                                         "서버 연결 실패", Toast.LENGTH_SHORT).show();
                             }
@@ -323,10 +232,4 @@ public class LoginActivity extends AppCompatActivity {
 
         alertDialog.show();
     }
-
-    private void showErrorSnackbar(View view) {
-        Snackbar.make(view, "필드를 모두 채워주세요", Snackbar.LENGTH_LONG).show();
-    }
-
-
 }

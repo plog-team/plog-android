@@ -1,10 +1,7 @@
 package com.example.plog.network;
 
 import android.content.Context;
-import android.content.SharedPreferences;
-
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -22,15 +19,7 @@ public class RetrofitClient {
     public static Retrofit getClient() {
         if (retrofit == null) {
             OkHttpClient client = new OkHttpClient.Builder()
-                    .addInterceptor(chain -> {
-                        SharedPreferences prefs = appContext.getSharedPreferences("plog_prefs", Context.MODE_PRIVATE);
-                        int userId = (int) prefs.getLong("userId", -1L);
-
-                        Request request = chain.request().newBuilder()
-                                .addHeader("X-User-Id", String.valueOf(userId))
-                                .build();
-                        return chain.proceed(request);
-                    })
+                    .addInterceptor(new AuthInterceptor(appContext))
                     .build();
 
             retrofit = new Retrofit.Builder()

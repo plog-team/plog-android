@@ -1,32 +1,21 @@
 package com.example.plog.network;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
-import com.example.plog.util.Constants;
 import java.io.IOException;
 import okhttp3.Interceptor;
 import okhttp3.Request;
 import okhttp3.Response;
 
+/** @deprecated AuthInterceptor로 대체됨 */
+@Deprecated
 public class UserIdInterceptor implements Interceptor {
 
-    private final Context context;
-
-    public UserIdInterceptor(Context context) {
-        this.context = context;
-    }
+    public UserIdInterceptor(Context context) {}
 
     @NonNull
     @Override
     public Response intercept(@NonNull Chain chain) throws IOException {
-        SharedPreferences prefs = context
-                .getSharedPreferences("diary_session", Context.MODE_PRIVATE);
-        int userId = prefs.getInt("user_id", (int) Constants.TEMP_USER_ID);
-        Request request = chain.request().newBuilder()
-                .header(Constants.HEADER_USER_ID, String.valueOf(userId))
-                .build();
-
-        return chain.proceed(request);
+        return chain.proceed(chain.request());
     }
 }

@@ -1,4 +1,5 @@
 package com.example.plog.network.auth;
+
 public class LoginRequest {
     private String nickname;
     private String userPassword;

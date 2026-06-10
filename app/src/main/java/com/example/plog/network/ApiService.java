@@ -54,7 +54,6 @@ public interface ApiService {
     // AI 챗봇 세션 시작 (FREE_CHAT)
     @POST("/api/chat/session")
     Call<AiChatSessionResponse> startSession(
-            @Header("X-User-Id") Long userId,
             @Query("userId") Long userIdParam,
             @Query("type") String type
     );
@@ -62,7 +61,6 @@ public interface ApiService {
     // AI 챗봇 세션 시작 (DIARY_ASSIST)
     @POST("/api/chat/session")
     Call<AiChatSessionResponse> startSessionWithDate(
-            @Header("X-User-Id") Long userId,
             @Query("userId") Long userIdParam,
             @Query("type") String type,
             @Query("date") String date
@@ -71,7 +69,6 @@ public interface ApiService {
     // AI 챗봇 메시지 전송
     @POST("/api/chat/session/{sessionId}/message")
     Call<AiChatMessageResponse> sendMessage(
-            @Header("X-User-Id") Long userId,
             @Path("sessionId") Long sessionId,
             @Query("message") String message
     );
@@ -80,8 +77,7 @@ public interface ApiService {
     @GET("api/recommend/preference")
     Call<PreferenceResponse> getPreference();
     @PUT("api/exchange/preferences")
-    Call<Void> updatePreferences(@Header("X-User-Id") long userId,
-                                 @Body PreferenceUpdateRequest req);
+    Call<Void> updatePreferences(@Body PreferenceUpdateRequest req);
 
     // 북마크
     @POST("/api/recommend/bookmarks")
@@ -105,7 +101,7 @@ public interface ApiService {
     Call<LoginResponse> login(@Body LoginRequest request);
 
     @POST("api/auth/register")
-    Call<Void> register(@Body RegisterRequest request);
+    Call<LoginResponse> register(@Body RegisterRequest request);
 
     @POST("api/auth/email/send")
     Call<Void> sendEmailCode(@Body EmailRequest request);

@@ -131,9 +131,9 @@ public class AiChatFragment extends Fragment {
     private void startSession(String type, @Nullable String date) {
         Call<AiChatSessionResponse> call;
         if (date != null) {
-            call = apiService.startSessionWithDate(USER_ID, USER_ID, type, date);
+            call = apiService.startSessionWithDate(USER_ID, type, date);
         } else {
-            call = apiService.startSession(USER_ID, USER_ID, type);
+            call = apiService.startSession(USER_ID, type);
         }
 
         call.enqueue(new Callback<AiChatSessionResponse>() {
@@ -156,7 +156,7 @@ public class AiChatFragment extends Fragment {
     }
 
     private void sendMessage(String message) {
-        apiService.sendMessage(USER_ID, sessionId, message).enqueue(new Callback<AiChatMessageResponse>() {
+        apiService.sendMessage(sessionId, message).enqueue(new Callback<AiChatMessageResponse>() {
             @Override
             public void onResponse(Call<AiChatMessageResponse> call, Response<AiChatMessageResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {

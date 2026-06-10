@@ -147,7 +147,7 @@ public class AnalysisRepository {
 
         try {
             ApiClient.getApiService()
-                    .updatePreferences(userId, new com.example.plog.model.PreferenceUpdateRequest(categories, scores))
+                    .updatePreferences(new com.example.plog.model.PreferenceUpdateRequest(categories, scores))
                     .execute();
             Log.d("AnalysisRepository", "선호도 서버 동기화 완료 — " + categories + " scores=" + scores);
         } catch (Exception e) {

@@ -1,7 +1,6 @@
 package com.example.plog;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import androidx.appcompat.app.AppCompatActivity;
@@ -9,17 +8,14 @@ import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.NavigationUI;
 import com.example.plog.databinding.ActivityMainBinding;
+import com.example.plog.network.AuthInterceptor;
 import com.example.plog.ui.auth.LoginActivity;
-import com.example.plog.ui.menu.MenuFragment;
 import com.example.plog.network.ApiClient;
 import com.example.plog.ui.exchange.NotificationFragment;
 import com.example.plog.network.RetrofitClient;
-
-// 알림
 import com.example.plog.util.SessionManager;
-import com.example.plog.util.Constants;
-import com.example.plog.notification.GeofenceManager;
 import com.example.plog.notification.DiaryReminderScheduler;
+import com.example.plog.notification.GeofenceManager;
 import com.example.plog.notification.sync.PhotoLocationSyncManager;
 
 public class MainActivity extends AppCompatActivity {
@@ -35,11 +31,7 @@ public class MainActivity extends AppCompatActivity {
         ApiClient.init(this);
         RetrofitClient.init(this);
 
-        /*
-        SharedPreferences prefs = getSharedPreferences("plog_prefs", MODE_PRIVATE);
-        String token = prefs.getString("token", "");
-
-        if (token.isEmpty()) {
+        if (!new SessionManager(this).isLoggedIn()) {
             Intent intent = new Intent(this, LoginActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
@@ -47,54 +39,38 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-         */
-
-
-
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         setupNavigation();
 
+        // 매일 22시 일기 작성 알림 등록
+        DiaryReminderScheduler.scheduleDailyDiaryReminder(this);
 
-
-        // 일기 작성 알림 즉시 테스트 - 알림 되는지 바로 보고 싶으면 아래 코드
-        // DiaryReminderScheduler.testDiaryReminderWorkerNow(this);
-
-        /*
-        일기 작성 알림 즉시 테스트 (최초 1회만 실행)
-        SharedPreferences prefs = getSharedPreferences("test", MODE_PRIVATE);
-        boolean tested = prefs.getBoolean("diary_test_done", false);
-
-        if (!tested) {
-            DiaryReminderScheduler.testDiaryReminderWorkerNow(this);
-
-            prefs.edit()
-                    .putBoolean("diary_test_done", true)
-                    .apply();
-        }
-        */
-
-        // 22시에 실행됨
-        // DiaryReminderScheduler.scheduleDailyDiaryReminder(this);
-
-        // userId: 1인 상태
-        // PhotoLocationSyncManager.sync(this, 1);
-
-        /*
-        이후 변화 필요하다면 이렇게
-        int rawUserId = new SessionManager(this).getUserId();
-
-        long userId =
-                rawUserId == -1
-                        ? Constants.DEV_USER_ID
-                        : rawUserId;
-
-        PhotoLocationSyncManager.sync(this, userId);
-         */
+        // 서버 사진 위치 → 로컬 DB 동기화 (재방문 알림용)
+        PhotoLocationSyncManager.sync(this);
 
         // 재방문 위치 알림용 권한 요청 + Foreground Service 시작
         geofenceManager = new GeofenceManager(this);
         geofenceManager.requestLocationPermission();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        AuthInterceptor.setAuthFailedListener(this::redirectToLogin);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        AuthInterceptor.setAuthFailedListener(null);
+    }
+
+    private void redirectToLogin() {
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     private void setupNavigation() {
@@ -104,29 +80,6 @@ public class MainActivity extends AppCompatActivity {
 
         if (navHostFragment != null) {
             navController = navHostFragment.getNavController();
-
-        binding.bottomNavigation.setOnItemSelectedListener(item -> {
-            if (item.getItemId() == R.id.myFragment) {
-                startActivity(new Intent(this, MenuFragment.class));
-                return false; // nav_graph 이동 막기
-            }
-            return NavigationUI.onNavDestinationSelected(item, navController);
-        });
-
-        // 탭 전환 시 상단 타이틀 변경
-        navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
-            if (destination.getId() == R.id.homeFragment) {
-                binding.tvTitle.setText("홈");
-            } else if (destination.getId() == R.id.recommendFragment) {
-                binding.tvTitle.setText("추천");
-            } else if (destination.getId() == R.id.localFragment) {
-                binding.tvTitle.setText("로컬");
-            } else if (destination.getId() == R.id.searchFragment) {
-                binding.tvTitle.setText("검색");
-            } else if (destination.getId() == R.id.myFragment) {
-                binding.tvTitle.setText("My");
-            }
-        });
 
             NavigationUI.setupWithNavController(binding.bottomNavigation, navController);
 
@@ -200,7 +153,6 @@ public class MainActivity extends AppCompatActivity {
         bundle.putString("message", message);
         dialog.setArguments(bundle);
         dialog.show(getSupportFragmentManager(), "notification");
-
     }
 
     @Override
@@ -249,7 +201,6 @@ public class MainActivity extends AppCompatActivity {
                             if (openDiaryDate.equals(diary.date)) {
                                 Bundle bundle = new Bundle();
                                 bundle.putLong("diaryId", diary.diaryId);
-
                                 navController.navigate(R.id.diaryDetailFragment, bundle);
                                 return;
                             }
@@ -261,12 +212,8 @@ public class MainActivity extends AppCompatActivity {
                             retrofit2.Call<com.example.plog.model.ApiResponse<java.util.List<com.example.plog.model.DiarySimpleResponse>>> call,
                             Throwable t
                     ) {
-                        // 테스트용이므로 실패 시 무시
+                        // 실패 시 무시
                     }
-
-
                 });
     }
-
 }
-

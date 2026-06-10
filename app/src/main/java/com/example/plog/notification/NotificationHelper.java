@@ -144,10 +144,10 @@ public class NotificationHelper {
                 if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
                     URL url = new URL(imageUrl);
                     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                    connection.setRequestProperty(
-                            Constants.HEADER_USER_ID,
-                            String.valueOf(Constants.DEV_USER_ID)
-                    );
+                    android.content.SharedPreferences prefs =
+                            context.getSharedPreferences("plog_prefs", android.content.Context.MODE_PRIVATE);
+                    String token = prefs.getString("token", "");
+                    connection.setRequestProperty("Authorization", "Bearer " + token);
                     connection.connect();
 
                     diaryImage = BitmapFactory.decodeStream(connection.getInputStream());

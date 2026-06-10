@@ -36,7 +36,6 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-import android.os.Bundle;
 import androidx.navigation.Navigation;
 
 public class CalendarFragment extends Fragment {
@@ -259,8 +258,11 @@ public class CalendarFragment extends Fragment {
         if (photoUri != null &&
                 (photoUri.startsWith("http://") || photoUri.startsWith("https://"))) {
 
+            android.content.SharedPreferences prefs = requireContext()
+                    .getSharedPreferences("plog_prefs", android.content.Context.MODE_PRIVATE);
+            String token = prefs.getString("token", "");
             return new GlideUrl(photoUri, new LazyHeaders.Builder()
-                    .addHeader(Constants.HEADER_USER_ID, String.valueOf(Constants.DEV_USER_ID))
+                    .addHeader("Authorization", "Bearer " + token)
                     .build());
         }
 

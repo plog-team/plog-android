@@ -18,7 +18,7 @@ public class MapViewModel extends AndroidViewModel {
 
     public MapViewModel(@NonNull Application application) {
         super(application);
-        int userId = new SessionManager(application).getUserId();
+        int userId = (int) new SessionManager(application).getUserId();
         PhotoRepository repository = new PhotoRepository(application);
         locations = repository.getAllLocationsWithImage(userId);  // ← 변경
     }

@@ -2,17 +2,13 @@ package com.example.plog.network.auth;
 
 public class RegisterRequest {
 
-    private String userName;
+    private String name;
     private String email;
-    private String userPassword;
+    private String password;
 
-    public RegisterRequest(
-            String userName,
-            String email,
-            String userPassword
-    ) {
-        this.userName = userName;
+    public RegisterRequest(String name, String email, String password) {
+        this.name = name;
         this.email = email;
-        this.userPassword = userPassword;
+        this.password = password;
     }
 }

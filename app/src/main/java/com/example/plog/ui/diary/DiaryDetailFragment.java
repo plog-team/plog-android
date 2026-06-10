@@ -978,8 +978,11 @@ public class DiaryDetailFragment extends Fragment {
 
     private Object glidePhotoModel(String photoUri) {
         if (photoUri != null && (photoUri.startsWith("http://") || photoUri.startsWith("https://"))) {
+            android.content.SharedPreferences prefs = requireContext()
+                    .getSharedPreferences("plog_prefs", android.content.Context.MODE_PRIVATE);
+            String token = prefs.getString("token", "");
             return new GlideUrl(photoUri, new LazyHeaders.Builder()
-                    .addHeader(Constants.HEADER_USER_ID, String.valueOf(Constants.DEV_USER_ID))
+                    .addHeader("Authorization", "Bearer " + token)
                     .build());
         }
         return Uri.parse(photoUri);

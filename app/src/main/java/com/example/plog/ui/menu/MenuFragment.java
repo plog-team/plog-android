@@ -147,17 +147,11 @@ public class MenuFragment extends Fragment {
 
     private void clearTokenAndGoLogin() {
 
-        requireContext()
-                .getSharedPreferences("auth", requireContext().MODE_PRIVATE)
-                .edit()
-                .clear()
-                .apply();
-
-        requireContext()
-                .getSharedPreferences("plog_prefs", requireContext().MODE_PRIVATE)
-                .edit()
-                .clear()
-                .apply();
+        for (String name : new String[]{"auth", "plog_prefs", "diary_session"}) {
+            requireContext()
+                    .getSharedPreferences(name, requireContext().MODE_PRIVATE)
+                    .edit().clear().apply();
+        }
 
         Intent intent =
                 new Intent(requireContext(), LoginActivity.class);

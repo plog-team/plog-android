@@ -39,7 +39,7 @@ public class AnalysisViewModel extends AndroidViewModel {
         super(application);
         repository     = new AnalysisRepository(application);
         photoRepository = new PhotoRepository(application);
-        userId         = new SessionManager(application).getUserId();
+        userId         = (int) new SessionManager(application).getUserId();
 
         // 지도 위치 데이터 — 현재 월(일기 사진 추가일 기준)만 표시
         long[] range = currentMonthRange();
