@@ -24,7 +24,7 @@ public class RetrofitClient {
             OkHttpClient client = new OkHttpClient.Builder()
                     .addInterceptor(chain -> {
                         SharedPreferences prefs = appContext.getSharedPreferences("plog_prefs", Context.MODE_PRIVATE);
-                        int userId = prefs.getInt("userId", 1);
+                        int userId = (int) prefs.getLong("userId", -1L);
 
                         Request request = chain.request().newBuilder()
                                 .addHeader("X-User-Id", String.valueOf(userId))
