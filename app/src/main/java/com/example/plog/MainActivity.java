@@ -32,7 +32,6 @@ public class MainActivity extends AppCompatActivity {
         RetrofitClient.init(this);
 
         SessionManager sessionManager = new SessionManager(this);
-        sessionManager.saveSession(1L, "");
 
         if (!sessionManager.isLoggedIn()) {
             Intent intent = new Intent(this, LoginActivity.class);
