@@ -260,6 +260,12 @@ public interface ApiService {
             @Query("limit") int limit
     );
 
+    @GET("/api/diaries/public")
+    Call<ApiResponse<List<DiarySimpleResponse>>> getPublicDiaries(
+            @Query("userId") long userId,
+            @Query("limit") int limit
+    );
+
     // AI 챗봇 세션 목록 조회
     @GET("/api/chat/sessions")
     Call<AiChatSessionListResponse> getSessions(
