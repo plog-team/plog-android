@@ -50,6 +50,7 @@
                 android:textSize="11sp"
                 android:gravity="center"
                 android:textColor="#333333"
+                android:visibility="gone"
                 android:background="@drawable/bg_filter_button" />
         </LinearLayout>
 
