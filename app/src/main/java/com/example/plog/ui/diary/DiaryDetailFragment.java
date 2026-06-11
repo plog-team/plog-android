@@ -61,7 +61,7 @@ public class DiaryDetailFragment extends Fragment {
     private static final String[] EMOJI_PALETTE = {
             "\uD83D\uDE0A", "\u2B50", "\u2764\uFE0F", "\uD83C\uDF89", "\uD83C\uDF08", "\uD83D\uDC4D"
     };
-
+    private boolean pendingDeleteIsDiary = false;
     private FragmentDiaryDetailBinding binding;
     private long diaryId = -1L;
     private String diaryDate;
@@ -402,6 +402,8 @@ public class DiaryDetailFragment extends Fragment {
                 args.putLong("diaryId", diaryId);
                 Navigation.findNavController(v).navigate(R.id.action_diaryDetailFragment_to_diaryEditFragment, args);
             });
+
+            binding.btnDeleteDiary.setOnClickListener(v -> confirmDeleteDiary());
         }
         binding.btnEmoji.setOnClickListener(v -> {
             boolean show = binding.emojiPalette.getVisibility() != View.VISIBLE;
@@ -411,7 +413,13 @@ public class DiaryDetailFragment extends Fragment {
         binding.deleteSheetScrim.setOnClickListener(v -> hideDeleteSheet());
         binding.deleteSheet.setOnClickListener(v -> {});
         binding.btnCancelDelete.setOnClickListener(v -> hideDeleteSheet());
-        binding.btnConfirmDelete.setOnClickListener(v -> deletePendingComment());
+        binding.btnConfirmDelete.setOnClickListener(v -> {
+            if (pendingDeleteIsDiary) {
+                deleteDiary();
+            } else {
+                deletePendingComment();
+            }
+        });
     }
 
     private void loadComments() {
@@ -692,6 +700,7 @@ public class DiaryDetailFragment extends Fragment {
 
     private void confirmDeleteComment(String commentId) {
         pendingDeleteCommentId = commentId;
+        pendingDeleteIsDiary = false; // 추가
         binding.deleteSheetScrim.setVisibility(View.VISIBLE);
         binding.deleteSheet.setTranslationY(dp(120));
         binding.deleteSheet.animate().translationY(0).setDuration(160).start();
@@ -995,6 +1004,39 @@ public class DiaryDetailFragment extends Fragment {
     private int dp(int value) {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
+
+    private void confirmDeleteDiary() {
+        pendingDeleteIsDiary = true;
+        binding.tvDeleteSheetTitle.setText("일기를 삭제할까요?");
+        binding.deleteSheetScrim.setVisibility(View.VISIBLE);
+        binding.deleteSheet.setTranslationY(dp(120));
+        binding.deleteSheet.animate().translationY(0).setDuration(160).start();
+    }
+
+    private void deleteDiary() {
+        ApiClient.getApiService().deleteDiary(diaryId)
+                .enqueue(new Callback<Void>() {
+                    @Override
+                    public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
+                        pendingDeleteIsDiary = false;
+                        binding.deleteSheetScrim.setVisibility(View.GONE);
+                        if (response.isSuccessful()) {
+                            Toast.makeText(requireContext(), "일기가 삭제되었습니다.", Toast.LENGTH_SHORT).show();
+                            Navigation.findNavController(binding.getRoot()).navigateUp();
+                        } else {
+                            Toast.makeText(requireContext(), "삭제 실패 (" + response.code() + ")", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                    @Override
+                    public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {
+                        pendingDeleteIsDiary = false;
+                        binding.deleteSheetScrim.setVisibility(View.GONE);
+                        Toast.makeText(requireContext(), "삭제 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+
 
     @Override
     public void onDestroyView() {

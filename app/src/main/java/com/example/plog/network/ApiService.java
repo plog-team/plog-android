@@ -192,6 +192,9 @@ public interface ApiService {
             @Body DiaryLineCommentUpdateRequest request
     );
 
+    @DELETE("/api/diaries/{diaryId}")
+    Call<Void> deleteDiary(@Path("diaryId") long diaryId);
+
     @DELETE("api/diaries/{diaryId}/comments/{commentId}")
     Call<Void> deleteDiaryComment(
             @Path("diaryId") long diaryId,
