@@ -12,7 +12,7 @@ public class ApiClient {
 
     private static Retrofit retrofit = null;
 
-    private static final String BASE_URL = "http://3.36.55.8:8080/";
+    private static final String BASE_URL = "http://15.164.216.93:8080/";
     // private static final String BASE_URL = "http://10.0.2.2:8080/";
 
     private static Context appContext = null;

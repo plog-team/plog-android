@@ -7,7 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitClient {
 
-    public static final String BASE_URL = "http://3.36.55.8:8080/"; // AWS
+    public static final String BASE_URL = "http://15.164.216.93:8080/"; // AWS
     //private static final String BASE_URL = "http://10.0.2.2:8080/";
     private static Retrofit retrofit = null;
     private static Context appContext;
