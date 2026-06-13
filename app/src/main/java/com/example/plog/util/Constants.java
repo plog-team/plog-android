@@ -4,7 +4,7 @@ public class Constants {
 
     // public static final String BASE_URL = "http://10.0.2.2:8080/";
 
-    public static final String BASE_URL = "http://3.36.55.8:8080/"; // AWS
+    public static final String BASE_URL = "http://15.164.216.93:8080/"; // AWS
 
     // Kakao REST API KEY
     public static final String KAKAO_REST_API_KEY = "52561ed4a8e63e6d5e5dcd340c4965bd";
