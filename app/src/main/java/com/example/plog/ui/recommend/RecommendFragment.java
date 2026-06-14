@@ -2,6 +2,7 @@ package com.example.plog.ui.recommend;
 import androidx.core.widget.NestedScrollView;
 import android.Manifest;
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.*;
@@ -33,7 +34,7 @@ public class RecommendFragment extends Fragment {
     private static final int NEARBY_RADIUS    = 2000;
     private static final int FEATURED_RADIUS  = 1000;
 
-    // ── 서울 실시간 혼잡도 지원 지점 (좌표 → area명) ──────────────────────────
+    //서울 실시간 혼잡도 지원 지점 (좌표 → area명)
     private static final double[][] CONGESTION_COORDS = {
             {37.5172, 127.0473}, {37.5563, 126.9236}, {37.5636, 126.9869},
             {37.5796, 126.9770}, {37.5340, 126.9940}, {37.5133, 127.1001},
@@ -74,6 +75,7 @@ public class RecommendFragment extends Fragment {
     private int currentPage = 1;
     private boolean hasMorePages = true;
     private FusedLocationProviderClient fusedLocationClient;
+    private ProgressDialog sortProgressDialog;
 
     @Nullable @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -391,7 +393,9 @@ public class RecommendFragment extends Fragment {
                 });
     }
 
-    // ── 가장 가까운 혼잡도 지점 자동 배정 (좌표 기반) ──────────────────────────
+    // 가장 가까운 혼잡도 지점 자동 배정 (좌표 기반) 혼잡도 지점과의 거리 제한 (위경도 제곱거리 기준, 약 5km 이내만 매칭)
+    private static final double CONGESTION_MAX_DIST_SQ = 0.0025;
+
     private String getNearestCongestionArea(double lat, double lon) {
         double minDist = Double.MAX_VALUE;
         String nearest = null;
@@ -400,10 +404,11 @@ public class RecommendFragment extends Fragment {
                     + Math.pow(lon - CONGESTION_COORDS[i][1], 2);
             if (d < minDist) { minDist = d; nearest = CONGESTION_NAMES[i]; }
         }
+        if (minDist > CONGESTION_MAX_DIST_SQ) return null;
         return nearest;
     }
 
-    // ── 혼잡도 조회 & 인기순 정렬 (matchAreaFromAddress 완전 제거, 좌표 기반) ──
+    // 혼잡도 조회 & 인기순 정렬 (matchAreaFromAddress 완전 제거, 좌표 기반)
     private void fetchCongestionAndSort() {
         if (originalList.isEmpty()) return;
 
@@ -422,11 +427,21 @@ public class RecommendFragment extends Fragment {
                 tvSortBtn.setText("거리순 ∨");
                 new AlertDialog.Builder(requireContext())
                         .setTitle("인기순 정렬 불가")
-                        .setMessage("주변에 실시간 혼잡도 지원 지역이 없어\n거리순으로 유지합니다.")
+                        .setMessage("인기순은 서울 지역 실시간 혼잡도 정보를 기반으로 제공돼요.\n현재 주변에는 지원되는 지역이 없어\n거리순으로 유지합니다.")
                         .setPositiveButton("확인", null)
                         .show();
             });
             return;
+        }
+
+        // 정렬 진행 중 로딩 표시
+        if (isAdded()) {
+            requireActivity().runOnUiThread(() -> {
+                sortProgressDialog = new ProgressDialog(requireContext());
+                sortProgressDialog.setMessage("인기순으로 정렬하는 중...");
+                sortProgressDialog.setCancelable(false);
+                sortProgressDialog.show();
+            });
         }
 
         int[] completed    = {0};
@@ -469,11 +484,12 @@ public class RecommendFragment extends Fragment {
                 if (successCount[0] == 0) {
                     if (isAdded()) {
                         requireActivity().runOnUiThread(() -> {
+                            dismissSortProgress();
                             isSortedByPopularity = false;
                             tvSortBtn.setText("거리순 ∨");
                             new AlertDialog.Builder(requireContext())
                                     .setTitle("인기순 정렬 실패")
-                                    .setMessage("혼잡도 정보를 가져오지 못했어요.\n거리순으로 유지합니다.")
+                                    .setMessage("서울 실시간 혼잡도 정보를 가져오지 못했어요.\n거리순으로 유지합니다.")
                                     .setPositiveButton("확인", null)
                                     .show();
                         });
@@ -485,6 +501,7 @@ public class RecommendFragment extends Fragment {
                         (a, b) -> b.getCongestionScore() - a.getCongestionScore());
                 if (isAdded()) {
                     requireActivity().runOnUiThread(() -> {
+                        dismissSortProgress();
                         nearbyList.clear();
                         nearbyList.addAll(sorted);
                         recommendAdapter.updateItems(nearbyList);
@@ -492,6 +509,13 @@ public class RecommendFragment extends Fragment {
                 }
             }
         }
+    }
+
+    private void dismissSortProgress() {
+        if (sortProgressDialog != null && sortProgressDialog.isShowing()) {
+            sortProgressDialog.dismiss();
+        }
+        sortProgressDialog = null;
     }
 
     // DTO → PlaceItem 변환
@@ -583,6 +607,12 @@ public class RecommendFragment extends Fragment {
             case "38": return "쇼핑";     case "39": return "음식점";
             default:   return "기타";
         }
+    }
+
+    @Override
+    public void onDestroyView() {
+        dismissSortProgress();
+        super.onDestroyView();
     }
 
     @Override
