@@ -34,7 +34,7 @@ public class RecommendFragment extends Fragment {
     private static final int NEARBY_RADIUS    = 2000;
     private static final int FEATURED_RADIUS  = 1000;
 
-    // ── 서울 실시간 혼잡도 지원 지점 (좌표 → area명) ──────────────────────────
+    //서울 실시간 혼잡도 지원 지점 (좌표 → area명)
     private static final double[][] CONGESTION_COORDS = {
             {37.5172, 127.0473}, {37.5563, 126.9236}, {37.5636, 126.9869},
             {37.5796, 126.9770}, {37.5340, 126.9940}, {37.5133, 127.1001},
@@ -393,8 +393,7 @@ public class RecommendFragment extends Fragment {
                 });
     }
 
-    // ── 가장 가까운 혼잡도 지점 자동 배정 (좌표 기반) ──────────────────────────
-    // 혼잡도 지점과의 거리 제한 (위경도 제곱거리 기준, 약 5km 이내만 매칭)
+    // 가장 가까운 혼잡도 지점 자동 배정 (좌표 기반) 혼잡도 지점과의 거리 제한 (위경도 제곱거리 기준, 약 5km 이내만 매칭)
     private static final double CONGESTION_MAX_DIST_SQ = 0.0025;
 
     private String getNearestCongestionArea(double lat, double lon) {
@@ -409,7 +408,7 @@ public class RecommendFragment extends Fragment {
         return nearest;
     }
 
-    // ── 혼잡도 조회 & 인기순 정렬 (matchAreaFromAddress 완전 제거, 좌표 기반) ──
+    // 혼잡도 조회 & 인기순 정렬 (matchAreaFromAddress 완전 제거, 좌표 기반)
     private void fetchCongestionAndSort() {
         if (originalList.isEmpty()) return;
 
