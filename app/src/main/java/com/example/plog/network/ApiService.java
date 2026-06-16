@@ -54,14 +54,14 @@ public interface ApiService {
     // AI 챗봇 세션 시작 (FREE_CHAT)
     @POST("/api/chat/session")
     Call<AiChatSessionResponse> startSession(
-            @Query("userId") Long userIdParam,
+            @Query("userId") Long userId,
             @Query("type") String type
     );
 
     // AI 챗봇 세션 시작 (DIARY_ASSIST)
     @POST("/api/chat/session")
     Call<AiChatSessionResponse> startSessionWithDate(
-            @Query("userId") Long userIdParam,
+            @Query("userId") long userId,
             @Query("type") String type,
             @Query("date") String date
     );

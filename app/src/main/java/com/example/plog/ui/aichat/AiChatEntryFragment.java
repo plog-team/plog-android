@@ -1,5 +1,7 @@
 package com.example.plog.ui.aichat;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,6 +16,8 @@ import com.example.plog.databinding.FragmentAiChatEntryBinding;
 import com.example.plog.network.ApiClient;
 import com.example.plog.network.ApiService;
 import com.example.plog.network.aichat.AiChatSessionListResponse;
+import com.example.plog.util.SessionManager;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -21,9 +25,10 @@ import retrofit2.Response;
 public class AiChatEntryFragment extends Fragment {
 
     private FragmentAiChatEntryBinding binding;
-    private ApiService apiService;                  // ← 추가
-    private AiChatSessionAdapter sessionAdapter;    // ← 추가
-    private static final long USER_ID = 1L;         // ← 추가
+    private ApiService apiService;
+    private AiChatSessionAdapter sessionAdapter;
+
+    private long userId;
 
     @Nullable
     @Override
@@ -37,6 +42,9 @@ public class AiChatEntryFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+
+        SessionManager sessionManager = new SessionManager(requireContext());
+        userId = sessionManager.getUserId();
 
         apiService = ApiClient.getClient().create(ApiService.class);
 
@@ -64,7 +72,7 @@ public class AiChatEntryFragment extends Fragment {
     }
 
     private void loadSessions() {
-        apiService.getSessions(USER_ID).enqueue(new Callback<AiChatSessionListResponse>() {
+        apiService.getSessions(userId).enqueue(new Callback<AiChatSessionListResponse>() {
             @Override
             public void onResponse(Call<AiChatSessionListResponse> call, Response<AiChatSessionListResponse> response) {
                 if (response.isSuccessful() && response.body() != null

@@ -1,6 +1,7 @@
 package com.example.plog.ui.aichat;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,6 +17,7 @@ import com.example.plog.network.ApiService;
 import com.example.plog.network.aichat.AiChatMessageResponse;
 import com.example.plog.network.aichat.AiChatSessionResponse;
 import com.example.plog.network.aichat.AiChatSessionDetailResponse;
+import com.example.plog.util.SessionManager;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -27,7 +29,8 @@ public class AiChatFragment extends Fragment {
     private AiChatAdapter adapter;
     private ApiService apiService;
     private long sessionId = -1;
-    private static final long USER_ID = 1L;
+
+    private long userId;
 
     @Nullable
     @Override
@@ -43,6 +46,11 @@ public class AiChatFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         apiService = ApiClient.getClient().create(ApiService.class);
+
+        SessionManager sessionManager = new SessionManager(requireContext());
+        userId = sessionManager.getUserId();
+
+        Log.d("AI_CHAT", "userId = " + userId);
 
         adapter = new AiChatAdapter();
         binding.recyclerChat.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -131,9 +139,9 @@ public class AiChatFragment extends Fragment {
     private void startSession(String type, @Nullable String date) {
         Call<AiChatSessionResponse> call;
         if (date != null) {
-            call = apiService.startSessionWithDate(USER_ID, type, date);
+            call = apiService.startSessionWithDate(userId, type, date);
         } else {
-            call = apiService.startSession(USER_ID, type);
+            call = apiService.startSession(userId, type);
         }
 
         call.enqueue(new Callback<AiChatSessionResponse>() {
